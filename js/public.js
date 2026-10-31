@@ -1,0 +1,715 @@
+/* ============================================================
+   MEvent — public.js
+   Halaman awal, login (NISN, voting lomba, PTK/juri, admin),
+   voting OSIS & lomba, terima kasih, formulir, beranda PTK, juri.
+   ============================================================ */
+'use strict';
+
+function sekolah() { return (AppState.pub && AppState.pub.sekolah) || {}; }
+function heroLogo(cls) { const s = sekolah(); const l = logoHtml(s.LogoUrl, 'logo sekolah'); return '<div class="hero-logo ' + (cls || '') + '">' + (l || ic('graduation-cap', 'ic-xl')) + '</div>'; }
+function appbar(o) {
+  return '<div class="appbar">' + (o.back !== false ? '<button class="btn btn-ghost btn-icon" data-act="back" aria-label="Kembali">' + ic('arrow-left') + '</button>' : '') +
+    (o.logo ? '<span class="avatar avatar-sm" style="background:var(--primary-tint)">' + (logoHtml(sekolah().LogoUrl) || ic('graduation-cap', 'ic-sm')) + '</span>' : '') +
+    '<div class="grow"><div class="ttl ellipsis">' + esc(o.title) + '</div>' + (o.sub ? '<div class="sub ellipsis">' + esc(o.sub) + '</div>' : '') + '</div>' + (o.right || '') + '</div>';
+}
+function demoHintCard(kind) {
+  const h = AppState.mode === 'demo' && AppState.pub && AppState.pub.demoHint;
+  if (!h) return '';
+  let t = '';
+  if (kind === 'admin') t = 'Username <b>' + esc(h.admin.username) + '</b> · kata sandi <b>' + esc(h.admin.password) + '</b>';
+  if (kind === 'ptk') t = 'Pilih nama mana saja · kata sandi <b>' + esc(h.ptkPassword) + '</b><br><span class="small">' + h.ptkContoh.map(esc).join(' · ') + '</span>';
+  if (kind === 'tamu') t = 'Juri tamu <b>' + esc(h.juriTamu.nama) + '</b> · kata sandi <b>' + esc(h.juriTamu.password) + '</b>';
+  if (kind === 'nisn') t = 'Contoh NISN demo: ' + h.nisn.map(n => '<b class="mono">' + n + '</b>').join(', ');
+  return '<div class="alert alert-amber mt-16 small">' + ic('flask-conical', 'ic-sm') + '<div><b>Akun demo:</b> ' + t + '</div></div>';
+}
+function bindBack(el, target) { el.addEventListener('click', (e) => { if (e.target.closest('[data-act=back]')) { if (typeof target === 'function') target(); else go(target || ''); } }); }
+
+/* Akhiri sesi pemilih tanpa menghapus sesi admin/PTK yang tersimpan di perangkat. */
+function endVoter() {
+  AppState.vote = null;
+  if (AppState.role === 'siswa' || AppState.role === 'lomba') { AppState.token = ''; AppState.role = ''; AppState.user = null; restoreSession(); }
+}
+
+/* ============================================================
+   HALAMAN AWAL
+   ============================================================ */
+registerPage('home', {
+  init(el) { el.addEventListener('click', onHomeClick); },
+  show(el) { endVoter(); renderHome(el); loadPublicBoot(); },
+  onPub() { const el = $('.page[data-page="home"]'); if (el && !el.hidden) renderHome(el); }
+});
+function renderHome(el) {
+  const p = AppState.pub, s = sekolah();
+  const osis = p && p.osis.find(o => o.VotingDibuka === 'Ya');
+  const lomba = p && p.lomba.length ? p.lomba : null;
+  let evCard;
+  if (!p) evCard = '<div class="card card-pad"><div class="sk sk-line" style="width:40%"></div><div class="sk sk-line" style="width:80%;height:22px"></div><div class="sk sk-line" style="width:35%"></div></div>';
+  else if (osis || lomba) {
+    const judul = osis ? osis.Judul : lomba[0].EventJudul;
+    evCard = '<div class="card card-pad"><div class="row between"><span class="small muted" style="font-weight:700;letter-spacing:.06em">EVENT BERLANGSUNG</span><span class="badge badge-green"><span class="dot"></span>Voting Dibuka</span></div>' +
+      '<div style="font-size:19px;font-weight:700;margin-top:6px;line-height:1.3">' + esc(judul) + '</div>' +
+      '<div class="row muted mt-8">' + ic('calendar', 'ic-sm') + '<span>' + esc(osis ? tgl(osis.TanggalMulai) : lomba.map(l => l.NamaCabang).join(' · ')) + '</span></div></div>';
+  } else evCard = '<div class="card card-pad"><div class="small muted" style="font-weight:700;letter-spacing:.06em">EVENT BERLANGSUNG</div><div style="font-size:17px;font-weight:700;margin-top:6px">Belum ada voting yang dibuka</div><div class="muted mt-8 small">Pantau pengumuman panitia untuk jadwal pemilihan & lomba.</div></div>';
+  const menu = (act, icon, tile, t, sub, off, badge) => '<div class="card menu-card card-tap' + (off ? ' is-off' : '') + '" tabindex="0" role="button" data-act="' + act + '"><span class="icon-tile ' + tile + '">' + ic(icon, 'ic-lg') + '</span><div class="grow"><div class="t">' + t + '</div><div class="s">' + sub + '</div></div>' + (badge || '') + '<span class="chev">' + ic('chevron-right') + '</span></div>';
+  const sess = AppState.token && (AppState.role === 'admin' || AppState.role === 'ptk' || AppState.role === 'tamu') && AppState.user;
+  el.innerHTML = '<div class="pub"><div class="pub-inner">' +
+    '<div class="hero">' + heroLogo() + '<div class="hero-school">' + esc(s.NamaSekolah || (p ? 'Sekolah' : '…')) + '</div><div class="hero-app">MEvent</div><div class="hero-sub">Manajemen Event Sekolah</div></div>' +
+    '<div class="float-card">' + evCard + '</div><div class="pub-body">' +
+    (sess ? '<div class="card menu-card card-tap mt-16" data-act="lanjut" tabindex="0" role="button" style="border-color:var(--primary-tint-2);background:var(--primary-tint)">' + avatarHtml(AppState.user.nama) + '<div class="grow"><div class="t">Lanjutkan sebagai ' + esc(AppState.user.nama) + '</div><div class="s">' + (AppState.role === 'admin' ? 'Buka dasbor admin' : 'Buka beranda PTK') + '</div></div><span class="chev">' + ic('chevron-right') + '</span></div>' : '') +
+    '<div class="pub-section-title">Masuk sebagai</div>' +
+    menu('nisn', 'vote', '', 'Voting OSIS', 'Masuk dengan NISN', p && !osis, p && !osis ? '<span class="badge badge-gray">Belum dibuka</span>' : '') +
+    menu('lomba', 'trophy', 'amber', 'Voting Lomba', 'Pilih kelas lalu nama', p && !lomba, p && !lomba ? '<span class="badge badge-gray">Belum dibuka</span>' : '') +
+    menu('masuk-ptk', 'user-check', '', 'PTK / Juri', 'Pilih nama dan kata sandi') +
+    menu('masuk-admin', 'shield-check', 'gray', 'Admin', 'Username dan kata sandi') +
+    '<button class="btn btn-soft btn-block btn-lg mt-8" data-act="formulir">' + ic('file-text') + ' Isi Formulir Pendaftaran' + (p && p.jumlahFormulir ? ' <span class="pill-num">' + p.jumlahFormulir + '</span>' : '') + '</button>' +
+    (AppState.mode === 'live' && p && p.demo && p.demo.aktif ? '<div class="card menu-card card-tap mt-16" data-act="demo" tabindex="0" role="button" style="border-style:dashed"><span class="icon-tile amber">' + ic('flask-conical', 'ic-lg') + '</span><div class="grow"><div class="t">Coba Mode Demo</div><div class="s">Jelajahi semua fitur dengan data contoh</div></div><span class="chev">' + ic('chevron-right') + '</span></div>' : '') +
+    (AppState.mode === 'demo' && p && p.demoHint ? '<div class="alert alert-amber mt-16 small" style="align-items:flex-start">' + ic('flask-conical', 'ic-sm') + '<div style="line-height:1.6"><b>Akun demo</b><br>Admin: <b>' + esc(p.demoHint.admin.username) + '</b> / <b>' + esc(p.demoHint.admin.password) + '</b><br>PTK & juri tamu: kata sandi <b>' + esc(p.demoHint.ptkPassword) + '</b><br>NISN siswa: ' + p.demoHint.nisn.map(n => '<span class="mono">' + n + '</span>').join(', ') + '</div></div>' : '') +
+    '<p class="center muted small" style="margin-top:28px">© ' + new Date().getFullYear() + ' MEvent · ' + esc(s.NamaSekolah || '') + '</p>' +
+    '</div></div></div>';
+}
+function onHomeClick(e) {
+  const b = e.target.closest('[data-act]'); if (!b) return;
+  const a = b.dataset.act;
+  if (a === 'demo') return enterDemo();
+  if (a === 'lanjut') return go(AppState.role === 'admin' ? 'dasbor' : 'ptk');
+  if (a === 'nisn' || a === 'lomba') {
+    const p = AppState.pub;
+    if (p && a === 'nisn' && !p.osis.some(o => o.VotingDibuka === 'Ya')) return toast('Voting OSIS belum dibuka', 'Tunggu panitia membuka voting.', 'info');
+    if (p && a === 'lomba' && !p.lomba.length) return toast('Voting lomba belum dibuka', 'Tunggu panitia membuka voting.', 'info');
+  }
+  if ((a === 'masuk-admin' && AppState.role === 'admin') || (a === 'masuk-ptk' && (AppState.role === 'ptk' || AppState.role === 'tamu'))) return go(a === 'masuk-admin' ? 'dasbor' : 'ptk');
+  go(a);
+}
+document.addEventListener('keydown', (e) => { if (e.key === 'Enter' && e.target.classList && e.target.classList.contains('card-tap')) e.target.click(); });
+
+/* ============================================================
+   LOGIN NISN — Voting OSIS
+   ============================================================ */
+registerPage('nisn', {
+  init(el) {
+    el._v = '';
+    el.addEventListener('click', (e) => {
+      const k = e.target.closest('[data-k]');
+      if (k) { nisnKey(el, k.dataset.k); return; }
+      const b = e.target.closest('[data-act]'); if (!b) return;
+      if (b.dataset.act === 'back') go('');
+      if (b.dataset.act === 'clear') { el._v = ''; nisnPaint(el); }
+      if (b.dataset.act === 'masuk') nisnSubmit(el, b);
+    });
+  },
+  show(el) {
+    endVoter();
+    el._v = '';
+    const p = AppState.pub, osis = p && p.osis.find(o => o.VotingDibuka === 'Ya');
+    el.innerHTML = '<div class="pub"><div class="pub-inner">' + appbar({ title: 'Login Siswa — Voting OSIS', sub: sekolah().NamaSekolah }) +
+      '<div class="pub-body center">' + heroLogo('') + '<h3 style="font-size:20px">' + esc(osis ? osis.Judul : 'Pemilihan Ketua OSIS') + '</h3><div class="muted">' + esc(sekolah().NamaSekolah || '') + '</div>' +
+      '<span class="badge ' + (osis ? 'badge-green' : 'badge-gray') + ' mt-8"><span class="dot"></span>' + (osis ? 'Voting Dibuka' : 'Voting belum dibuka') + '</span></div>' +
+      '<div class="pub-body"><div class="card card-pad"><div class="row between"><div><div style="font-weight:700;font-size:18px">NISN</div><div class="muted small">Nomor Induk Siswa Nasional</div></div><span class="badge badge-gray" id="nisn-count">0/10</span></div>' +
+      '<div class="nisn-box mt-12" id="nisn-box"><span class="ico">' + ic('id-card') + '</span><div class="nisn-digits" id="nisn-digits"></div><button class="btn btn-ghost btn-icon btn-sm" data-act="clear" aria-label="Hapus semua">' + ic('circle-x') + '</button></div>' +
+      '<div class="row muted small mt-8">' + ic('info', 'ic-sm') + '<span>NISN tertera di kartu pelajar atau tanyakan wali kelas.</span></div>' +
+      '<div id="nisn-err"></div>' +
+      '<button class="btn btn-primary btn-block btn-lg mt-16" data-act="masuk">Masuk & Mulai Memilih ' + ic('arrow-right') + '</button>' + demoHintCard('nisn') + '</div></div>' +
+      '<div class="keypad">' + ['1', '2', '3', '4', '5', '6', '7', '8', '9'].map(n => '<button type="button" data-k="' + n + '">' + n + '</button>').join('') +
+      '<button type="button" data-k="del" aria-label="Hapus">' + ic('delete', 'ic-lg') + '</button><button type="button" data-k="0">0</button><button type="button" class="k-ok" data-k="ok">' + ic('check') + ' OK</button></div>' +
+      '<div class="row muted small center" style="justify-content:center;padding:14px 16px">' + ic('shield-check', 'ic-sm') + '<span>Pilihanmu rahasia · Satu NISN hanya satu kali memilih · Kamu akan otomatis keluar setelah memilih</span></div>' +
+      '</div></div>';
+    nisnPaint(el);
+    if (!el._kb) {
+      el._kb = (e) => {
+        if (el.hidden) return;
+        if (/^\d$/.test(e.key)) nisnKey(el, e.key);
+        else if (e.key === 'Backspace') nisnKey(el, 'del');
+        else if (e.key === 'Enter') nisnKey(el, 'ok');
+      };
+      document.addEventListener('keydown', el._kb);
+    }
+  }
+});
+function nisnKey(el, k) {
+  if (k === 'del') el._v = el._v.slice(0, -1);
+  else if (k === 'ok') return nisnSubmit(el, $('[data-act=masuk]', el));
+  else if (el._v.length < 10) el._v += k;
+  nisnPaint(el);
+}
+function nisnPaint(el) {
+  const d = $('#nisn-digits', el); if (!d) return;
+  d.innerHTML = el._v ? esc(el._v) : '<span class="ph">Masukkan 10 digit NISN</span>';
+  const c = $('#nisn-count', el);
+  c.textContent = el._v.length + '/10';
+  c.className = 'badge ' + (el._v.length === 10 ? 'badge-green' : 'badge-gray');
+  $('#nisn-box', el).classList.toggle('focus', !!el._v);
+  $('#nisn-err', el).innerHTML = '';
+}
+async function nisnSubmit(el, btn) {
+  if (btn.classList.contains('is-busy')) return;
+  if (el._v.length !== 10) { $('#nisn-err', el).innerHTML = '<div class="alert alert-red mt-12 small">' + ic('circle-x', 'ic-sm') + '<span>NISN harus 10 digit angka.</span></div>'; return; }
+  const res = await busy(btn, () => api('loginNisn', { nisn: el._v }));
+  if (!res.success) {
+    const code = res.data && res.data.code;
+    $('#nisn-err', el).innerHTML = '<div class="alert alert-red mt-12" style="align-items:flex-start">' + ic('circle-x') + '<div class="grow"><b>' + esc(res.message) + '</b>' + (code && code.indexOf('E-') === 0 ? '<div class="small" style="opacity:.8">Kode: ' + esc(code) + '</div>' : '') + '</div></div>';
+    if (code === 'E-409') { el._v = ''; setTimeout(() => nisnPaint(el), 2600); }
+    return;
+  }
+  const d = res.data;
+  AppState.token = d.token; AppState.role = 'siswa'; AppState.user = d.user;
+  AppState.vote = { type: 'osis', event: d.event, kandidat: d.kandidat, user: d.user };
+  go('osis');
+}
+
+/* ============================================================
+   VOTING OSIS (siswa & PTK)
+   ============================================================ */
+registerPage('osis', {
+  auth: 'voter',
+  init(el) {
+    el.addEventListener('click', (e) => {
+      const b = e.target.closest('[data-act]'); if (!b) return;
+      const a = b.dataset.act;
+      if (a === 'back') { const t = AppState.vote && AppState.vote.type; endVoter(); go(t === 'osis-ptk' ? 'ptk' : ''); }
+      if (a === 'acc') b.closest('.acc').classList.toggle('open');
+      if (a === 'pilih') konfirmasiOsis(b.dataset.id);
+    });
+  },
+  show(el) {
+    const v = AppState.vote;
+    if (!v || (v.type !== 'osis' && v.type !== 'osis-ptk')) return go('');
+    const u = v.user || AppState.user || {};
+    el.innerHTML = '<div class="pub"><div class="pub-inner">' +
+      appbar({ title: v.event.Judul, sub: sekolah().NamaSekolah, logo: true, back: v.type === 'osis-ptk', right: '<span class="who-chip"><span class="dot"></span><span class="ellipsis">Halo, ' + esc(String(u.nama || '').split(' ')[0]) + (u.kelas ? ' · ' + esc(u.kelas) : '') + '</span></span>' }) +
+      '<div class="pub-body"><div class="alert alert-blue" style="align-items:flex-start">' + ic('lock') + '<div><b>Hak Suara Terlindungi</b><div class="small" style="opacity:.85">Pilih satu ' + (v.kandidat.some(k => k.Tipe === 'Pasangan') ? 'pasangan calon' : 'calon') + '. Pilihanmu bersifat rahasia.</div></div></div>' +
+      '<div class="row between" style="margin:18px 4px 12px"><span class="small muted" style="font-weight:700;letter-spacing:.05em">DAFTAR ' + (v.kandidat.some(k => k.Tipe === 'Pasangan') ? 'PASANGAN CALON' : 'CALON') + ' (' + v.kandidat.length + ')</span><span class="badge">Surat Suara Digital</span></div>' +
+      v.kandidat.map((k, i) => kartuCalon(k, i)).join('') + '</div>' +
+      '<div class="sticky-note">' + ic('shield-check', 'ic-sm') + '<span>Satu orang hanya satu suara · Setelah memilih, kamu otomatis keluar</span></div></div></div>';
+  }
+});
+function kartuCalon(k, i) {
+  const pas = k.Tipe === 'Pasangan';
+  const foto = (id, nama, role, tag) => '<div><div class="cand-photo">' + photoHtml(id, nama, 500) + (role ? '<span class="tag"><span class="badge ' + (tag === 'w' ? 'badge-amber' : '') + '" style="' + (tag === 'w' ? '' : 'background:var(--primary);color:#fff') + '">' + role + '</span></span>' : '') + '</div>' +
+    '<div class="cand-role">' + (role ? 'Calon ' + (tag === 'w' ? 'Wakil' : 'Ketua') : 'Calon') + '</div><div class="cand-name">' + esc(nama) + '</div><div class="muted small">' + (tag === 'w' ? esc(k.Kelas2 ? 'Kelas ' + k.Kelas2 : '') : esc(k.Kelas1 ? 'Kelas ' + k.Kelas1 : '')) + '</div></div>';
+  return '<div class="card cand"><div class="cand-head"><span class="cand-no' + (i ? ' dark' : '') + '">' + noUrut(k.NoUrut) + '</span><div class="grow"><span class="badge badge-gray">' + (pas ? 'PASLON ' : 'CALON ') + noUrut(k.NoUrut) + '</span>' +
+    (k.Slogan ? '<div style="font-weight:700;font-size:16px;margin-top:4px;line-height:1.25">' + esc(k.Slogan) + '</div>' : '') + '</div></div>' +
+    '<div class="cand-photos' + (pas ? '' : ' single') + '">' + foto(k.FotoFileId, k.Nama1, pas ? 'KETUA' : '', 'k') + (pas ? foto(k.FotoFileId2, k.Nama2, 'WAKIL', 'w') : '') + '</div>' +
+    ((k.Visi || k.Misi) ? '<div class="acc' + (i === 0 ? ' open' : '') + '"><button class="acc-btn" data-act="acc">' + ic('book-open', 'ic-sm') + ' Visi & Misi <span class="chev">' + ic('chevron-down', 'ic-sm') + '</span></button><div class="acc-body">' +
+      (k.Visi ? '<div class="lbl">Visi</div>' + esc(k.Visi) : '') + (k.Misi ? '<div class="lbl" style="margin-top:10px">Misi</div>' + esc(k.Misi) : '') + '</div></div>' : '') +
+    '<button class="btn btn-primary btn-block btn-lg mt-12" data-act="pilih" data-id="' + esc(k.KandidatID) + '">' + ic('circle-check') + ' Pilih ' + (pas ? 'Pasangan ' : 'Calon ') + noUrut(k.NoUrut) + '</button></div>';
+}
+function konfirmasiOsis(id) {
+  const v = AppState.vote, k = v.kandidat.find(x => x.KandidatID === id); if (!k) return;
+  const m = modal({ kind: 'sheet', body: '<div class="center"><div class="cand-no" style="margin:0 auto 10px;width:60px;height:60px;font-size:26px">' + noUrut(k.NoUrut) + '</div>' +
+    '<div style="font-size:20px;font-weight:700">Yakin dengan pilihanmu?</div><div class="muted mt-8">' + esc(k.Nama1) + (k.Nama2 ? ' &amp; ' + esc(k.Nama2) : '') + '</div></div>' +
+    '<div class="alert alert-amber mt-16 small">' + ic('triangle-alert', 'ic-sm') + '<span>Setelah dikirim, pilihan tidak bisa diubah.</span></div>' +
+    '<button class="btn btn-primary btn-block btn-lg mt-16" id="kirim">' + ic('send') + ' Ya, Kirim Suara</button><button class="btn btn-block btn-lg mt-8" data-close>Kembali</button>' });
+  m.q('#kirim').onclick = async (e) => {
+    const res = await busy(e.currentTarget, () => api('kirimSuaraOsis', { kandidatId: id, eventId: v.event.EventID }));
+    if (!res.success) { m.close(); toast('Suara tidak terkirim', res.message, 'error'); if (res.data && (res.data.code === 'E-409' || res.data.code === 'CLOSED')) { const t = v.type; endVoter(); go(t === 'osis-ptk' ? 'ptk' : 'nisn'); } return; }
+    m.close();
+    const t = v.type;
+    endVoter();
+    if (t === 'osis-ptk') { swrDrop('ptk'); AppState.ptk = null; }
+    AppState.thanks = { title: 'Terima kasih!', sub: 'Suaramu sudah tercatat. Kamu akan otomatis keluar.', next: t === 'osis-ptk' ? 'ptk' : 'nisn', detik: 5 };
+    go('terima-kasih');
+  };
+}
+
+/* ============================================================
+   TERIMA KASIH (keluar otomatis — HP dipakai bergantian)
+   ============================================================ */
+registerPage('terima-kasih', {
+  init(el) { el.addEventListener('click', (e) => { const b = e.target.closest('[data-act]'); if (!b) return; clearInterval(el._t); if (b.dataset.act === 'lanjut' && AppState.thanks && AppState.thanks.lanjut) AppState.thanks.lanjut(); else go(el._next || ''); }); },
+  show(el) {
+    const t = AppState.thanks || { title: 'Terima kasih!', sub: '', next: '', detik: 5 };
+    el._next = t.next;
+    let n = t.detik || 5;
+    el.innerHTML = '<div class="pub"><div class="pub-inner"><div class="thanks"><div class="thanks-ring">' + ic('check', 'ic-xl') + '</div><h1>' + esc(t.title) + '</h1><p class="muted" style="max-width:320px;line-height:1.6">' + esc(t.sub) + '</p>' +
+      (t.lanjut ? '<button class="btn btn-primary btn-lg" data-act="lanjut">' + ic('trophy') + ' ' + esc(t.lanjutLabel || 'Lanjut') + '</button>' : '') +
+      '<button class="btn btn-lg" data-act="selesai">Selesai</button><div class="countdown" id="cd">Keluar otomatis dalam ' + n + ' detik…</div></div></div></div>';
+    clearInterval(el._t);
+    el._t = setInterval(() => { n--; const c = $('#cd', el); if (c) c.textContent = 'Keluar otomatis dalam ' + n + ' detik…'; if (n <= 0) { clearInterval(el._t); if (!el.hidden) { endVoter(); go(t.next || ''); } } }, 1000);
+  },
+  leave() { const el = $('.page[data-page="terima-kasih"]'); if (el) clearInterval(el._t); }
+});
+
+/* ============================================================
+   LOGIN VOTING LOMBA — pilih kelas → nama → konfirmasi
+   ============================================================ */
+registerPage('lomba', {
+  init(el) {
+    el._st = { kelas: '', siswa: null, q: '' };
+    el.addEventListener('click', (e) => {
+      const b = e.target.closest('[data-act]'); if (!b) return;
+      const a = b.dataset.act, st = el._st;
+      if (a === 'back') go('');
+      if (a === 'kelas') { st.kelas = b.dataset.v; st.siswa = null; st.q = ''; lombaPaint(el); const n = $('#nama-card', el); if (n) n.scrollIntoView({ behavior: 'smooth', block: 'start' }); }
+      if (a === 'nama') { st.siswa = { id: b.dataset.id, nama: b.dataset.nama }; lombaPaint(el); lombaKonfirmasi(el); }
+    });
+    el.addEventListener('input', (e) => { if (e.target.id === 'cari-nama') { el._st.q = e.target.value; lombaPaintNames(el); } });
+  },
+  show(el) { endVoter(); el._st = { kelas: '', siswa: null, q: '' }; lombaPaint(el); if (!AppState.pub) loadPublicBoot(); },
+  onPub() { const el = $('.page[data-page="lomba"]'); if (el && !el.hidden) lombaPaint(el); }
+});
+function lombaPaint(el) {
+  const p = AppState.pub, st = el._st;
+  const step = st.siswa ? 3 : st.kelas ? 2 : 1;
+  const S = (i, t) => '<div class="st ' + (step > i ? 'done' : step === i ? 'on' : '') + '"><span class="c">' + (step > i ? ic('check', 'ic-sm') : i) + '</span>' + t + '</div>';
+  const judul = p && p.lomba.length ? uniq(p.lomba.map(l => l.EventJudul)).join(' · ') : '';
+  let body;
+  if (!p) body = skeletonCards(2, 160);
+  else if (!p.lomba.length) body = '<div class="card"><div class="empty"><div class="empty-art">' + ic('trophy', 'ic-xl') + '</div><div class="empty-title">Voting lomba belum dibuka</div><div>Tunggu panitia membuka voting.</div></div></div>';
+  else body = '<div class="card card-pad"><div class="row between"><div class="row"><span class="qnum">1</span><b>Pilih Kelas</b></div>' + (st.kelas ? '<span class="badge badge-green">' + ic('check', 'ic-sm') + ' Terpilih ' + esc(st.kelas) + '</span>' : '') + '</div>' +
+    '<div class="class-grid mt-12">' + p.kelas.map(k => '<button class="chip' + (st.kelas === k ? ' on' : '') + '" data-act="kelas" data-v="' + esc(k) + '">' + (st.kelas === k ? ic('check', 'ic-sm') : '') + esc(k) + '</button>').join('') + '</div></div>' +
+    (st.kelas ? '<div class="card card-pad mt-16" id="nama-card"><div class="row"><span class="qnum">2</span><b>Pilih Nama — Kelas ' + esc(st.kelas) + '</b></div>' +
+      '<div class="input-group mt-12">' + ic('search') + '<input class="input" id="cari-nama" placeholder="Cari nama..." value="' + esc(st.q) + '" autocomplete="off"></div><div class="name-list" id="name-list"></div></div>' : '');
+  el.innerHTML = '<div class="pub"><div class="pub-inner">' + appbar({ title: 'Voting Lomba', sub: judul }) +
+    '<div class="stepper">' + S(1, 'Kelas') + '<div class="ln ' + (step > 1 ? 'done' : '') + '"></div>' + S(2, 'Nama') + '<div class="ln ' + (step > 2 ? 'done' : '') + '"></div>' + S(3, 'Konfirmasi') + '</div>' +
+    '<div class="pub-body" style="padding-top:0">' + body + '</div></div></div>';
+  if (st.kelas) lombaPaintNames(el);
+}
+function lombaPaintNames(el) {
+  const st = el._st, list = ((AppState.pub && AppState.pub.siswa[st.kelas]) || []).filter(s => !st.q || s.nama.toLowerCase().indexOf(st.q.toLowerCase()) > -1);
+  const box = $('#name-list', el); if (!box) return;
+  box.innerHTML = list.map(s => '<button class="name-row' + (st.siswa && st.siswa.id === s.id ? ' on' : '') + '" data-act="nama" data-id="' + esc(s.id) + '" data-nama="' + esc(s.nama) + '">' + avatarHtml(s.nama, '', 'avatar-sm') + '<span style="font-weight:600">' + esc(s.nama) + '</span><span class="radio-dot"></span></button>').join('') ||
+    '<div class="muted center" style="padding:20px">Nama tidak ditemukan.</div>';
+}
+function lombaKonfirmasi(el) {
+  const st = el._st;
+  const m = modal({ kind: 'sheet', onClose: () => { if (!el._ok) { st.siswa = null; lombaPaint(el); } el._ok = false; },
+    body: '<div class="center"><span class="avatar avatar-xl" style="margin:0 auto;border:4px solid var(--primary-tint-2)">' + esc(initials(st.siswa.nama)) + '</span>' +
+      '<div style="font-size:20px;font-weight:700;margin-top:14px">Apakah benar ini Anda?</div><div style="font-size:24px;font-weight:800;margin-top:4px">' + esc(st.siswa.nama) + '</div>' +
+      '<div class="row mt-8" style="justify-content:center"><span class="badge" style="background:var(--primary);color:#fff;height:28px">' + ic('graduation-cap', 'ic-sm') + ' Kelas ' + esc(st.kelas) + '</span></div></div>' +
+      '<div class="alert alert-amber mt-16 small">' + ic('triangle-alert', 'ic-sm') + '<span>Pastikan nama dan kelas sudah benar. Satu siswa hanya bisa memilih satu kali.</span></div>' +
+      '<button class="btn btn-primary btn-block btn-lg mt-16" id="ya">Ya, Benar — Masuk ' + ic('arrow-right') + '</button><button class="btn btn-block btn-lg mt-8" data-close>' + ic('rotate-ccw', 'ic-sm') + ' Bukan, Pilih Ulang</button>' });
+  m.q('#ya').onclick = async (e) => {
+    const res = await busy(e.currentTarget, () => api('loginSiswaLomba', { siswaId: st.siswa.id }));
+    if (!res.success) { toast('Tidak bisa masuk', res.message, 'error'); return; }
+    el._ok = true; m.close();
+    const d = res.data;
+    AppState.token = d.token; AppState.role = 'lomba'; AppState.user = d.user;
+    AppState.vote = { type: 'lomba', cabang: d.cabang, user: d.user, aktif: (d.cabang.find(c => !c.sudahPilih) || d.cabang[0]).CabangID, pilih: {} };
+    go('vote-lomba');
+  };
+}
+
+/* ============================================================
+   GALERI VOTING LOMBA
+   ============================================================ */
+registerPage('vote-lomba', {
+  auth: 'lomba',
+  init(el) {
+    el.addEventListener('click', (e) => {
+      const b = e.target.closest('[data-act]'); if (!b) return;
+      const v = AppState.vote, a = b.dataset.act;
+      if (a === 'back') { endVoter(); go('lomba'); }
+      if (a === 'tab') { v.aktif = b.dataset.id; votePaint(el); }
+      if (a === 'pilih') { const c = v.cabang.find(x => x.CabangID === v.aktif); if (c.sudahPilih) return; v.pilih[v.aktif] = b.dataset.id; votePaint(el); }
+      if (a === 'kirim') voteKirim(el, b);
+    });
+  },
+  show(el) { if (!AppState.vote || AppState.vote.type !== 'lomba') return go('lomba'); votePaint(el); }
+});
+function votePaint(el) {
+  const v = AppState.vote, c = v.cabang.find(x => x.CabangID === v.aktif) || v.cabang[0], sel = v.pilih[c.CabangID];
+  const p = c.peserta.find(x => x.PesertaID === sel);
+  el.innerHTML = '<div class="pub"><div class="pub-inner" style="display:flex;flex-direction:column">' +
+    appbar({ title: 'Lomba ' + c.NamaCabang.replace(/^lomba\s+/i, ''), sub: 'Pilih penampilan favoritmu', right: '<span class="who-chip"><span class="dot"></span><span class="ellipsis">' + esc(v.user.nama.split(' ')[0]) + ' · ' + esc(v.user.kelas) + '</span></span>' }) +
+    (v.cabang.length > 1 ? '<div style="padding:12px 16px 0"><div class="seg seg-light seg-block">' + v.cabang.map(x => '<button data-act="tab" data-id="' + esc(x.CabangID) + '" class="' + (x.CabangID === c.CabangID ? 'on' : '') + '">' + esc(x.NamaCabang) + (x.sudahPilih ? ' ✓' : '') + '</button>').join('') + '</div></div>' : '') +
+    '<div class="pub-body grow">' +
+    (c.sudahPilih ? '<div class="alert alert-green mb-16">' + ic('circle-check') + '<span>Kamu sudah memilih di cabang ini. Terima kasih!</span></div>'
+      : '<div class="alert alert-amber mb-16" style="background:#FFFBEB">' + ic('star', '') + '<div class="small"><b>1 Siswa = 1 Pilihan Favorit</b><br>Ketuk kartu peserta di bawah ini, lalu tekan <b>Kirim Pilihan</b>.</div></div>') +
+    '<div class="row between mb-8"><span class="small muted" style="font-weight:700;letter-spacing:.05em">DAFTAR PENAMPIL</span><span class="badge badge-gray">' + c.peserta.length + ' Peserta</span></div>' +
+    '<div class="gal">' + c.peserta.map(x => '<button class="pcard' + (sel === x.PesertaID ? ' on' : '') + '" data-act="pilih" data-id="' + esc(x.PesertaID) + '"' + (c.sudahPilih ? ' disabled' : '') + '>' +
+      '<div class="ph">' + photoHtml(x.FotoFileId, x.NamaTampil, 400) + '<span class="no"><span class="badge ' + (sel === x.PesertaID ? '' : 'badge-dark') + '" style="' + (sel === x.PesertaID ? 'background:var(--primary);color:#fff' : '') + '">No. ' + noUrut(x.NoUrut) + '</span></span><span class="sel">' + (sel === x.PesertaID ? ic('check', 'ic-sm') : '') + '</span>' +
+      (x.Keterangan ? '<span class="ket"><span>' + esc(x.Keterangan) + '</span></span>' : '') + '</div><div class="info"><div class="nm ellipsis">' + esc(x.NamaTampil) + '</div><div class="muted small">Kelas ' + esc(x.Kelas) + '</div></div></button>').join('') + '</div>' +
+    '<p class="center muted small mt-16">' + ic('circle-check', 'ic-sm') + ' Setelah dikirim, pilihan tidak bisa diubah.</p></div>' +
+    (c.sudahPilih ? '' : '<div class="bottom-bar">' + (p ? '<span class="photo-thumb">' + photoHtml(p.FotoFileId, p.NamaTampil, 120) + '</span><div class="grow"><div class="small muted" style="font-weight:700;letter-spacing:.05em">PILIHANMU</div><div class="ellipsis" style="font-weight:700">No. ' + noUrut(p.NoUrut) + ' — ' + esc(p.NamaTampil) + '</div></div>' : '<div class="grow muted">Belum ada pilihan</div>') +
+      '<button class="btn btn-primary btn-lg" data-act="kirim"' + (p ? '' : ' disabled') + '>' + ic('send', 'ic-sm') + ' Kirim Pilihan</button></div>') +
+    '</div></div>';
+}
+async function voteKirim(el, btn) {
+  const v = AppState.vote, cab = v.aktif, pid = v.pilih[cab];
+  if (!pid) return;
+  const res = await busy(btn, () => api('kirimSuaraLomba', { cabangId: cab, pesertaId: pid }));
+  if (!res.success) { toast('Pilihan tidak terkirim', res.message, 'error'); if (res.data && res.data.code === 'E-409') { v.cabang.find(c => c.CabangID === cab).sudahPilih = true; votePaint(el); } return; }
+  (res.data.cabang || []).forEach(x => { const c = v.cabang.find(y => y.CabangID === x.CabangID); if (c) c.sudahPilih = x.sudahPilih; });
+  const sisa = v.cabang.filter(c => !c.sudahPilih);
+  if (sisa.length) {
+    AppState.thanks = { title: 'Pilihan terkirim!', sub: 'Masih ada ' + sisa.length + ' cabang lomba lain yang bisa kamu pilih.', next: 'lomba', detik: 8,
+      lanjut: () => { v.aktif = sisa[0].CabangID; go('vote-lomba'); }, lanjutLabel: 'Pilih ' + sisa[0].NamaCabang };
+  } else {
+    AppState.thanks = { title: 'Terima kasih!', sub: 'Pilihanmu sudah tercatat. Kamu akan otomatis keluar.', next: 'lomba', detik: 5 };
+  }
+  go('terima-kasih');
+}
+
+/* ============================================================
+   LOGIN PTK / JURI TAMU
+   ============================================================ */
+registerPage('masuk-ptk', {
+  init(el) {
+    el._st = { tab: 'ptk', sel: '', q: '' };
+    el.addEventListener('click', (e) => {
+      const b = e.target.closest('[data-act]'); if (!b) return;
+      const st = el._st, a = b.dataset.act;
+      if (a === 'back') go('');
+      if (a === 'tab') { st.tab = b.dataset.v; st.sel = ''; st.q = ''; ptkPaint(el); }
+      if (a === 'sel') { st.sel = b.dataset.id; ptkPaintList(el); setTimeout(() => { const pw = $('#pw', el); if (pw) pw.focus(); }, 30); }
+      if (a === 'eye') { const pw = $('#pw', el); pw.type = pw.type === 'password' ? 'text' : 'password'; }
+    });
+    el.addEventListener('input', (e) => { if (e.target.id === 'q') { el._st.q = e.target.value; ptkPaintList(el); } });
+    el.addEventListener('submit', (e) => { e.preventDefault(); ptkSubmit(el); });
+  },
+  show(el) { if (AppState.role === 'ptk' || AppState.role === 'tamu') return go('ptk'); el._st = { tab: 'ptk', sel: '', q: '' }; ptkPaint(el); },
+  onPub() { const el = $('.page[data-page="masuk-ptk"]'); if (el && !el.hidden) ptkPaintList(el); }
+});
+function ptkPaint(el) {
+  const st = el._st;
+  el.innerHTML = '<div class="pub"><div class="pub-inner">' +
+    '<div class="hero hero-sm"><div class="row between" style="position:relative;z-index:2"><button class="btn btn-sm" data-act="back" style="background:rgba(255,255,255,.16);border-color:transparent;color:#fff">' + ic('arrow-left', 'ic-sm') + ' Kembali</button><span class="badge" style="background:rgba(255,255,255,.18);color:#fff"><span class="dot" style="background:#4ADE80"></span>SISTEM AKTIF</span></div>' +
+    heroLogo('mt-12') + '<div style="font-size:24px;font-weight:800">' + esc(sekolah().NamaSekolah || 'MEvent') + '</div><div class="hero-sub">MEvent · Manajemen Event Sekolah</div></div>' +
+    '<form class="float-card card card-pad" autocomplete="off"><div class="seg seg-light seg-block"><button type="button" data-act="tab" data-v="ptk" class="' + (st.tab === 'ptk' ? 'on' : '') + '">' + ic('user-check', 'ic-sm') + ' PTK</button><button type="button" data-act="tab" data-v="tamu" class="' + (st.tab === 'tamu' ? 'on' : '') + '">' + ic('gavel', 'ic-sm') + ' Juri Tamu</button></div>' +
+    '<div class="row between mt-16"><span class="label">Pilih Nama</span><span class="small" style="color:var(--primary);font-weight:600" id="jml"></span></div>' +
+    '<div class="input-group mt-8">' + ic('search') + '<input class="input" id="q" placeholder="Cari nama..." value="' + esc(st.q) + '"></div>' +
+    '<div class="name-list" id="list" style="max-height:300px"></div>' +
+    '<div class="field mt-16"><div class="row between"><label for="pw">Kata Sandi</label></div><div class="input-group">' + ic('lock') + '<input class="input" id="pw" type="password" autocomplete="current-password" placeholder="••••••"><button type="button" class="btn btn-ghost btn-icon btn-sm suffix" data-act="eye" aria-label="Tampilkan sandi">' + ic('eye', 'ic-sm') + '</button></div></div>' +
+    '<div id="err"></div><div class="row muted small mt-8">' + ic('info', 'ic-sm') + '<span>Kata sandi diberikan oleh Admin. Lupa? Hubungi Admin sekolah.</span></div>' +
+    '<button class="btn btn-primary btn-block btn-lg mt-16" type="submit" id="btn-masuk">Masuk ' + ic('log-in') + '</button>' + demoHintCard(st.tab) + '</form>' +
+    '<div class="pub-body"><div class="card card-pad"><div class="row">' + ic('lightbulb') + '<b>Setelah masuk, Anda dapat:</b></div>' +
+    [['vote', '', 'Memberikan suara Pemilihan OSIS', '1 akun = 1 hak suara'], ['clipboard-check', 'amber', 'Menilai peserta sebagai Juri', 'Isi nilai lomba langsung dari HP'], ['users', 'green', 'Mengelola event sebagai Panitia', 'Formulir, hasil, kehadiran, dan cetak']]
+      .map(r => '<div class="row mt-12" style="background:var(--bg);padding:10px 12px;border-radius:12px"><span class="icon-tile ' + r[1] + '" style="width:36px;height:36px">' + ic(r[0], 'ic-sm') + '</span><div><div style="font-weight:600">' + r[2] + '</div><div class="muted small">' + r[3] + '</div></div></div>').join('') + '</div></div>' +
+    '</div></div>';
+  ptkPaintList(el);
+}
+function ptkPaintList(el) {
+  const st = el._st, p = AppState.pub, box = $('#list', el); if (!box) return;
+  if (!p) { box.innerHTML = '<div class="sk sk-line"></div><div class="sk sk-line"></div><div class="sk sk-line"></div>'; return; }
+  const src = st.tab === 'ptk' ? p.ptk.map(x => ({ id: x.id, nama: x.nama, sub: x.jabatan })) : p.juriTamu.map(x => ({ id: x.nama, nama: x.nama, sub: x.jabatan }));
+  const list = src.filter(x => !st.q || x.nama.toLowerCase().indexOf(st.q.toLowerCase()) > -1);
+  $('#jml', el).textContent = src.length + (st.tab === 'ptk' ? ' PTK terdaftar' : ' juri tamu');
+  box.innerHTML = list.map(x => '<button type="button" class="name-row' + (st.sel === x.id ? ' on' : '') + '" data-act="sel" data-id="' + esc(x.id) + '">' + avatarHtml(x.nama, '', 'avatar-sm') + '<span class="grow" style="min-width:0"><span style="font-weight:600;display:block" class="ellipsis">' + esc(x.nama) + '</span><span class="muted small ellipsis" style="display:block">' + esc(x.sub || '') + '</span></span>' + (st.sel === x.id ? ic('circle-check', '') : '') + '</button>').join('') ||
+    '<div class="muted center" style="padding:20px">' + (src.length ? 'Nama tidak ditemukan.' : st.tab === 'ptk' ? 'Belum ada data PTK.' : 'Belum ada juri tamu.') + '</div>';
+  if (st.sel) box.querySelector('.on') && box.querySelector('.on').style.setProperty('color', 'var(--primary)');
+}
+async function ptkSubmit(el) {
+  const st = el._st, pw = $('#pw', el).value, err = $('#err', el);
+  if (!st.sel) { err.innerHTML = '<div class="alert alert-red mt-12 small">' + ic('circle-alert', 'ic-sm') + '<span>Pilih nama Anda terlebih dahulu.</span></div>'; return; }
+  if (!pw) { err.innerHTML = '<div class="alert alert-red mt-12 small">' + ic('circle-alert', 'ic-sm') + '<span>Masukkan kata sandi.</span></div>'; return; }
+  const res = await busy($('#btn-masuk', el), () => st.tab === 'ptk' ? api('loginPtk', { ptkId: st.sel, password: pw }) : api('loginTamu', { nama: st.sel, password: pw }));
+  if (!res.success) { err.innerHTML = '<div class="alert alert-red mt-12 small">' + ic('circle-alert', 'ic-sm') + '<span>' + esc(res.message) + '</span></div>'; return; }
+  setSession(res.data);
+  AppState.ptk = res.data.boot;
+  swrPut('ptk', res.data.boot);
+  toast('Selamat datang', res.data.user.nama);
+  go('ptk');
+}
+
+/* ============================================================
+   LOGIN ADMIN
+   ============================================================ */
+registerPage('masuk-admin', {
+  init(el) {
+    el.addEventListener('click', (e) => { const b = e.target.closest('[data-act]'); if (b && b.dataset.act === 'back') go(''); if (b && b.dataset.act === 'eye') { const pw = $('#apw', el); pw.type = pw.type === 'password' ? 'text' : 'password'; } });
+    el.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const u = $('#aun', el).value.trim(), p = $('#apw', el).value, err = $('#aerr', el);
+      if (!u || !p) { err.innerHTML = '<div class="alert alert-red mt-12 small">' + ic('circle-alert', 'ic-sm') + '<span>Isi username dan kata sandi.</span></div>'; return; }
+      ensureAdminBundle().catch(() => {});
+      const res = await busy($('#abtn', el), () => api('loginAdmin', { username: u, password: p }));
+      if (!res.success) { err.innerHTML = '<div class="alert alert-red mt-12 small">' + ic('circle-alert', 'ic-sm') + '<span>' + esc(res.message) + '</span></div>'; return; }
+      setSession(res.data);
+      AppState.boot = res.data.boot;
+      swrPut('boot', res.data.boot);
+      if (res.data.boot.settings) setPrimary(res.data.boot.settings.WarnaUtama);
+      go('dasbor');
+    });
+  },
+  show(el) {
+    if (AppState.role === 'admin') return go('dasbor');
+    ensureAdminBundle().catch(() => {});
+    el.innerHTML = '<div class="pub"><div class="pub-inner">' +
+      '<div class="hero hero-sm"><div class="row" style="position:relative;z-index:2"><button class="btn btn-sm" data-act="back" style="background:rgba(255,255,255,.16);border-color:transparent;color:#fff">' + ic('arrow-left', 'ic-sm') + ' Kembali</button></div>' +
+      heroLogo('mt-12') + '<div style="font-size:24px;font-weight:800">Masuk Admin</div><div class="hero-sub">' + esc(sekolah().NamaSekolah || 'MEvent') + '</div></div>' +
+      '<form class="float-card card card-pad" autocomplete="on"><div class="field"><label for="aun">Username</label><div class="input-group">' + ic('user-round') + '<input class="input" id="aun" autocomplete="username" placeholder="admin" autofocus></div></div>' +
+      '<div class="field mt-16"><label for="apw">Kata Sandi</label><div class="input-group">' + ic('lock') + '<input class="input" id="apw" type="password" autocomplete="current-password" placeholder="••••••"><button type="button" class="btn btn-ghost btn-icon btn-sm suffix" data-act="eye" aria-label="Tampilkan sandi">' + ic('eye', 'ic-sm') + '</button></div></div>' +
+      '<div id="aerr"></div><button class="btn btn-primary btn-block btn-lg mt-16" id="abtn" type="submit">Masuk ' + ic('log-in') + '</button>' + demoHintCard('admin') + '</form>' +
+      '<p class="center muted small mt-24">Panitia masuk lewat menu <a href="#/masuk-ptk">PTK / Juri</a>.</p></div></div>';
+  }
+});
+
+/* ============================================================
+   FORMULIR — daftar & isi
+   ============================================================ */
+registerPage('formulir', {
+  init(el) { el.addEventListener('click', (e) => { const b = e.target.closest('[data-act]'); if (!b) return; if (b.dataset.act === 'back') go(''); if (b.dataset.act === 'buka') go('f/' + b.dataset.t); }); },
+  async show(el) {
+    const paint = (list) => {
+      el.innerHTML = '<div class="pub"><div class="pub-inner">' + appbar({ title: 'Formulir Pendaftaran', sub: sekolah().NamaSekolah }) + '<div class="pub-body">' +
+        (list === null ? skeletonCards(3, 92) : list.length ? list.map(f => '<div class="card menu-card card-tap" tabindex="0" role="button" data-act="buka" data-t="' + esc(f.TokenLink) + '"><span class="icon-tile">' + ic('file-text', 'ic-lg') + '</span><div class="grow"><div class="t">' + esc(f.Judul) + '</div><div class="s">' + esc(f.EventJudul) + (f.BatasWaktu ? ' · s.d. ' + esc(tglPendek(f.BatasWaktu)) : '') + '</div>' + (f.Akses === 'LoginSiswa' ? '<span class="badge mt-8">Khusus siswa (NISN)</span>' : '') + '</div><span class="chev">' + ic('chevron-right') + '</span></div>').join('')
+          : '<div class="card"><div class="empty"><div class="empty-art">' + ic('file-text', 'ic-xl') + '</div><div class="empty-title">Belum ada formulir yang dibuka</div><div>Formulir pendaftaran akan muncul di sini.</div></div></div>') + '</div></div></div>';
+    };
+    paint(null);
+    const res = await swr('formTerbuka', 'formTerbuka', {}, paint, { fresh: 15000, globalKey: true, onError: (r) => { el.innerHTML = errorBox(r.message); } });
+    if (!res.success && !res.cached && Store.get('c:' + AppState.mode + ':g:formTerbuka', null)) toast('Gagal memperbarui', res.message, 'warning');
+  }
+});
+
+registerPage('f', {
+  init(el) {
+    el.addEventListener('click', (e) => { const b = e.target.closest('[data-act]'); if (!b) return; if (b.dataset.act === 'back') go('formulir'); if (b.dataset.act === 'cek-nisn') formCekNisn(el, b); if (b.dataset.act === 'lagi') route(); });
+    el.addEventListener('submit', (e) => { e.preventDefault(); formKirim(el); });
+    el.addEventListener('change', (e) => { if (e.target.type === 'file') formFileInfo(e.target); });
+  },
+  async show(el, token) {
+    el.innerHTML = '<div class="pub pub-wide"><div class="pub-inner">' + appbar({ title: 'Formulir', sub: '' }) + '<div class="pub-body">' + skeletonCards(4, 90) + '</div></div></div>';
+    const res = await api('getForm', { token });
+    if (!res.success) { el.innerHTML = '<div class="pub"><div class="pub-inner">' + appbar({ title: 'Formulir' }) + errorBox(res.message) + '</div></div>'; return; }
+    el._f = res.data; el._siswa = null;
+    const d = res.data, f = d.form;
+    if (d.sekolah && d.sekolah.WarnaUtama) setPrimary(d.sekolah.WarnaUtama);
+    if (!f.terbuka) { el.innerHTML = '<div class="pub"><div class="pub-inner">' + appbar({ title: f.Judul }) + '<div class="card" style="margin:16px"><div class="empty"><div class="empty-art">' + ic('lock', 'ic-xl') + '</div><div class="empty-title">Formulir sudah ditutup</div><div>Pendaftaran tidak lagi menerima jawaban.</div></div></div></div></div>'; return; }
+    el.innerHTML = '<div class="pub pub-wide"><div class="pub-inner">' + appbar({ title: f.Judul, sub: f.EventJudul }) + '<form class="pub-body" novalidate>' +
+      '<div class="card card-pad" style="border-top:6px solid var(--primary)"><h2>' + esc(f.Judul) + '</h2>' + (f.Deskripsi ? '<p class="muted mt-8" style="line-height:1.6">' + esc(f.Deskripsi) + '</p>' : '') +
+      '<div class="row row-wrap mt-12">' + (f.EventJudul ? '<span class="badge">' + ic('calendar', 'ic-sm') + esc(f.EventJudul) + '</span>' : '') + (f.BatasWaktu ? '<span class="badge badge-amber">' + ic('clock', 'ic-sm') + 'Batas: ' + esc(tglPendek(f.BatasWaktu)) + '</span>' : '') + '</div></div>' +
+      (f.Akses === 'LoginSiswa' ? '<div class="card card-pad mt-16"><div class="field"><label>NISN <span class="req">*</span></label><div class="row"><input class="input grow" id="f-nisn" inputmode="numeric" maxlength="10" placeholder="10 digit NISN"><button type="button" class="btn btn-soft" data-act="cek-nisn">Periksa</button></div><div class="hint">Formulir ini khusus siswa. Nama & kelas terisi otomatis.</div><div id="nisn-out"></div></div></div>' : '') +
+      d.pertanyaan.map((q, i) => formField(q, i)).join('') +
+      '<div id="f-err"></div><button class="btn btn-primary btn-block btn-lg mt-16" type="submit" id="f-kirim">' + ic('send') + ' Kirim Pendaftaran</button><p class="center muted small mt-12">Tanda <span class="req">*</span> wajib diisi.</p></form></div></div>';
+  }
+});
+function formField(q, i) {
+  const id = 'q_' + q.PertanyaanID, req = q.Wajib ? '<span class="req">*</span>' : '';
+  let inp = '';
+  if (q.Tipe === 'singkat') inp = '<input class="input" id="' + id + '" name="' + q.PertanyaanID + '" placeholder="Jawaban singkat">';
+  if (q.Tipe === 'panjang') inp = '<textarea class="textarea" id="' + id + '" name="' + q.PertanyaanID + '" placeholder="Jawaban panjang"></textarea>';
+  if (q.Tipe === 'angka') {
+    const a = q.AturanAngka; const max = a && a.operator === '=' ? a.jumlahDigit : a && a.operator === '<' ? a.jumlahDigit - 1 : '';
+    inp = '<input class="input mono" id="' + id + '" name="' + q.PertanyaanID + '" inputmode="numeric" ' + (max ? 'maxlength="' + max + '"' : '') + ' placeholder="Hanya angka">' +
+      (a ? '<div class="hint">' + (a.operator === '=' ? 'Harus tepat ' : a.operator === '<' ? 'Kurang dari ' : 'Lebih dari ') + a.jumlahDigit + ' digit</div>' : '');
+  }
+  if (q.Tipe === 'pilihan_ganda') inp = '<div class="stack gap-4">' + q.Opsi.map(o => '<label class="radio-card"><input type="radio" name="' + q.PertanyaanID + '" value="' + esc(o) + '"><span>' + esc(o) + '</span></label>').join('') + '</div>';
+  if (q.Tipe === 'checkbox') inp = '<div class="stack gap-4">' + q.Opsi.map(o => '<label class="radio-card"><input type="checkbox" name="' + q.PertanyaanID + '" value="' + esc(o) + '"><span>' + esc(o) + '</span></label>').join('') + '</div>';
+  if (q.Tipe === 'unggah_berkas') {
+    const a = q.AturanBerkas || { jenis: ['jpg', 'png', 'pdf'], maksMB: 2 };
+    inp = '<label class="card-tap" style="display:flex;flex-direction:column;align-items:center;gap:6px;padding:20px;border:2px dashed var(--border-2);border-radius:14px;background:var(--bg);cursor:pointer;text-align:center">' + ic('cloud-upload', 'ic-lg') +
+      '<b>Pilih berkas</b><span class="hint">' + esc(a.jenis.join(', ').toUpperCase()) + ' · maks. ' + a.maksMB + ' MB</span><input type="file" id="' + id + '" name="' + q.PertanyaanID + '" accept="' + a.jenis.map(x => '.' + x + (x === 'jpg' ? ',.jpeg' : '')).join(',') + '" hidden data-maks="' + a.maksMB + '" data-jenis="' + esc(a.jenis.join(',')) + '"><span class="small" data-info></span></label>';
+  }
+  return '<div class="card card-pad mt-16" data-q="' + esc(q.PertanyaanID) + '"><div class="field"><label for="' + id + '">' + (i + 1) + '. ' + esc(q.Label) + ' ' + req + '</label>' + (q.Petunjuk ? '<div class="hint" style="margin-top:-2px">' + esc(q.Petunjuk) + '</div>' : '') + inp + '<div data-err></div></div></div>';
+}
+function formFileInfo(inp) {
+  const f = inp.files[0], info = inp.parentElement.querySelector('[data-info]');
+  if (!f) { info.textContent = ''; return; }
+  info.innerHTML = '<span class="badge badge-green">' + esc(f.name) + ' · ' + (f.size / 1024 / 1024).toFixed(2) + ' MB</span>';
+}
+async function formCekNisn(el, btn) {
+  const n = $('#f-nisn', el).value.replace(/\D/g, ''), out = $('#nisn-out', el);
+  if (n.length !== 10) { out.innerHTML = '<div class="err-text">NISN harus 10 digit.</div>'; return; }
+  const res = await busy(btn, () => api('cekNisnForm', { nisn: n }));
+  if (!res.success) { el._siswa = null; out.innerHTML = '<div class="err-text">' + esc(res.message) + '</div>'; return; }
+  el._siswa = Object.assign({ nisn: n }, res.data);
+  out.innerHTML = '<div class="alert alert-green mt-8 small">' + ic('circle-check', 'ic-sm') + '<span><b>' + esc(res.data.nama) + '</b> · Kelas ' + esc(res.data.kelas) + '</span></div>';
+  el._f.pertanyaan.forEach(q => {
+    const inp = $('#q_' + q.PertanyaanID, el);
+    if (/nama/i.test(q.Label) && inp && !inp.value) inp.value = res.data.nama;
+    if (/nisn/i.test(q.Label) && inp && !inp.value) inp.value = n;
+    if (/kelas/i.test(q.Label)) { const r = $$('input[name="' + q.PertanyaanID + '"]', el).find(x => x.value === res.data.kelas); if (r) r.checked = true; else if (inp && !inp.value) inp.value = res.data.kelas; }
+  });
+}
+async function formKirim(el) {
+  const d = el._f, f = d.form, jawaban = {}, berkas = {};
+  let firstErr = null;
+  $$('[data-err]', el).forEach(x => x.innerHTML = '');
+  $$('.is-error', el).forEach(x => x.classList.remove('is-error'));
+  const err = (q, msg) => { const c = $('[data-q="' + q.PertanyaanID + '"]', el); c.querySelector('[data-err]').innerHTML = '<div class="err-text">' + ic('circle-alert', 'ic-sm') + esc(msg) + '</div>'; const i = c.querySelector('.input,.textarea'); if (i) i.classList.add('is-error'); if (!firstErr) firstErr = c; };
+  if (f.Akses === 'LoginSiswa' && !el._siswa) { toast('Periksa NISN dulu', 'Tekan tombol Periksa pada kolom NISN.', 'warning'); $('#f-nisn', el).focus(); return; }
+  for (const q of d.pertanyaan) {
+    const name = q.PertanyaanID;
+    if (q.Tipe === 'unggah_berkas') {
+      const inp = $('#q_' + name, el), file = inp.files[0];
+      if (!file) { if (q.Wajib) err(q, 'Berkas wajib diunggah.'); continue; }
+      const a = q.AturanBerkas || { jenis: ['jpg', 'png', 'pdf'], maksMB: 2 };
+      const ext = file.name.split('.').pop().toLowerCase();
+      if (a.jenis.indexOf(ext) < 0 && !(ext === 'jpeg' && a.jenis.indexOf('jpg') > -1)) { err(q, 'Jenis berkas harus ' + a.jenis.join(', ').toUpperCase() + '.'); continue; }
+      if (file.size > Math.min(a.maksMB, 2) * 1024 * 1024) { err(q, 'Ukuran berkas maksimal ' + Math.min(a.maksMB, 2) + ' MB.'); continue; }
+      berkas[name] = { file };
+      continue;
+    }
+    let v;
+    if (q.Tipe === 'pilihan_ganda') { const r = $('input[name="' + name + '"]:checked', el); v = r ? r.value : ''; }
+    else if (q.Tipe === 'checkbox') v = $$('input[name="' + name + '"]:checked', el).map(x => x.value);
+    else v = ($('#q_' + name, el).value || '').trim();
+    const kosong = Array.isArray(v) ? !v.length : !v;
+    if (q.Wajib && kosong) { err(q, 'Wajib diisi.'); continue; }
+    if (!kosong && q.Tipe === 'angka') {
+      if (!/^\d+$/.test(v)) { err(q, 'Hanya boleh angka.'); continue; }
+      const a = q.AturanAngka;
+      if (a && ((a.operator === '=' && v.length !== a.jumlahDigit) || (a.operator === '<' && !(v.length < a.jumlahDigit)) || (a.operator === '>' && !(v.length > a.jumlahDigit)))) { err(q, (a.operator === '=' ? 'Harus tepat ' : a.operator === '<' ? 'Harus kurang dari ' : 'Harus lebih dari ') + a.jumlahDigit + ' digit.'); continue; }
+    }
+    if (!kosong) jawaban[name] = v;
+  }
+  if (firstErr) { firstErr.scrollIntoView({ behavior: 'smooth', block: 'center' }); toast('Periksa kembali isian', 'Ada isian yang belum sesuai.', 'warning'); return; }
+  const btn = $('#f-kirim', el);
+  await busy(btn, async () => {
+    for (const k of Object.keys(berkas)) { const fl = berkas[k].file; berkas[k] = { name: fl.name, mime: fl.type || 'application/octet-stream', b64: await fileToB64(fl) }; }
+    const res = await api('kirimJawaban', { token: location.hash.split('/')[2], nisn: el._siswa ? el._siswa.nisn : '', jawaban, berkas });
+    if (!res.success) { $('#f-err', el).innerHTML = '<div class="alert alert-red mt-16">' + ic('circle-alert') + '<span>' + esc(res.message) + '</span></div>'; return; }
+    el.innerHTML = '<div class="pub"><div class="pub-inner"><div class="thanks"><div class="thanks-ring">' + ic('check', 'ic-xl') + '</div><h1>Pendaftaran terkirim!</h1><p class="muted" style="max-width:340px;line-height:1.6">Terima kasih, jawabanmu untuk <b>' + esc(f.Judul) + '</b> sudah kami terima.</p>' +
+      '<button class="btn btn-lg" data-act="lagi">' + ic('rotate-ccw', 'ic-sm') + ' Isi lagi</button><a class="btn btn-primary btn-lg" href="#/">Ke halaman awal</a></div></div></div>';
+  });
+}
+
+/* ============================================================
+   BERANDA PTK / JURI
+   ============================================================ */
+registerPage('ptk', {
+  auth: 'ptk',
+  init(el) {
+    el.addEventListener('click', async (e) => {
+      const b = e.target.closest('[data-act]'); if (!b) return;
+      const a = b.dataset.act;
+      if (a === 'logout') { const ok = await confirmBox({ title: 'Keluar?', text: 'Anda akan keluar dari akun ini.', ok: 'Keluar' }); if (ok) logout(); }
+      if (a === 'home') go('');
+      if (a === 'nilai') go('nilai/' + b.dataset.id);
+      if (a === 'panel') { const ok = await busy(b, () => ensureStaffBoot(true)); if (ok) go('dasbor'); }
+      if (a === 'osis') {
+        const res = await busy(b, () => api('osisPtk', { eventId: b.dataset.id }));
+        if (!res.success) { toast('Tidak dapat membuka surat suara', res.message, 'error'); return; }
+        AppState.vote = { type: 'osis-ptk', event: res.data.event, kandidat: res.data.kandidat, user: AppState.user };
+        go('osis');
+      }
+    });
+  },
+  async show(el) {
+    const paint = (d) => {
+      AppState.ptk = d;
+      const u = AppState.user || {};
+      const sec = (t, body) => '<div class="pub-section-title">' + t + '</div>' + body;
+      el.innerHTML = '<div class="pub"><div class="pub-inner">' +
+        '<div class="hero hero-sm" style="text-align:left;padding-bottom:26px"><div class="row" style="position:relative;z-index:2"><span class="avatar avatar-lg" style="background:#fff;color:var(--primary)">' + esc(initials(u.nama)) + '</span><div class="grow"><div class="hero-sub">Selamat datang,</div><div style="font-size:20px;font-weight:800;line-height:1.2">' + esc(u.nama) + '</div><div class="hero-sub">' + esc(u.jabatan || (AppState.role === 'tamu' ? 'Juri Tamu' : 'PTK')) + '</div></div>' +
+        '<button class="btn btn-sm" data-act="logout" style="background:rgba(255,255,255,.16);border-color:transparent;color:#fff">' + ic('log-out', 'ic-sm') + ' Keluar</button></div></div>' +
+        '<div class="pub-body">' +
+        (!d ? skeletonCards(3, 96) :
+          (d.osis.length ? sec('Pemilihan OSIS', d.osis.map(o => '<div class="card menu-card"><span class="icon-tile">' + ic('vote', 'ic-lg') + '</span><div class="grow"><div class="t">' + esc(o.Judul) + '</div><div class="s">' + (o.sudahMemilih ? 'Anda sudah memberikan suara' : o.VotingDibuka === 'Ya' ? 'Voting sedang dibuka' : 'Voting belum dibuka') + '</div></div>' +
+            (o.sudahMemilih ? '<span class="badge badge-green">' + ic('check', 'ic-sm') + ' Sudah</span>' : o.VotingDibuka === 'Ya' ? '<button class="btn btn-primary btn-sm" data-act="osis" data-id="' + esc(o.EventID) + '">Beri Suara</button>' : '<span class="badge badge-gray">Ditutup</span>') + '</div>').join('')) : '') +
+          sec('Tugas Juri', d.juri.length ? d.juri.map(j => '<div class="card menu-card card-tap" tabindex="0" role="button" data-act="nilai" data-id="' + esc(j.CabangID) + '"><span class="icon-tile amber">' + ic('clipboard-check', 'ic-lg') + '</span><div class="grow"><div class="t">' + esc(j.NamaCabang) + '</div><div class="s">' + esc(j.EventJudul) + ' · ' + esc(tglPendek(j.TanggalPelaksanaan)) + '</div>' +
+            '<div class="row mt-8"><div class="prog grow ' + (j.dinilai >= j.jumlahPeserta && j.jumlahPeserta ? 'green' : '') + '"><i style="width:' + pct(j.dinilai, j.jumlahPeserta) + '%"></i></div><span class="small muted tnum">' + j.dinilai + '/' + j.jumlahPeserta + '</span></div></div>' + (j.Terkunci ? '<span class="badge badge-gray">' + ic('lock', 'ic-sm') + '</span>' : '<span class="chev">' + ic('chevron-right') + '</span>') + '</div>').join('')
+            : '<div class="card"><div class="empty" style="padding:24px"><div class="empty-art">' + ic('clipboard-check', 'ic-xl') + '</div><div>Belum ada tugas juri untuk Anda.</div></div></div>') +
+          (d.panitia.length ? sec('Event Kepanitiaan', d.panitia.map(p => '<div class="card menu-card"><span class="icon-tile green">' + ic('users', 'ic-lg') + '</span><div class="grow"><div class="t">' + esc(p.Judul) + '</div><div class="s">' + esc(p.JabatanPanitia) + ' · ' + esc(p.JenisEvent) + '</div></div><span class="badge ' + (p.Status === 'Berjalan' ? 'badge-green' : p.Status === 'Selesai' ? 'badge-blue' : 'badge-gray') + '">' + esc(p.Status) + '</span></div>').join('') +
+            '<button class="btn btn-primary btn-block btn-lg" data-act="panel">' + ic('layout-dashboard') + ' Buka Panel Panitia</button>') : '')) +
+        '<button class="btn btn-ghost btn-block mt-24" data-act="home">' + ic('house', 'ic-sm') + ' Halaman awal</button></div></div></div>';
+    };
+    paint(AppState.ptk);
+    await swr('ptk', 'ptkBoot', {}, paint, { fresh: 10000 });
+  }
+});
+
+/* ============================================================
+   LEMBAR PENILAIAN JURI
+   ============================================================ */
+registerPage('nilai', {
+  auth: 'juri',
+  init(el) {
+    el.addEventListener('click', (e) => {
+      const b = e.target.closest('[data-act]'); if (!b) return;
+      const S = el._s, a = b.dataset.act;
+      if (a === 'back') return go('ptk');
+      if (!S) return;
+      if (a === 'pes') { juriAmbil(el); S.idx = +b.dataset.i; juriPaint(el); }
+      if (a === 'min' || a === 'plus') { if (S.d.terkunci) return; const k = S.d.kriteria.find(x => x.KriteriaID === b.dataset.k); const cur = juriVals(S)[k.KriteriaID]; const base = cur === undefined || cur === '' ? (a === 'plus' ? k.NilaiMin : k.NilaiMaks) : Number(cur); juriSet(el, k, base + (a === 'plus' ? 1 : -1)); }
+      if (a === 'prev') { juriAmbil(el); if (S.idx > 0) { S.idx--; juriPaint(el); } }
+      if (a === 'next') juriSimpan(el);
+    });
+    el.addEventListener('input', (e) => {
+      const S = el._s; if (!S) return;
+      if (e.target.dataset.rng) { const k = S.d.kriteria.find(x => x.KriteriaID === e.target.dataset.rng); juriSet(el, k, e.target.value, 'rng'); }
+      if (e.target.dataset.val) { const k = S.d.kriteria.find(x => x.KriteriaID === e.target.dataset.val); juriSet(el, k, e.target.value, 'val'); }
+      if (e.target.id === 'catatan') juriVals(S)._catatan = e.target.value;
+    });
+  },
+  async show(el, cabangId) {
+    el._s = null;
+    el.innerHTML = '<div class="pub"><div class="pub-inner">' + appbar({ title: 'Penilaian Juri', sub: 'Memuat…' }) + '<div class="pub-body">' + skeletonCards(4, 140) + '</div></div></div>';
+    const res = await swr('juri:' + cabangId, 'juriData', { cabangId }, (d) => {
+      const prev = el._s;
+      const vals = {};
+      d.peserta.forEach(p => { const m = d.nilai[p.PesertaID]; vals[p.PesertaID] = m ? Object.assign({ _catatan: m.catatan || '' }, m.nilai) : {}; });
+      if (prev) Object.keys(prev.dirty).forEach(pid => { vals[pid] = prev.vals[pid]; });
+      el._s = { d, vals, idx: prev ? prev.idx : Math.max(0, d.peserta.findIndex(p => !d.nilai[p.PesertaID])), dirty: prev ? prev.dirty : {}, gagal: prev ? prev.gagal : {}, cabangId };
+      if (el._s.idx < 0 || el._s.idx >= d.peserta.length) el._s.idx = 0;
+      juriPaint(el);
+    }, { fresh: 0, onError: (r) => { el.innerHTML = '<div class="pub"><div class="pub-inner">' + appbar({ title: 'Penilaian Juri' }) + errorBox(r.message) + '</div></div>'; } });
+    if (!res.success && el._s) toast('Mode luring', 'Data diambil dari perangkat. ' + res.message, 'warning');
+  }
+});
+function juriVals(S) { const p = S.d.peserta[S.idx]; return S.vals[p.PesertaID] = S.vals[p.PesertaID] || {}; }
+function juriTotal(S, v) {
+  let t = 0, any = false;
+  S.d.kriteria.forEach(k => { const x = v[k.KriteriaID]; if (x === undefined || x === '' || isNaN(Number(x))) return; any = true; t += (Number(x) - k.NilaiMin) / ((k.NilaiMaks - k.NilaiMin) || 1) * 100 * k.Bobot / 100; });
+  return any ? Math.round(t * 100) / 100 : null;
+}
+function juriLengkap(S, pid) { const v = S.vals[pid] || {}; return S.d.kriteria.length > 0 && S.d.kriteria.every(k => v[k.KriteriaID] !== undefined && v[k.KriteriaID] !== ''); }
+function juriSet(el, k, val, src) {
+  const S = el._s, v = juriVals(S);
+  let n = val === '' ? '' : Number(val);
+  if (n !== '' && !isNaN(n)) n = Math.max(k.NilaiMin, Math.min(k.NilaiMaks, n));
+  v[k.KriteriaID] = n;
+  S.dirty[S.d.peserta[S.idx].PesertaID] = 1;
+  const card = $('[data-crit="' + k.KriteriaID + '"]', el);
+  if (src !== 'val') { const i = card.querySelector('[data-val]'); i.value = n; }
+  if (src !== 'rng') { const r = card.querySelector('[data-rng]'); r.value = n === '' ? k.NilaiMin : n; }
+  const raw = card.querySelector('[data-val]').value;
+  card.querySelector('[data-err]').innerHTML = raw !== '' && (Number(raw) < k.NilaiMin || Number(raw) > k.NilaiMaks) ? '<div class="err-text mt-8">Nilai harus ' + k.NilaiMin + '–' + k.NilaiMaks + '</div>' : '';
+  const t = juriTotal(S, v); $('#total', el).textContent = t === null ? '–' : fmtNum(t, 2);
+}
+function juriAmbil(el) { const c = $('#catatan', el); if (c && el._s) juriVals(el._s)._catatan = c.value; }
+function juriPaint(el) {
+  const S = el._s, d = S.d;
+  if (!d.peserta.length || !d.kriteria.length) {
+    el.innerHTML = '<div class="pub"><div class="pub-inner">' + appbar({ title: 'Penilaian Juri', sub: d.cabang.NamaCabang }) + '<div class="card" style="margin:16px"><div class="empty"><div class="empty-art">' + ic('clipboard-list', 'ic-xl') + '</div><div class="empty-title">' + (!d.peserta.length ? 'Belum ada peserta' : 'Kriteria belum diatur') + '</div><div>Hubungi panitia untuk melengkapi data cabang ini.</div></div></div></div></div>';
+    return;
+  }
+  const p = d.peserta[S.idx], v = juriVals(S), lock = d.terkunci;
+  const done = d.peserta.filter(x => juriLengkap(S, x.PesertaID)).length;
+  const t = juriTotal(S, v);
+  el.innerHTML = '<div class="pub"><div class="pub-inner" style="display:flex;flex-direction:column;min-height:calc(100vh - var(--ribbon))">' +
+    appbar({ title: 'Penilaian Juri', sub: d.cabang.NamaCabang + ' · ' + d.namaJuri }) +
+    '<div style="padding:12px 16px 4px">' + (lock ? '<div class="alert alert-amber small mb-8">' + ic('lock', 'ic-sm') + '<span>Penilaian sudah dikunci panitia. Nilai hanya bisa dilihat.</span></div>' : '<div id="saved-note"></div>') +
+    '<div class="row between small"><b>Sudah dinilai ' + done + ' dari ' + d.peserta.length + ' peserta</b><span style="color:var(--primary);font-weight:700">' + pct(done, d.peserta.length).toFixed(0) + '% Selesai</span></div><div class="prog mt-8"><i style="width:' + pct(done, d.peserta.length) + '%"></i></div></div>' +
+    '<div class="pchips">' + d.peserta.map((x, i) => '<button class="chip ' + (i === S.idx ? 'on' : juriLengkap(S, x.PesertaID) ? 'done' : '') + '" data-act="pes" data-i="' + i + '">' + noUrut(x.NoUrut) + ' ' + (S.gagal[x.PesertaID] ? ic('circle-alert', 'ic-sm') : i === S.idx ? ic('pencil', 'ic-sm') : juriLengkap(S, x.PesertaID) ? ic('check', 'ic-sm') : '') + '</button>').join('') + '</div>' +
+    '<div class="pub-body grow" style="padding-top:8px"><div class="card card-pad row" style="gap:14px"><span class="photo-thumb" style="width:64px;height:64px;border-radius:14px">' + photoHtml(p.FotoFileId, p.NamaTampil, 200) + '</span><div class="grow"><div class="row"><span class="badge">No. ' + noUrut(p.NoUrut) + '</span><span class="muted small">Kelas ' + esc(p.Kelas) + '</span></div><div style="font-size:19px;font-weight:700;margin-top:4px">' + esc(p.NamaTampil) + '</div>' + (p.Keterangan ? '<div class="muted small ellipsis">' + ic('book-open', 'ic-sm') + ' ' + esc(p.Keterangan) + '</div>' : '') + '</div></div>' +
+    '<div class="row between" style="margin:20px 4px 10px"><div class="row" style="font-weight:700;font-size:16px">' + ic('list-checks') + ' Kriteria Penilaian</div></div>' +
+    d.kriteria.map(k => { const val = v[k.KriteriaID]; return '<div class="card crit" data-crit="' + esc(k.KriteriaID) + '"><div class="crit-top"><div><div style="font-weight:700;font-size:16px">' + esc(k.NamaKriteria) + '</div>' + (k.Keterangan ? '<div class="muted small">' + esc(k.Keterangan) + '</div>' : '<div class="muted small">Skala ' + k.NilaiMin + '–' + k.NilaiMaks + '</div>') + '</div><span class="badge">Bobot ' + k.Bobot + '%</span></div>' +
+      '<div class="stepper-val"><button class="round-btn" data-act="min" data-k="' + esc(k.KriteriaID) + '" aria-label="Kurangi"' + (lock ? ' disabled' : '') + '>' + ic('minus') + '</button><div class="val-wrap"><input class="val-input" inputmode="numeric" data-val="' + esc(k.KriteriaID) + '" value="' + (val === undefined ? '' : val) + '" placeholder="–"' + (lock ? ' readonly' : '') + ' aria-label="Nilai ' + esc(k.NamaKriteria) + '"><span class="max">/' + k.NilaiMaks + '</span></div><button class="round-btn plus" data-act="plus" data-k="' + esc(k.KriteriaID) + '" aria-label="Tambah"' + (lock ? ' disabled' : '') + '>' + ic('plus') + '</button></div>' +
+      '<input type="range" class="rng" min="' + k.NilaiMin + '" max="' + k.NilaiMaks + '" step="1" value="' + (val === undefined || val === '' ? k.NilaiMin : val) + '" data-rng="' + esc(k.KriteriaID) + '"' + (lock ? ' disabled' : '') + '><div class="rng-scale"><span>' + k.NilaiMin + '</span><span>' + Math.round((k.NilaiMin + k.NilaiMaks) / 2) + '</span><span>' + k.NilaiMaks + '</span></div><div data-err></div></div>'; }).join('') +
+    '<div class="total-card mt-16"><div class="row between"><div class="row" style="font-weight:700;color:var(--primary-hover)">' + ic('calculator') + ' Nilai Tertimbang</div><span class="badge" style="background:var(--primary);color:#fff">' + ic('refresh-cw', 'ic-sm') + ' Dihitung Otomatis</span></div><div class="small" style="color:var(--primary)">(' + d.kriteria.map(k => k.Bobot + '%').join(' + ') + ')</div>' +
+    '<div class="row between mt-8"><span style="color:var(--primary)">Total Akhir</span><span><span class="total-num" id="total">' + (t === null ? '–' : fmtNum(t, 2)) + '</span> <span class="muted">/100</span></span></div></div>' +
+    '<div class="field mt-16"><label for="catatan">Catatan (opsional)</label><textarea class="textarea" id="catatan" placeholder="Umpan balik untuk peserta"' + (lock ? ' readonly' : '') + '>' + esc(v._catatan || '') + '</textarea></div>' +
+    '<div class="row muted small mt-12">' + ic('lock', 'ic-sm') + '<span>Nilai dapat diubah sampai panitia mengunci penilaian.</span></div></div>' +
+    '<div class="bottom-bar"><button class="btn btn-lg btn-soft" data-act="prev"' + (S.idx === 0 ? ' disabled' : '') + '>' + ic('chevron-left') + ' Sebelumnya</button><button class="btn btn-primary btn-lg grow" data-act="next">' + (lock ? 'Berikutnya' : S.idx === d.peserta.length - 1 ? 'Simpan' : 'Simpan & Lanjut') + ' ' + ic('arrow-right') + '</button></div></div></div>';
+}
+/** Optimistic: pindah ke peserta berikutnya seketika, simpan di latar (reqId → aman diulang). */
+function juriSimpan(el) {
+  const S = el._s, d = S.d, p = d.peserta[S.idx];
+  juriAmbil(el);
+  if (d.terkunci) { if (S.idx < d.peserta.length - 1) { S.idx++; juriPaint(el); } return; }
+  const v = S.vals[p.PesertaID] || {};
+  const bad = d.kriteria.find(k => v[k.KriteriaID] !== undefined && v[k.KriteriaID] !== '' && (Number(v[k.KriteriaID]) < k.NilaiMin || Number(v[k.KriteriaID]) > k.NilaiMaks));
+  if (bad) return toast('Nilai tidak valid', '"' + bad.NamaKriteria + '" harus ' + bad.NilaiMin + '–' + bad.NilaiMaks + '.', 'error');
+  const kosong = d.kriteria.filter(k => v[k.KriteriaID] === undefined || v[k.KriteriaID] === '');
+  if (kosong.length === d.kriteria.length && !v._catatan) { if (S.idx < d.peserta.length - 1) { S.idx++; juriPaint(el); } return; }
+  const nilai = {}; d.kriteria.forEach(k => { if (v[k.KriteriaID] !== undefined && v[k.KriteriaID] !== '') nilai[k.KriteriaID] = Number(v[k.KriteriaID]); });
+  const pid = p.PesertaID, reqId = (crypto.randomUUID ? crypto.randomUUID() : Date.now() + '' + Math.random());
+  delete S.gagal[pid];
+  d.nilai[pid] = { nilai, catatan: v._catatan || '' };
+  swrPut('juri:' + S.cabangId, d);
+  if (S.idx < d.peserta.length - 1) S.idx++;
+  juriPaint(el);
+  api('simpanNilai', { cabangId: S.cabangId, pesertaId: pid, nilai, catatan: v._catatan || '' }, { reqId }).then(res => {
+    if (res.success) {
+      delete S.dirty[pid];
+      const n = $('#saved-note', el); if (n) n.innerHTML = '<div class="alert alert-green small mb-8" style="padding:10px 14px">' + ic('circle-check', 'ic-sm') + '<span>Nilai ' + esc(p.NamaTampil) + ' tersimpan</span></div>';
+      AppState.ptk = null; swrDrop('ptk');
+    } else {
+      S.gagal[pid] = 1;
+      toast('Nilai ' + p.NamaTampil + ' belum tersimpan', res.message, 'error');
+      if (res.data && res.data.code === 'LOCKED') { d.terkunci = true; }
+      if (!el.hidden && el._s === S) juriPaint(el);
+    }
+  });
+}
