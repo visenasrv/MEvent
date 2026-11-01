@@ -89,6 +89,9 @@ Setiap link punya **kode QR** (tombol *QR Besar* untuk ditampilkan di layar agar
 
 > 🔊 Efek suara berasal dari perangkat yang menampilkan layar (IFP/laptop). Pastikan volume IFP menyala. Ikon speaker di layar untuk mematikan/menyalakan efek suara.
 
+### Kehadiran lomba
+Tab **Kehadiran** pada event lomba menampilkan kolom **Lomba yang di-voting** untuk setiap siswa (beserta lomba yang diikuti sebagai peserta) dan ringkasan jumlah siswa yang sudah voting per cabang. Informasi yang sama ikut ke **Excel** dan **cetak Daftar Hadir**.
+
 ### Alur lomba
 Event Lomba → **Cabang & Peserta** (mode Juri/Voting/Gabungan + bobot) → **Juri & Kriteria** → bagikan **Link Voting & Penilaian Lomba** → **Kunci Penilaian** → tab **Hasil** (tetapkan urutan bila seri) → **Cetak Piagam Juara**. Di layar hasil, tombol nama cabang (atau panah ← →) berpindah cabang seketika.
 
@@ -102,10 +105,10 @@ Event Lomba → **Cabang & Peserta** (mode Juri/Voting/Gabungan + bobot) → **J
 3. **Terapkan → Kelola deployment → ✏️ Edit → Versi: Versi baru → Terapkan.**
 ⚠️ Jangan memilih *Deployment baru* — URL `/exec` akan berubah dan aplikasi berhenti bekerja.
 
-> **Dari versi 1.0 ke 1.1:** lakukan 3 langkah di atas, lalu perbarui frontend. Mode Demo yang sedang aktif sebaiknya diakhiri dan dimulai ulang agar contoh event *calon tunggal* ikut dibuat.
+> **Dari versi sebelumnya ke 1.2:** lakukan 3 langkah di atas, lalu perbarui frontend (isi ulang `GAS_URL`). Data lama tetap terbaca; kehadiran dari voting kini dihitung otomatis dari daftar pemilih, jadi tidak ada data yang perlu dipindahkan.
 
 **Frontend** (bila ada perubahan di `css/` atau `js/`):
-1. Bila mengubah kode sendiri, naikkan angka versi di `index.html` (mis. `?v=1.1.0` → `?v=1.1.1`) dan `APP_VER` di `js/core.js` agar HP pengguna langsung memuat versi baru. (Paket 1.1.0 ini sudah dinaikkan.)
+1. Bila mengubah kode sendiri, naikkan angka versi di `index.html` (mis. `?v=1.1.0` → `?v=1.1.1`) dan `APP_VER` di `js/core.js` agar HP pengguna langsung memuat versi baru. (Paket 1.2.0 ini sudah dinaikkan.)
    Jangan lupa isi ulang `GAS_URL` di `js/config.js` bila berkas itu ikut tertimpa.
 2. Jalankan dari folder proyek:
    ```bash
@@ -118,7 +121,9 @@ Event Lomba → **Cabang & Peserta** (mode Juri/Voting/Gabungan + bobot) → **J
 
 ## Bagian E — Tips Kecepatan
 
-- Aplikasi sudah memakai cache di perangkat (tampil seketika), cache server berversi, satu panggilan untuk satu layar, dan simpan *optimistic* untuk penilaian juri.
+- Aplikasi memakai cache di perangkat (tampil seketika), cache server berversi, dan satu panggilan untuk satu layar.
+- Saklar (buka/tutup voting, kunci penilaian, sistem pencalonan) dan nilai juri langsung berubah di layar lalu disimpan di latar; bila server menolak, tampilan dikembalikan dan muncul pesan.
+- Suara yang masuk tidak lagi membatalkan cache halaman awal & daftar siswa, sehingga login dan halaman voting tetap cepat saat ramai.
 - Saat hari-H, Apps Script yang lama tidak dipakai bisa "dingin" (1–3 detik di panggilan pertama). Aplikasi otomatis mengirim *ping* pemanas saat dibuka. Bila ingin selalu hangat, buat pemicu: **Pemicu → Tambah pemicu → fungsi `warmup` → Berbasis waktu → Setiap 10 menit**.
 - Untuk melihat kecepatan, buka Console browser (F12) lalu ketik `Perf.table()`.
 

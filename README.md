@@ -2,6 +2,8 @@
 
 Aplikasi web untuk **pemilihan OSIS**, **perlombaan** (juri + voting siswa), **formulir pendaftaran**, **daftar hadir**, dan **dokumen cetak** (rekap, berita acara, lembar juri, piagam, SK) — dengan **Mode Demo** berisi data contoh.
 
+Versi 1.2: respons lebih cepat (optimistic UI, cache bercakupan, login & kirim suara lebih ringan) dan info lomba yang di-voting di kehadiran.
+
 Versi 1.1: link voting khusus (Siswa & PTK / Siswa & Juri), link formulir & layar hasil dengan kode QR, layar hasil "suara masuk → tampilkan hasil" dengan animasi dan suara, serta sistem calon OSIS pasangan atau tunggal (wakil = suara terbanyak ke-2).
 
 - Frontend: HTML/CSS/JavaScript murni (SPA), di-hosting di GitHub Pages

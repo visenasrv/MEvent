@@ -119,12 +119,34 @@ async function loadEvent(id, render, force) {
   return res;
 }
 /** Setelah perubahan: buang cache event & ambil ulang di latar (render bila berubah). */
+const _invT = {};
 window.invalidateEvent = function (id) {
   swrDrop('ev:' + id);
-  const el = $('.page[data-page="ev"]');
-  loadEvent(id, (d) => { if (el && !el.hidden && el._id === id) evRender(el); }, true);
-  refreshBoot();
+  clearTimeout(_invT[id]);
+  _invT[id] = setTimeout(() => segarkanEvent(id), 250);   // beberapa simpan beruntun → satu penyegaran
 };
+/** Detail event + boot dasbor dalam SATU panggilan server (batch), render ulang hanya bila berubah. */
+async function segarkanEvent(id) {
+  window._batchAt = Date.now();
+  const res = await api('batch', { calls: [{ action: 'eventDetail', data: { eventId: id } }, { action: 'staffBoot' }] });
+  if (!res.success) return;
+  const d = res.data.eventDetail, b = res.data.staffBoot;
+  if (d && d.success) {
+    const lama = AppState.ev[id], beda = !lama || hashStr(JSON.stringify(lama)) !== hashStr(JSON.stringify(d.data));
+    AppState.ev[id] = d.data; swrPut('ev:' + id, d.data);
+    const el = $('.page[data-page="ev"]');
+    if (beda && el && !el.hidden && el._id === id && !document.querySelector('#overlay-root .backdrop')) evRender(el);
+  }
+  if (b && b.success) { AppState.boot = b.data; swrPut('boot', b.data); if (window.Shell) Shell.refreshBadges(); }
+}
+/** Optimistic UI: ubah & tampilkan dulu, simpan di latar, kembalikan bila server menolak. */
+async function optimis(el, ubah, batal, kirim, sukses) {
+  ubah(); evRender(el);
+  const res = await kirim();
+  if (res.success) { if (sukses) toast(sukses[0], sukses[1] || ''); return res; }
+  batal(); evRender(el); toast('Gagal menyimpan', res.message, 'error');
+  return res;
+}
 function ptkOptions(sel, filter) { return (B().ptk || []).filter(p => p.Aktif !== 'Tidak' && (!filter || filter(p))).map(p => '<option value="' + esc(p.PTK_ID) + '"' + (p.PTK_ID === sel ? ' selected' : '') + '>' + esc(p.Nama) + (p.Jabatan ? ' — ' + esc(p.Jabatan) : '') + '</option>').join(''); }
 function kelasDatalist(id) { return '<datalist id="' + id + '">' + (B().kelas || []).map(k => '<option value="' + esc(k) + '">').join('') + '</datalist>'; }
 
@@ -433,20 +455,22 @@ EV_RENDER.calon = (det) => {
 EVH['voting-osis'] = async (el, t, det) => {
   const buka = t.checked;
   if (!buka && !(await confirmBox({ title: 'Tutup voting?', text: 'Pemilih tidak bisa memberikan suara sampai voting dibuka kembali.', ok: 'Tutup Voting', danger: true }))) { t.checked = true; return; }
-  const res = await api('setVoting', { eventId: det.event.EventID, buka });
-  if (toastRes(res, buka ? 'Voting dibuka' : 'Voting ditutup', buka ? 'Siswa & PTK sekarang bisa memilih.' : '')) { det.event.VotingDibuka = buka ? 'Ya' : 'Tidak'; if (buka) det.event.Status = 'Berjalan'; evRender(el); invalidateEvent(det.event.EventID); }
-  else { t.checked = !buka; }
+  const e = det.event, lama = { v: e.VotingDibuka, s: e.Status };
+  const res = await optimis(el, () => { e.VotingDibuka = buka ? 'Ya' : 'Tidak'; if (buka) e.Status = 'Berjalan'; }, () => { e.VotingDibuka = lama.v; e.Status = lama.s; },
+    () => api('setVoting', { eventId: e.EventID, buka }), [buka ? 'Voting dibuka' : 'Voting ditutup', buka ? 'Siswa & PTK sekarang bisa memilih.' : '']);
+  if (res.success) invalidateEvent(e.EventID);
 };
 EVH['sistem-calon'] = async (el, b, det) => {
   const v = b.dataset.v, e = det.event;
   if ((e.SistemCalon === 'Tunggal' ? 'Tunggal' : 'Pasangan') === v) return;
   if (det.kandidat.length && !(await confirmBox({ title: 'Ubah sistem pencalonan?', html: v === 'Tunggal' ? 'Semua calon menjadi <b>calon tunggal</b>. Data calon wakil (nama, kelas, foto) pada setiap nomor urut akan dihapus.' : 'Semua calon menjadi <b>pasangan</b>. Lengkapi calon wakil untuk setiap nomor urut sebelum voting dibuka.', ok: 'Ubah Sistem' }))) return;
-  const res = await busy(b, () => api('simpanEvent', { event: { EventID: e.EventID, Judul: e.Judul, SistemCalon: v } }));
-  if (toastRes(res, 'Sistem pencalonan diubah', v === 'Tunggal' ? 'Wakil diambil dari suara terbanyak ke-2' : 'Pasangan Ketua & Wakil')) {
-    e.SistemCalon = v;
-    det.kandidat.forEach(k => { if (v === 'Tunggal') Object.assign(k, { Tipe: 'Perorangan', Nama2: '', Kelas2: '', FotoFileId2: '' }); else k.Tipe = 'Pasangan'; });
-    evRender(el); invalidateEvent(e.EventID);
-  }
+  const lama = { sistem: e.SistemCalon, kand: det.kandidat.map(k => Object.assign({}, k)) };
+  const res = await optimis(el,
+    () => { e.SistemCalon = v; det.kandidat.forEach(k => { if (v === 'Tunggal') Object.assign(k, { Tipe: 'Perorangan', Nama2: '', Kelas2: '', FotoFileId2: '' }); else k.Tipe = 'Pasangan'; }); },
+    () => { e.SistemCalon = lama.sistem; det.kandidat = lama.kand; },
+    () => api('simpanEvent', { event: { EventID: e.EventID, Judul: e.Judul, SistemCalon: v } }),
+    ['Sistem pencalonan diubah', v === 'Tunggal' ? 'Wakil diambil dari suara terbanyak ke-2' : 'Pasangan Ketua & Wakil']);
+  if (res.success) invalidateEvent(e.EventID);
 };
 EVH['calon-baru'] = (el, b, det) => formCalon(el, det, null);
 EVH['calon-edit'] = (el, b, det) => formCalon(el, det, det.kandidat.find(k => k.KandidatID === b.dataset.id));
@@ -545,10 +569,10 @@ EVH['cabang-simpan'] = async (el, b, det) => {
   if (toastRes(res, 'Pengaturan cabang disimpan', 'Perubahan pada "' + d.NamaCabang + '" berhasil diperbarui.')) { Object.assign(c, res.data.cabang); el._cf = null; evRender(el); invalidateEvent(det.event.EventID); }
 };
 EVH['voting-cabang'] = async (el, t, det) => {
-  const c = curCabang(el, det), buka = t.checked;
-  const res = await api('setVoting', { cabangId: c.CabangID, buka });
-  if (toastRes(res, buka ? 'Voting cabang dibuka' : 'Voting cabang ditutup', c.NamaCabang)) { c.VotingDibuka = buka ? 'Ya' : 'Tidak'; if (buka) det.event.Status = 'Berjalan'; evRender(el); invalidateEvent(det.event.EventID); }
-  else t.checked = !buka;
+  const c = curCabang(el, det), buka = t.checked, lama = { v: c.VotingDibuka, s: det.event.Status };
+  const res = await optimis(el, () => { c.VotingDibuka = buka ? 'Ya' : 'Tidak'; if (buka) det.event.Status = 'Berjalan'; }, () => { c.VotingDibuka = lama.v; det.event.Status = lama.s; },
+    () => api('setVoting', { cabangId: c.CabangID, buka }), [buka ? 'Voting cabang dibuka' : 'Voting cabang ditutup', c.NamaCabang]);
+  if (res.success) invalidateEvent(det.event.EventID);
 };
 EVH['cabang-baru'] = (el, b, det) => {
   const m = modal({ title: 'Tambah Cabang Lomba', body: '<div class="field"><label>Nama cabang <span class="req">*</span></label><input class="input" id="nc-nama" placeholder="mis. Baca Puisi" list="cb-sug"><datalist id="cb-sug">' + ['Baca Puisi', 'Pidato', 'Lomba Poster', 'Cerita Rakyat', 'Menyanyi Solo', 'Cerdas Cermat', 'Kaligrafi', 'Tari Kreasi', 'Futsal', 'Tarik Tambang'].map(x => '<option value="' + x + '">').join('') + '</datalist></div>' +
@@ -719,9 +743,10 @@ EVH['juri-sandi'] = (el, b, det) => {
   };
 };
 EVH.kunci = async (el, t, det) => {
-  const c = curCabang(el, det);
-  const res = await api('kunciPenilaian', { cabangId: c.CabangID, kunci: t.checked });
-  if (toastRes(res, t.checked ? 'Penilaian dikunci' : 'Kunci penilaian dibuka')) { c.Terkunci = t.checked ? 'Ya' : 'Tidak'; invalidateEvent(det.event.EventID); } else t.checked = !t.checked;
+  const c = curCabang(el, det), kunci = t.checked, lama = c.Terkunci;
+  const res = await optimis(el, () => { c.Terkunci = kunci ? 'Ya' : 'Tidak'; if (c.hasil) c.hasil.Terkunci = kunci; }, () => { c.Terkunci = lama; if (c.hasil) c.hasil.Terkunci = lama === 'Ya'; },
+    () => api('kunciPenilaian', { cabangId: c.CabangID, kunci }), [kunci ? 'Penilaian dikunci' : 'Kunci penilaian dibuka']);
+  if (res.success) invalidateEvent(det.event.EventID);
 };
 EVH.kr = (el, t) => { const k = el._kr.list[+t.dataset.i], f = t.dataset.f; k[f] = (f === 'NamaKriteria' || f === 'Keterangan') ? t.value : +t.value; const tot = el._kr.list.reduce((s, x) => s + (+x.Bobot || 0), 0), b = $('#kr-tot', el); b.textContent = 'Total ' + tot + '%'; b.className = 'badge ' + (Math.abs(tot - 100) < .001 ? 'badge-green' : 'badge-red'); };
 EVH['kr-add'] = (el) => { el._kr.list.push({ NamaKriteria: '', NilaiMin: 0, NilaiMaks: 100, Bobot: Math.max(0, 100 - el._kr.list.reduce((s, x) => s + (+x.Bobot || 0), 0)), Keterangan: '' }); evRender(el); };
@@ -839,14 +864,20 @@ EV_RENDER.kehadiran = (det, el) => {
   const all = det.kehadiran, dates = uniq(all.map(r => r.tanggal)).sort();
   const rows = all.filter(r => (!st.tgl || r.tanggal === st.tgl) && (!st.kelas || r.kelas === st.kelas) && (!st.q || r.nama.toLowerCase().indexOf(st.q) > -1));
   const SUM = { VotingOSIS: ['Voting OSIS', ''], VotingLomba: ['Voting Lomba', 'badge-amber'], PesertaLomba: ['Peserta', 'badge-green'], Manual: ['Manual', 'badge-gray'] };
+  const lomba = det.event.JenisEvent === 'Lomba';
+  const hariIni = all.filter(r => !st.tgl || r.tanggal === st.tgl);
+  const rekapVoting = lomba ? (det.cabang || []).filter(c => c.ModePenilaian !== 'Juri').map(c => [c.NamaCabang, hariIni.filter(r => (r.voting || []).indexOf(c.NamaCabang) > -1).length]) : [];
   return '<div class="card" style="overflow:hidden"><div class="toolbar"><div class="input-group search-in">' + ic('search') + '<input class="input" data-inp="kh-q" placeholder="Cari nama siswa" value="' + esc(st.q) + '"></div>' +
     '<select class="select" style="width:190px" data-chg="kh-tgl"><option value="">Semua tanggal (' + dates.length + ')</option>' + dates.map(d => '<option value="' + d + '"' + (st.tgl === d ? ' selected' : '') + '>' + esc(hariTgl(d)) + '</option>').join('') + '</select>' +
     '<select class="select" style="width:140px" data-chg="kh-kelas"><option value="">Semua kelas</option>' + uniq(all.map(r => r.kelas)).sort(kelasSort).map(k => '<option' + (st.kelas === k ? ' selected' : '') + '>' + esc(k) + '</option>').join('') + '</select>' +
     '<button class="btn" data-act="kh-tambah">' + ic('user-plus', 'ic-sm') + ' Tambah</button><button class="btn" data-act="kh-excel">' + ic('sheet', 'ic-sm') + ' Excel</button><button class="btn btn-primary" data-act="cetak-doc" data-jenis="DaftarHadir">' + ic('printer', 'ic-sm') + ' Cetak</button></div>' +
-    '<div class="row row-wrap" style="padding:0 18px 12px">' + dates.map(d => '<span class="badge badge-gray">' + esc(tglPendek(d)) + ': ' + all.filter(r => r.tanggal === d).length + ' hadir</span>').join('') + '</div>' +
-    '<div class="tbl-wrap"><table class="tbl"><thead><tr><th style="width:50px">No</th><th>Nama</th><th>Kelas</th><th>Tanggal</th><th>Jam</th><th>Sumber</th><th></th></tr></thead><tbody>' +
-    (rows.slice(0, 500).map((r, i) => '<tr><td class="muted">' + (i + 1) + '</td><td><div class="row">' + avatarHtml(r.nama, '', 'avatar-sm') + '<b>' + esc(r.nama) + '</b></div></td><td>' + esc(r.kelas) + '</td><td>' + esc(tglPendek(r.tanggal)) + '</td><td>' + esc(r.jam || '-') + '</td><td>' + r.sumber.map(s => '<span class="badge ' + (SUM[s] || ['', ''])[1] + '">' + esc((SUM[s] || [s])[0]) + '</span>').join(' ') + '</td>' +
-      '<td class="acts"><button class="btn btn-ghost btn-icon btn-sm" data-act="kh-hapus" data-t="' + esc(r.tanggal) + '" data-s="' + esc(r.siswaId) + '" title="Tandai tidak hadir" style="color:var(--red)">' + ic('user-x', 'ic-sm') + '</button></td></tr>').join('') || '<tr><td colspan="7">' + emptyState('clock', 'Belum ada kehadiran', 'Kehadiran tercatat otomatis dari voting dan peserta lomba. Anda juga bisa menambah manual.') + '</td></tr>') +
+    '<div class="row row-wrap" style="padding:0 18px 12px">' + dates.map(d => '<span class="badge badge-gray">' + esc(tglPendek(d)) + ': ' + all.filter(r => r.tanggal === d).length + ' hadir</span>').join('') +
+    (rekapVoting.length ? '<span class="small muted" style="margin-left:8px">Sudah voting' + (st.tgl ? ' (' + esc(tglPendek(st.tgl)) + ')' : '') + ':</span>' + rekapVoting.map(x => '<span class="badge badge-amber">' + ic('vote', 'ic-sm') + esc(x[0]) + ': ' + x[1] + ' siswa</span>').join('') : '') + '</div>' +
+    '<div class="tbl-wrap"><table class="tbl"><thead><tr><th style="width:50px">No</th><th>Nama</th><th>Kelas</th><th>Tanggal</th><th>Jam</th><th>Sumber</th>' + (lomba ? '<th>Lomba yang di-voting</th>' : '') + '<th></th></tr></thead><tbody>' +
+    (rows.slice(0, 500).map((r, i) => '<tr><td class="muted">' + (i + 1) + '</td><td><div class="row">' + avatarHtml(r.nama, '', 'avatar-sm') + '<b>' + esc(r.nama) + '</b></div></td><td>' + esc(r.kelas) + '</td><td>' + esc(tglPendek(r.tanggal)) + '</td><td>' + esc(r.jam || '-') + '</td><td>' + r.sumber.map(s => '<span class="badge ' + (SUM[s] || ['', ''])[1] + '">' + esc((SUM[s] || [s])[0]) + '</span>').join(' ') + ((r.peserta || []).length ? '<div class="small muted mt-8">Peserta: ' + esc(r.peserta.join(', ')) + '</div>' : '') + '</td>' +
+      (lomba ? '<td>' + ((r.voting || []).length ? '<div class="row row-wrap" style="gap:4px">' + r.voting.map(v => '<span class="chip-sm">' + ic('vote', 'ic-sm') + esc(v) + '</span>').join('') + '</div>' : '<span class="muted small">—</span>') +
+        ((r.votingSemua || []).length > (r.voting || []).length ? '<div class="small muted mt-8">Total event: ' + esc(r.votingSemua.join(', ')) + '</div>' : '') + '</td>' : '') +
+      '<td class="acts"><button class="btn btn-ghost btn-icon btn-sm" data-act="kh-hapus" data-t="' + esc(r.tanggal) + '" data-s="' + esc(r.siswaId) + '" title="Tandai tidak hadir" style="color:var(--red)">' + ic('user-x', 'ic-sm') + '</button></td></tr>').join('') || '<tr><td colspan="' + (lomba ? 8 : 7) + '">' + emptyState('clock', 'Belum ada kehadiran', 'Kehadiran tercatat otomatis dari voting dan peserta lomba. Anda juga bisa menambah manual.') + '</td></tr>') +
     '</tbody></table></div><div class="pager"><span class="small muted">' + rows.length + ' baris' + (rows.length > 500 ? ' (500 ditampilkan)' : '') + '</span></div></div>';
 };
 EVH['kh-q'] = debounce((el, t) => { el._kh.q = t.value.toLowerCase(); evRender(el); const i = $('[data-inp="kh-q"]', el); if (i) { i.focus(); i.setSelectionRange(i.value.length, i.value.length); } }, 250);
@@ -869,7 +900,8 @@ EVH['kh-tambah'] = async (el, b, det) => {
 };
 EVH['kh-excel'] = (el, b, det) => {
   const rows = det.kehadiran;
-  exportXlsx('Kehadiran - ' + det.event.Judul.replace(/[\\/:*?"<>|]/g, '') + '.xlsx', [{ name: 'Kehadiran', rows: [['No', 'Nama', 'NISN', 'Kelas', 'L/P', 'Tanggal', 'Jam', 'Sumber']].concat(rows.map((r, i) => [i + 1, r.nama, r.nisn, r.kelas, r.jk, r.tanggal, r.jam, r.sumber.join(', ')])) }]);
+  const lomba = det.event.JenisEvent === 'Lomba';
+  exportXlsx('Kehadiran - ' + det.event.Judul.replace(/[\\/:*?"<>|]/g, '') + '.xlsx', [{ name: 'Kehadiran', rows: [['No', 'Nama', 'NISN', 'Kelas', 'L/P', 'Tanggal', 'Jam', 'Sumber'].concat(lomba ? ['Voting Lomba (hari itu)', 'Seluruh Lomba di-voting', 'Peserta Lomba'] : [])].concat(rows.map((r, i) => [i + 1, r.nama, r.nisn, r.kelas, r.jk, r.tanggal, r.jam, r.sumber.join(', ')].concat(lomba ? [(r.voting || []).join(', '), (r.votingSemua || []).join(', '), (r.peserta || []).join(', ')] : []))) }]);
 };
 
 /* ---------------- Tab: Cetak ---------------- */

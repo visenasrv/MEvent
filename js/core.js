@@ -5,7 +5,7 @@
    ============================================================ */
 'use strict';
 
-const APP_VER = '1.1.0';
+const APP_VER = '1.2.0';
 const LS_PREFIX = 'mevent:v1:';
 
 /* ---------------- Penyimpanan perangkat ---------------- */
@@ -59,6 +59,7 @@ async function apiOnce(action, data, timeout, reqId, token) {
       body: JSON.stringify({ action, token: token != null ? token : (AppState.token || ''), mode: AppState.mode, reqId, data: data || {} })
     });
     const text = await res.text();
+    _lastNet = Date.now();
     try { const j = JSON.parse(text); Perf.add(action, Math.round(performance.now() - t0), j.ms); return j; }
     catch (e) { return { success: false, network: true, retryable: res.status >= 500 || res.status === 429, message: 'Server membalas HTTP ' + res.status + ' (bukan JSON). Periksa URL Web App & izin akses "Anyone".' }; }
   } catch (err) {
@@ -83,7 +84,13 @@ async function api(action, data, opt = {}) {
 }
 const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 function waitOnline(ms) { return new Promise(r => { if (navigator.onLine !== false) return r(); const t = setTimeout(done, ms); function done() { clearTimeout(t); removeEventListener('online', done); r(); } addEventListener('online', done); }); }
-function warmUpServer() { if (gasReady()) fetch(GAS_URL + '?ping=' + Date.now(), { mode: 'no-cors', cache: 'no-store' }).catch(() => {}); }
+let _lastNet = 0;
+/** Ping pemanas (cold start Apps Script) — paling sering sekali per 2 menit, dilewati bila server baru saja dipakai. */
+function warmUpServer() {
+  if (!gasReady() || Date.now() - _lastNet < 120e3) return;
+  _lastNet = Date.now();
+  fetch(GAS_URL + '?ping=' + Date.now(), { mode: 'no-cors', cache: 'no-store' }).catch(() => {});
+}
 
 function hashStr(s) { let h = 0; for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) | 0; return h + ':' + s.length; }
 
@@ -474,7 +481,7 @@ async function ensureStaffBoot(force) {
   return true;
 }
 /** Segarkan boot staff di latar setelah perubahan data. */
-const refreshBoot = debounce(() => { if (AppState.role === 'admin' || (AppState.role === 'ptk' && AppState.boot)) ensureStaffBoot(true).then(() => { if (window.Shell) Shell.refreshBadges(); }); }, 400);
+const refreshBoot = debounce(() => { if (Date.now() - (window._batchAt || 0) < 3000) return; if (AppState.role === 'admin' || (AppState.role === 'ptk' && AppState.boot)) ensureStaffBoot(true).then(() => { if (window.Shell) Shell.refreshBadges(); }); }, 400);
 
 /* ---------------- Aktivitas & idle ---------------- */
 ['pointerdown', 'keydown'].forEach(ev => addEventListener(ev, () => { AppState.lastActive = Date.now(); }, { passive: true }));

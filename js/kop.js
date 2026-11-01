@@ -103,7 +103,8 @@ function judulDoc(t, sub) { return '<h2 class="doc-title">' + esc(t) + '</h2>' +
 function docDaftarHadir(det, cfg, o) {
   const ev = det.event;
   let rows = det.kehadiran || [];
-  if (o.cabangId) rows = rows.filter(r => r.cabangId === o.cabangId);
+  const cabN = o.cabangId && det.cabang ? (det.cabang.find(c => c.CabangID === o.cabangId) || {}).NamaCabang : '';
+  if (o.cabangId) rows = rows.filter(r => r.cabangId === o.cabangId || (r.voting || []).indexOf(cabN) > -1 || (r.peserta || []).indexOf(cabN) > -1);
   if (o.kelas) rows = rows.filter(r => r.kelas === o.kelas);
   const dates = o.tanggal && o.tanggal.length ? o.tanggal.slice().sort() : uniq(rows.map(r => r.tanggal)).sort();
   rows = rows.filter(r => dates.indexOf(r.tanggal) > -1);
@@ -112,16 +113,18 @@ function docDaftarHadir(det, cfg, o) {
     (dates.length === 1 ? esc(hariTgl(dates[0])) : esc(tglPendek(dates[0] || '')) + ' s.d. ' + esc(tglPendek(dates[dates.length - 1] || '')));
   let table;
   const SUMBER = { VotingOSIS: 'Voting OSIS', VotingLomba: 'Voting Lomba', PesertaLomba: 'Peserta', Manual: 'Manual' };
+  const lomba = ev.JenisEvent === 'Lomba';
+  const ket = (r) => lomba ? [(r.voting || []).length ? 'Voting: ' + r.voting.join(', ') : '', (r.peserta || []).length ? 'Peserta: ' + r.peserta.join(', ') : '', r.sumber.indexOf('Manual') > -1 ? 'Manual' : ''].filter(Boolean).join('; ') : r.sumber.map(x => SUMBER[x] || x).join(', ');
   if (dates.length <= 1) {
-    table = '<table class="dt"><thead><tr><th style="width:34px">No</th><th>Nama</th><th style="width:60px">Kelas</th><th style="width:40px">L/P</th><th style="width:60px">Jam</th><th style="width:110px">Keterangan</th><th style="width:90px">Paraf</th></tr></thead><tbody>' +
-      (rows.map((r, i) => '<tr><td class="c">' + (i + 1) + '</td><td>' + esc(r.nama) + '</td><td class="c">' + esc(r.kelas) + '</td><td class="c">' + esc(r.jk) + '</td><td class="c">' + esc(r.jam) + '</td><td>' + esc(r.sumber.map(x => SUMBER[x] || x).join(', ')) + '</td><td>' + (i % 2 ? '<span style="padding-left:40px">' + (i + 1) + '.</span>' : (i + 1) + '.') + '</td></tr>').join('') || '<tr><td colspan="7" class="c">Belum ada data kehadiran.</td></tr>') + '</tbody></table>';
+    table = '<table class="dt"><thead><tr><th style="width:34px">No</th><th>Nama</th><th style="width:60px">Kelas</th><th style="width:40px">L/P</th><th style="width:60px">Jam</th><th style="width:' + (lomba ? 190 : 110) + 'px">Keterangan</th><th style="width:90px">Paraf</th></tr></thead><tbody>' +
+      (rows.map((r, i) => '<tr><td class="c">' + (i + 1) + '</td><td>' + esc(r.nama) + '</td><td class="c">' + esc(r.kelas) + '</td><td class="c">' + esc(r.jk) + '</td><td class="c">' + esc(r.jam) + '</td><td' + (lomba ? ' style="font-size:9pt"' : '') + '>' + esc(ket(r)) + '</td><td>' + (i % 2 ? '<span style="padding-left:40px">' + (i + 1) + '.</span>' : (i + 1) + '.') + '</td></tr>').join('') || '<tr><td colspan="7" class="c">Belum ada data kehadiran.</td></tr>') + '</tbody></table>';
   } else {
     const per = {};
-    rows.forEach(r => { const k = r.siswaId; (per[k] = per[k] || { nama: r.nama, kelas: r.kelas, jk: r.jk, d: {} }).d[r.tanggal] = 1; });
+    rows.forEach(r => { const k = r.siswaId; const p = (per[k] = per[k] || { nama: r.nama, kelas: r.kelas, jk: r.jk, d: {}, v: [] }); p.d[r.tanggal] = 1; (r.voting || []).forEach(x => { if (p.v.indexOf(x) < 0) p.v.push(x); }); });
     const list = Object.values(per).sort((a, b) => kelasSort(a.kelas, b.kelas) || a.nama.localeCompare(b.nama));
-    table = '<table class="dt"><thead><tr><th style="width:30px">No</th><th>Nama</th><th style="width:52px">Kelas</th>' + dates.map(d => '<th style="width:46px">' + esc(tglPendek(d).replace(/ \d{4}$/, '')) + '</th>').join('') + '<th style="width:50px">Jml</th></tr></thead><tbody>' +
-      list.map((r, i) => '<tr><td class="c">' + (i + 1) + '</td><td>' + esc(r.nama) + '</td><td class="c">' + esc(r.kelas) + '</td>' + dates.map(d => '<td class="c">' + (r.d[d] ? '✓' : '') + '</td>').join('') + '<td class="c">' + Object.keys(r.d).length + '</td></tr>').join('') +
-      '</tbody><tfoot><tr><th colspan="3" style="text-align:right">Jumlah hadir</th>' + dates.map(d => '<th>' + list.filter(r => r.d[d]).length + '</th>').join('') + '<th></th></tr></tfoot></table>';
+    table = '<table class="dt"><thead><tr><th style="width:30px">No</th><th>Nama</th><th style="width:52px">Kelas</th>' + dates.map(d => '<th style="width:46px">' + esc(tglPendek(d).replace(/ \d{4}$/, '')) + '</th>').join('') + '<th style="width:50px">Jml</th>' + (lomba ? '<th style="width:150px">Lomba di-voting</th>' : '') + '</tr></thead><tbody>' +
+      list.map((r, i) => '<tr><td class="c">' + (i + 1) + '</td><td>' + esc(r.nama) + '</td><td class="c">' + esc(r.kelas) + '</td>' + dates.map(d => '<td class="c">' + (r.d[d] ? '✓' : '') + '</td>').join('') + '<td class="c">' + Object.keys(r.d).length + '</td>' + (lomba ? '<td style="font-size:9pt">' + esc(r.v.join(', ') || '-') + '</td>' : '') + '</tr>').join('') +
+      '</tbody><tfoot><tr><th colspan="3" style="text-align:right">Jumlah hadir</th>' + dates.map(d => '<th>' + list.filter(r => r.d[d]).length + '</th>').join('') + '<th></th>' + (lomba ? '<th></th>' : '') + '</tr></tfoot></table>';
   }
   return docPage(judulDoc('Daftar Hadir', sub) + table + ttdHtml(cfg, { tanggal: dates[dates.length - 1] }), { kop: cfg.kop });
 }

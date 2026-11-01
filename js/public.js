@@ -100,7 +100,7 @@ registerPage('nisn', {
     });
   },
   show(el) {
-    endVoter();
+    endVoter(); warmUpServer();
     el._v = '';
     const p = AppState.pub, osis = p && p.osis.find(o => o.VotingDibuka === 'Ya');
     el.innerHTML = '<div class="pub"><div class="pub-inner">' + appbar({ title: 'Login Siswa — Voting OSIS', sub: sekolah().NamaSekolah }) +
@@ -254,7 +254,7 @@ registerPage('lomba', {
     });
     el.addEventListener('input', (e) => { if (e.target.id === 'cari-nama') { el._st.q = e.target.value; lombaPaintNames(el); } });
   },
-  show(el) { endVoter(); el._st = { kelas: '', siswa: null, q: '' }; lombaPaint(el); if (!AppState.pub) loadPublicBoot(); },
+  show(el) { endVoter(); warmUpServer(); el._st = { kelas: '', siswa: null, q: '' }; lombaPaint(el); if (!AppState.pub) loadPublicBoot(); },
   onPub() { const el = $('.page[data-page="lomba"]'); if (el && !el.hidden) lombaPaint(el); }
 });
 function lombaPaint(el) {
@@ -368,7 +368,7 @@ registerPage('masuk-ptk', {
     });
     bindPtkForm(el, () => el._st, () => ptkSubmit(el, el._st));
   },
-  show(el) { if (AppState.role === 'ptk' || AppState.role === 'tamu') return go('ptk'); el._st = { tab: 'ptk', sel: '', q: '' }; ptkPaint(el); },
+  show(el) { if (AppState.role === 'ptk' || AppState.role === 'tamu') return go('ptk'); warmUpServer(); el._st = { tab: 'ptk', sel: '', q: '' }; ptkPaint(el); },
   onPub() { const el = $('.page[data-page="masuk-ptk"]'); if (el && !el.hidden) ptkPaintList(el, el._st); }
 });
 /** Pasang aksi bersama form PTK/juri (pilih nama, lihat sandi, cari). */
@@ -451,7 +451,7 @@ registerPage('masuk-admin', {
   },
   show(el) {
     if (AppState.role === 'admin') return go('dasbor');
-    ensureAdminBundle().catch(() => {});
+    ensureAdminBundle().catch(() => {}); warmUpServer();
     el.innerHTML = '<div class="pub"><div class="pub-inner">' +
       '<div class="hero hero-sm"><div class="row" style="position:relative;z-index:2"><button class="btn btn-sm" data-act="back" style="background:rgba(255,255,255,.16);border-color:transparent;color:#fff">' + ic('arrow-left', 'ic-sm') + ' Kembali</button></div>' +
       heroLogo('mt-12') + '<div style="font-size:24px;font-weight:800">Masuk Admin</div><div class="hero-sub">' + esc(sekolah().NamaSekolah || 'MEvent') + '</div></div>' +
@@ -503,7 +503,7 @@ registerPage('voting-osis', {
     AppState.kiosk = { kind: 'osis', eventId };
     el._ev = eventId; el._v = ''; el._tab = 'siswa'; el._pt = { tab: 'ptk', sel: '', q: '' };
     kioskOsisPaint(el);
-    loadPublicBoot(true);
+    loadPublicBoot(); warmUpServer();
     pasangKeyboardNisn(el, () => el._tab === 'siswa');
   },
   onPub() {
@@ -561,7 +561,7 @@ registerPage('voting-lomba', {
     AppState.kiosk = { kind: 'lomba', eventId };
     el._ev = eventId; el._tab = 'siswa'; el._st = { kelas: '', siswa: null, q: '' }; el._pt = { tab: 'ptk', sel: '', q: '' };
     kioskLombaPaint(el);
-    loadPublicBoot(true);
+    loadPublicBoot(); warmUpServer();
   },
   onPub() {
     const el = $('.page[data-page="voting-lomba"]'); if (!el || el.hidden) return;
