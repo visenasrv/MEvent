@@ -129,10 +129,11 @@ function docDaftarHadir(det, cfg, o) {
 function docRekap(det, cfg, o) {
   const ev = det.event;
   if (ev.JenisEvent === 'OSIS') {
-    const h = det.hasil;
-    const t = '<table class="dt"><thead><tr><th style="width:60px">Peringkat</th><th style="width:60px">No. Urut</th><th>Nama Calon</th><th style="width:80px">Suara</th><th style="width:80px">Persentase</th></tr></thead><tbody>' +
-      h.kandidat.map(k => '<tr><td class="c">' + k.peringkat + '</td><td class="c">' + noUrut(k.NoUrut) + '</td><td>' + esc(k.Nama1) + (k.Nama2 ? ' &amp; ' + esc(k.Nama2) : '') + '</td><td class="c">' + k.suara + '</td><td class="c">' + fmtNum(k.persen, 1) + '%</td></tr>').join('') +
-      '</tbody><tfoot><tr><th colspan="3" style="text-align:right">Total suara sah</th><th>' + h.totalSuara + '</th><th>100%</th></tr></tfoot></table>';
+    const h = det.hasil, tg = h.sistem === 'Tunggal';
+    const t = '<table class="dt"><thead><tr><th style="width:60px">Peringkat</th><th style="width:60px">No. Urut</th><th>Nama Calon</th><th style="width:80px">Suara</th><th style="width:80px">Persentase</th>' + (tg ? '<th style="width:100px">Keterangan</th>' : '') + '</tr></thead><tbody>' +
+      h.kandidat.map(k => '<tr><td class="c">' + k.peringkat + '</td><td class="c">' + noUrut(k.NoUrut) + '</td><td>' + esc(k.Nama1) + (k.Nama2 ? ' &amp; ' + esc(k.Nama2) : '') + '</td><td class="c">' + k.suara + '</td><td class="c">' + fmtNum(k.persen, 1) + '%</td>' + (tg ? '<td class="c">' + esc(k.jabatan || (k.seri ? 'Seri' : '')) + '</td>' : '') + '</tr>').join('') +
+      '</tbody><tfoot><tr><th colspan="3" style="text-align:right">Total suara sah</th><th>' + h.totalSuara + '</th><th>100%</th>' + (tg ? '<th></th>' : '') + '</tr></tfoot></table>' +
+      (tg ? '<p style="margin-top:8px;font-size:10.5pt"><i>Sistem calon tunggal: suara terbanyak menjadi Ketua, suara terbanyak kedua menjadi Wakil Ketua.</i></p>' : '');
     const part = '<table class="info" style="margin-top:14px"><tr><td>Pemilih siswa</td><td>: ' + h.pemilihSiswa + ' dari ' + h.totalSiswa + ' (' + fmtNum(pct(h.pemilihSiswa, h.totalSiswa), 1) + '%)</td></tr>' +
       '<tr><td>Pemilih PTK</td><td>: ' + h.pemilihPtk + ' dari ' + h.totalPtk + ' (' + fmtNum(pct(h.pemilihPtk, h.totalPtk), 1) + '%)</td></tr></table>' +
       (h.penetapan ? '<p style="margin-top:8px"><i>Catatan: hasil seri ditetapkan oleh ' + esc(h.penetapan.DitetapkanOleh) + ' — ' + esc(h.penetapan.Alasan) + '</i></p>' : '');
@@ -153,8 +154,12 @@ function docRekap(det, cfg, o) {
 function docBeritaAcara(det, cfg) {
   const ev = det.event, h = det.hasil, s = settingsNow();
   const d = parseTgl(ev.TanggalMulai) || new Date();
-  const top = h.kandidat[0];
-  const terpilih = top && top.suara > 0 && !h.seri ? (esc(top.Nama1) + (top.Nama2 ? ' dan ' + esc(top.Nama2) : '') + ' (Nomor Urut ' + noUrut(top.NoUrut) + ')') : '<i>belum dapat ditetapkan (hasil seri)</i>';
+  const top = h.kandidat[0], tg = h.sistem === 'Tunggal';
+  const kt = h.kandidat.find(k => k.jabatan === 'Ketua'), wk = h.kandidat.find(k => k.jabatan === 'Wakil Ketua');
+  const nm = (k) => esc(k.Nama1) + ' (Nomor Urut ' + noUrut(k.NoUrut) + ')';
+  const terpilih = tg
+    ? (kt ? 'Ketua terpilih adalah ' + nm(kt) : 'Ketua <i>belum dapat ditetapkan (hasil seri)</i>') + ' dan ' + (wk ? 'Wakil Ketua terpilih adalah ' + nm(wk) : 'Wakil Ketua <i>belum dapat ditetapkan (hasil seri)</i>')
+    : 'calon terpilih adalah ' + (top && top.suara > 0 && !h.seri ? (esc(top.Nama1) + (top.Nama2 ? ' dan ' + esc(top.Nama2) : '') + ' (Nomor Urut ' + noUrut(top.NoUrut) + ')') : '<i>belum dapat ditetapkan (hasil seri)</i>');
   const body = judulDoc('Berita Acara', esc(ev.Judul)) +
     '<p style="text-align:justify;text-indent:1.2cm">Pada hari ini <b>' + HARI[d.getDay()] + '</b>, tanggal <b>' + d.getDate() + ' ' + BULAN[d.getMonth()] + ' ' + d.getFullYear() + '</b>, bertempat di <b>' + esc(ev.Tempat || s.NamaSekolah || '-') + '</b>, telah dilaksanakan ' + esc(ev.Judul) + ' di ' + esc(s.NamaSekolah || 'sekolah') + ' dengan hasil sebagai berikut:</p>' +
     '<table class="info" style="margin:12px 0 4px 1.2cm"><tr><td>1.</td><td>Jumlah pemilih terdaftar</td><td>: ' + (h.totalSiswa + h.totalPtk) + ' orang (' + h.totalSiswa + ' siswa, ' + h.totalPtk + ' PTK)</td></tr>' +
@@ -163,8 +168,9 @@ function docBeritaAcara(det, cfg) {
     '<p style="margin-top:10px">Perolehan suara masing-masing calon:</p>' +
     '<table class="dt"><thead><tr><th style="width:60px">No. Urut</th><th>Nama Calon</th><th style="width:80px">Suara</th><th style="width:80px">%</th></tr></thead><tbody>' +
     h.kandidat.slice().sort((a, b) => a.NoUrut - b.NoUrut).map(k => '<tr><td class="c">' + noUrut(k.NoUrut) + '</td><td>' + esc(k.Nama1) + (k.Nama2 ? ' &amp; ' + esc(k.Nama2) : '') + '</td><td class="c">' + k.suara + '</td><td class="c">' + fmtNum(k.persen, 1) + '%</td></tr>').join('') + '</tbody></table>' +
-    '<p style="margin-top:12px;text-align:justify;text-indent:1.2cm">Berdasarkan perolehan suara tersebut, calon terpilih adalah ' + terpilih + '.' +
-    (h.penetapan ? ' Karena terdapat perolehan suara yang sama, pemenang ditetapkan oleh ' + esc(h.penetapan.DitetapkanOleh) + ' dengan pertimbangan: ' + esc(h.penetapan.Alasan) + '.' : '') + '</p>' +
+    (tg ? '<p style="margin-top:10px;text-align:justify;text-indent:1.2cm">Pemilihan menggunakan sistem calon tunggal: calon dengan suara terbanyak ditetapkan sebagai Ketua dan calon dengan suara terbanyak kedua ditetapkan sebagai Wakil Ketua.</p>' : '') +
+    '<p style="margin-top:12px;text-align:justify;text-indent:1.2cm">Berdasarkan perolehan suara tersebut, ' + terpilih + '.' +
+    (h.penetapan ? ' Karena terdapat perolehan suara yang sama, ' + (tg ? 'urutan' : 'pemenang') + ' ditetapkan oleh ' + esc(h.penetapan.DitetapkanOleh) + ' dengan pertimbangan: ' + esc(h.penetapan.Alasan) + '.' : '') + '</p>' +
     '<p style="margin-top:8px;text-indent:1.2cm">Demikian berita acara ini dibuat dengan sebenar-benarnya untuk dipergunakan sebagaimana mestinya.</p>' + ttdHtml(cfg, { tanggal: ev.TanggalMulai });
   return docPage(body, { kop: true });
 }

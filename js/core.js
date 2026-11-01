@@ -5,7 +5,7 @@
    ============================================================ */
 'use strict';
 
-const APP_VER = '1.0.0';
+const APP_VER = '1.1.0';
 const LS_PREFIX = 'mevent:v1:';
 
 /* ---------------- Penyimpanan perangkat ---------------- */
@@ -30,6 +30,7 @@ const AppState = {
   boot: null,         // staffBoot (admin/panitia)
   ptk: null,          // ptkBoot (PTK/juri)
   vote: null,         // sesi pemilih (memori saja)
+  kiosk: null,        // link voting yang sedang dipakai: {kind:'osis'|'lomba', eventId}
   siswa: null,        // daftar siswa (lazy)
   ev: {},             // cache detail event di memori
   lastActive: Date.now()
@@ -45,17 +46,17 @@ const Perf = {
 window.Perf = Perf;
 
 /* ---------------- API ke Apps Script ---------------- */
-const READ_ACTIONS = /^(publicBoot|staffBoot|ptkBoot|batch|listSiswa|eventDetail|hasilLive|listJawaban|juriData|formTerbuka|getForm|cekNisnForm|statusDemo|lihatBerkas|osisPtk|login\w+)$/;
+const READ_ACTIONS = /^(publicBoot|staffBoot|ptkBoot|batch|listSiswa|eventDetail|hasilLive|hasilLayar|listJawaban|juriData|formTerbuka|getForm|cekNisnForm|statusDemo|lihatBerkas|osisPtk|login\w+)$/;
 
 function gasReady() { return typeof GAS_URL === 'string' && /^https:\/\/script\.google(usercontent)?\.com\//.test(GAS_URL) || (typeof GAS_URL === 'string' && /^http:\/\/(localhost|127\.0\.0\.1)/.test(GAS_URL)); }
 
-async function apiOnce(action, data, timeout, reqId) {
+async function apiOnce(action, data, timeout, reqId, token) {
   const ctrl = new AbortController(), timer = setTimeout(() => ctrl.abort(), timeout), t0 = performance.now();
   try {
     const res = await fetch(GAS_URL, {
       method: 'POST', redirect: 'follow', cache: 'no-store', signal: ctrl.signal,
       headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-      body: JSON.stringify({ action, token: AppState.token || '', mode: AppState.mode, reqId, data: data || {} })
+      body: JSON.stringify({ action, token: token != null ? token : (AppState.token || ''), mode: AppState.mode, reqId, data: data || {} })
     });
     const text = await res.text();
     try { const j = JSON.parse(text); Perf.add(action, Math.round(performance.now() - t0), j.ms); return j; }
@@ -73,10 +74,10 @@ async function api(action, data, opt = {}) {
   let res;
   for (let i = 0; i < tries; i++) {
     if (i) { await sleep(1200 * i); if (navigator.onLine === false) await waitOnline(15000); }
-    res = await apiOnce(action, data, isRead ? (i ? 40000 : 25000) : 90000, reqId);
+    res = await apiOnce(action, data, opt.timeout || (isRead ? (i ? 40000 : 25000) : 90000), reqId, opt.token);
     if (res.success || !res.retryable) break;
   }
-  if (!res.success && res.data && res.data.code === 'AUTH' && AppState.token && !opt.noAuthRedirect) onSessionExpired();
+  if (!res.success && res.data && res.data.code === 'AUTH' && AppState.token && !opt.noAuthRedirect && opt.token == null) onSessionExpired();
   if (!res.success && res.data && res.data.code === 'DEMO_ENDED') onDemoEnded();
   return res;
 }
@@ -345,6 +346,17 @@ async function exportXlsx(name, sheets) {
   sheets.forEach(s => { const ws = X.utils.aoa_to_sheet(s.rows); ws['!cols'] = (s.rows[0] || []).map((h, i) => ({ wch: Math.min(40, Math.max(8, ...s.rows.slice(0, 200).map(r => String(r[i] ?? '').length + 2))) })); X.utils.book_append_sheet(wb, ws, s.name.slice(0, 31)); });
   X.writeFile(wb, name);
 }
+/** Link untuk dibagikan (voting, formulir, layar). Mode demo/asli ikut di URL agar perangkat lain membuka data yang benar. */
+function linkApp(path) { return location.origin + location.pathname + (AppState.mode === 'demo' ? '?m=demo' : '') + '#/' + path; }
+async function loadQR() { if (window.qrcode) return window.qrcode; await loadScript('https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js'); return window.qrcode; }
+/** QR sebagai SVG (tajam di layar & cetak). */
+async function qrSvg(text, px) {
+  const Q = await loadQR(), q = Q(0, 'M'); q.addData(text); q.make();
+  const n = q.getModuleCount(), m = 2, sz = n + m * 2;
+  let d = '';
+  for (let r = 0; r < n; r++) for (let c = 0; c < n; c++) if (q.isDark(r, c)) d += 'M' + (c + m) + ' ' + (r + m) + 'h1v1h-1z';
+  return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ' + sz + ' ' + sz + '" width="' + (px || 200) + '" height="' + (px || 200) + '" shape-rendering="crispEdges"><rect width="100%" height="100%" fill="#fff"/><path d="' + d + '" fill="#0F172A"/></svg>';
+}
 async function copyText(t) { try { await navigator.clipboard.writeText(t); return true; } catch (e) { const a = document.createElement('textarea'); a.value = t; document.body.appendChild(a); a.select(); const ok = document.execCommand('copy'); a.remove(); return ok; } }
 const _fonts = {};
 function loadFonts(families) {
@@ -359,7 +371,14 @@ function loadFonts(families) {
 
 /* ---------------- Router SPA ---------------- */
 const Pages = {};
-const ADMIN_PAGES = ['dasbor', 'event', 'ev', 'formulir-admin', 'form', 'jawaban', 'siswa', 'data-ptk', 'kehadiran', 'cetak', 'layar', 'tayang', 'pengaturan', 'piagam', 'panitia-ku'];
+const ADMIN_PAGES = ['dasbor', 'event', 'ev', 'formulir-admin', 'form', 'jawaban', 'siswa', 'data-ptk', 'kehadiran', 'cetak', 'layar', 'pengaturan', 'piagam', 'panitia-ku'];
+const LAYAR_PAGES = ['tayang', 'layar-tv'];
+let _layarLoading = null;
+function ensureLayarBundle() {
+  if (window.__LAYAR_READY) return Promise.resolve();
+  if (!_layarLoading) _layarLoading = loadScript('js/layar.js?v=' + APP_VER).then(() => { window.__LAYAR_READY = true; }).catch(e => { _layarLoading = null; throw e; });
+  return _layarLoading;
+}
 let _adminLoading = null;
 function registerPage(name, def) { Pages[name] = Object.assign({ layout: 'pub', auth: 'none' }, def); }
 function go(path) { const h = '#/' + (path || ''); if (location.hash === h) route(); else location.hash = h; }
@@ -375,6 +394,9 @@ async function route() {
   let name = parts[0] || 'home';
   if (!Pages[name] && ADMIN_PAGES.indexOf(name) > -1) {
     try { await ensureAdminBundle(); } catch (e) { toast('Gagal memuat halaman', 'Periksa koneksi lalu coba lagi.', 'error'); return; }
+  }
+  if (!Pages[name] && LAYAR_PAGES.indexOf(name) > -1) {
+    try { await ensureLayarBundle(); } catch (e) { toast('Gagal memuat halaman', 'Periksa koneksi lalu coba lagi.', 'error'); return; }
   }
   let def = Pages[name];
   if (!def) { name = 'home'; def = Pages.home; }
@@ -475,6 +497,14 @@ document.addEventListener('DOMContentLoaded', () => {
       '<p class="muted" style="max-width:440px;line-height:1.6">Buka berkas <b>js/config.js</b>, isi <code>GAS_URL</code> dengan URL Web App Apps Script yang berakhiran <code>/exec</code>, lalu unggah ulang.</p></div>';
     return;
   }
+  // Link yang dibagikan membawa ?m=demo → buka data demo; tanpa itu → data asli.
+  try {
+    const qm = new URLSearchParams(location.search).get('m');
+    const want = qm === 'demo' ? 'demo' : (qm === 'live' ? 'live' : null);
+    const linkPage = /^#\/(voting-osis|voting-lomba|layar-tv)\//.test(location.hash);
+    const target = want || (linkPage ? 'live' : null);
+    if (target && target !== AppState.mode) { AppState.mode = target; Store.set('mode', target); AppState.pub = null; }
+  } catch (e) {}
   warmUpServer();
   restoreSession();
   updateRibbon();

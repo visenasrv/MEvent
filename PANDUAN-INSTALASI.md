@@ -25,7 +25,7 @@ Kerjakan berurutan: **Backend dulu → salin URL → Frontend**.
      (Peringatan ini normal untuk skrip buatan sendiri.)
    - Buka **Log eksekusi**: harus muncul `✅ Setup selesai!`.
    - Di Google Drive kini ada folder **📁 MEvent** berisi spreadsheet **MEvent_DB** dan folder Logo, Foto, Berkas, dll.
-   - ⚠️ Jangan jalankan `setupAwal` dua kali. Bila terlanjur, fungsi akan menolak sendiri.
+   - Bila `setupAwal` dijalankan lagi, data **tidak** dibuat ulang — fungsi hanya memperbarui struktur sheet ke versi terbaru.
 4. **Deploy sebagai Web App**:
    - Klik **Terapkan → Deployment baru** → ikon roda gigi → **Aplikasi web**.
    - **Jalankan sebagai:** *Saya* · **Siapa yang memiliki akses:** *Siapa saja*.
@@ -68,22 +68,45 @@ Kerjakan berurutan: **Backend dulu → salin URL → Frontend**.
 6. **Data PTK → Impor Excel** (Nama | Tanggal Lahir | NIP/NIY/NUPTK | Jabatan), lalu **Kata Sandi Massal** → cetak kartunya.
 7. Ingin mencoba dulu? **Pengaturan › Mode Demo → Mulai Demo**. Data contoh dibuat terpisah dan dihapus saat demo diakhiri.
 
+### Link yang dibagikan admin (tombol **Bagikan Link** di halaman event)
+| Link | Untuk | Isi halaman |
+|---|---|---|
+| **Link Voting OSIS** | Siswa & PTK | Tab **Siswa** (NISN) dan **PTK** (nama + kata sandi). Setelah memilih, layar kembali ke login siswa — cocok untuk HP/laptop yang dipakai bergantian. |
+| **Link Voting & Penilaian Lomba** | Siswa & Juri | Tab **Siswa** (kelas → nama) dan **Juri** (PTK / juri tamu → lembar penilaian). |
+| **Link Formulir** | Pendaftar | Satu link per formulir, juga dari ikon QR di tab Formulir. |
+| **Link Layar Hasil** | IFP / proyektor | Terbuka **tanpa login admin**, jadi admin tetap bisa memakai aplikasi di laptopnya. Tombol **Ganti Link** membatalkan link lama. |
+
+Setiap link punya **kode QR** (tombol *QR Besar* untuk ditampilkan di layar agar siswa cukup memindai).
+
 ### Alur hari-H pemilihan OSIS
-Event OSIS → tab **Calon** (tambah calon + foto) → nyalakan **Voting** → siswa memilih di HP lewat **Voting OSIS** (NISN) → admin membuka **Layar Hasil** di proyektor → setelah selesai, matikan voting → tab **Hasil** → cetak **Rekap** & **Berita Acara**.
+1. Event OSIS → tab **Calon** → pilih **Sistem Pencalonan**:
+   - **Pasangan** — Ketua & Wakil maju dalam satu nomor urut.
+   - **Calon Tunggal** — setiap calon maju sendiri; **suara terbanyak = Ketua, terbanyak kedua = Wakil Ketua**.
+2. Tambah calon + foto → nyalakan **Voting** → **Bagikan Link** voting ke perangkat pemilih.
+3. Buka **Link Layar Hasil** di IFP. Layar mula-mula hanya menampilkan **jumlah suara masuk**.
+4. Saat pengumuman, tekan **Tampilkan Hasil** (atau tombol Spasi): hitung mundur + drumroll, grafik persentase tumbuh, lalu fanfare, tepuk tangan, dan konfeti. **Umumkan Pemenang** menampilkan nama pemenang satu per satu.
+5. Matikan voting → tab **Hasil** → cetak **Rekap** & **Berita Acara** (otomatis menyebut Ketua & Wakil untuk sistem calon tunggal).
+
+> 🔊 Efek suara berasal dari perangkat yang menampilkan layar (IFP/laptop). Pastikan volume IFP menyala. Ikon speaker di layar untuk mematikan/menyalakan efek suara.
 
 ### Alur lomba
-Event Lomba → **Cabang & Peserta** (mode Juri/Voting/Gabungan + bobot) → **Juri & Kriteria** → juri menilai lewat menu **PTK / Juri** → **Kunci Penilaian** → tab **Hasil** (tetapkan urutan bila seri) → **Cetak Piagam Juara**.
+Event Lomba → **Cabang & Peserta** (mode Juri/Voting/Gabungan + bobot) → **Juri & Kriteria** → bagikan **Link Voting & Penilaian Lomba** → **Kunci Penilaian** → tab **Hasil** (tetapkan urutan bila seri) → **Cetak Piagam Juara**. Di layar hasil, tombol nama cabang (atau panah ← →) berpindah cabang seketika.
 
 ---
 
 ## Bagian D — Memperbarui Aplikasi
 
 **Backend** (bila ada perubahan `.gs`):
-**Terapkan → Kelola deployment → ✏️ Edit → Versi: Versi baru → Terapkan.**
+1. Ganti isi `Kode.gs`, `Admin.gs`, `Demo.gs` dengan versi baru → **Ctrl+S**.
+2. Jalankan **`setupAwal`** sekali lagi → hanya memperbarui struktur sheet (menambah kolom baru), data tetap aman.
+3. **Terapkan → Kelola deployment → ✏️ Edit → Versi: Versi baru → Terapkan.**
 ⚠️ Jangan memilih *Deployment baru* — URL `/exec` akan berubah dan aplikasi berhenti bekerja.
 
+> **Dari versi 1.0 ke 1.1:** lakukan 3 langkah di atas, lalu perbarui frontend. Mode Demo yang sedang aktif sebaiknya diakhiri dan dimulai ulang agar contoh event *calon tunggal* ikut dibuat.
+
 **Frontend** (bila ada perubahan di `css/` atau `js/`):
-1. Naikkan angka versi di `index.html` (mis. `?v=1.0.0` → `?v=1.0.1`) dan `APP_VER` di `js/core.js` agar HP pengguna langsung memuat versi baru.
+1. Bila mengubah kode sendiri, naikkan angka versi di `index.html` (mis. `?v=1.1.0` → `?v=1.1.1`) dan `APP_VER` di `js/core.js` agar HP pengguna langsung memuat versi baru. (Paket 1.1.0 ini sudah dinaikkan.)
+   Jangan lupa isi ulang `GAS_URL` di `js/config.js` bila berkas itu ikut tertimpa.
 2. Jalankan dari folder proyek:
    ```bash
    git add .
@@ -113,3 +136,6 @@ Event Lomba → **Cabang & Peserta** (mode Juri/Voting/Gabungan + bobot) → **J
 | Foto/logo tidak tampil | Akun Workspace melarang berbagi "siapa saja dengan link" | Minta admin Workspace mengizinkan berbagi tautan, atau unggah ulang |
 | PTK "Kata sandi belum diatur" | PTK belum punya sandi | Data PTK → ikon kunci, atau Kata Sandi Massal |
 | Perubahan belum muncul | Cache browser | Ctrl+Shift+R atau naikkan `?v=` di `index.html` |
+| Layar IFP: "Link layar tidak berlaku" | Link diganti admin, atau link Mode Demo setelah demo diakhiri | Buka **Bagikan Link** lalu pakai link layar yang baru |
+| Layar IFP tidak bersuara | Volume IFP mati, atau ikon speaker di layar dimatikan | Nyalakan volume; suara berbunyi setelah tombol *Tampilkan Hasil* ditekan |
+| Link voting: "Event tidak ditemukan" | Status event bukan *Berjalan* | Ubah status event menjadi Berjalan |

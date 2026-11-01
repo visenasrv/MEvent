@@ -251,6 +251,56 @@ function bukaFormEvent(ev) {
   };
 }
 
+
+/* ============================================================
+   BAGIKAN LINK — voting (siswa & PTK/juri), formulir, layar hasil
+   ============================================================ */
+window.bukaBagikan = async function (eventId, fokus) {
+  let det = AppState.ev[eventId];
+  if (!det) { await loadEvent(eventId); det = AppState.ev[eventId]; }
+  if (!det) return toast('Gagal memuat event', '', 'error');
+  const e = det.event, jalan = e.Status === 'Berjalan';
+  const rows = [];
+  if (e.JenisEvent === 'OSIS') rows.push({ id: 'vote', icon: 'vote', judul: 'Link Voting OSIS — Siswa & PTK', ket: 'Siswa masuk dengan NISN; PTK memilih nama lalu kata sandi. Setelah memilih, layar otomatis kembali ke login siswa — cocok untuk HP/laptop yang dipakai bergantian.', url: linkApp('voting-osis/' + e.EventID),
+    warn: !jalan ? 'Status event masih ' + e.Status + '. Ubah ke Berjalan dan buka voting agar link bisa dipakai.' : e.VotingDibuka !== 'Ya' ? 'Voting belum dibuka. Buka voting di tab Calon.' : '' });
+  if (e.JenisEvent === 'Lomba') rows.push({ id: 'vote', icon: 'trophy', judul: 'Link Voting & Penilaian Lomba — Siswa & Juri', ket: 'Siswa memilih kelas lalu nama untuk voting; juri (PTK atau juri tamu) masuk untuk mengisi nilai. Setelah siswa memilih, layar kembali ke login siswa.', url: linkApp('voting-lomba/' + e.EventID),
+    warn: !jalan ? 'Status event masih ' + e.Status + '. Ubah ke Berjalan agar link bisa dipakai.' : !(det.cabang || []).some(c => c.VotingDibuka === 'Ya') ? 'Belum ada cabang dengan voting dibuka (juri tetap bisa masuk).' : '' });
+  (det.formulir || []).forEach(f => rows.push({ id: 'f-' + f.FormID, icon: 'file-text', judul: 'Formulir — ' + f.Judul, ket: f.Akses === 'LoginSiswa' ? 'Khusus siswa (memasukkan NISN).' : 'Siapa saja yang memiliki link dapat mengisi.', url: linkApp('f/' + f.TokenLink), warn: f.Status !== 'Buka' ? 'Formulir sedang ditutup.' : '' }));
+  if (e.JenisEvent !== 'Lainnya') rows.push({ id: 'layar', icon: 'monitor', judul: 'Link Layar Hasil — IFP / Proyektor', ket: 'Buka di IFP atau proyektor tanpa login admin. Admin tetap bisa memakai aplikasi di perangkat lain. Hasil tampil setelah tombol "Tampilkan Hasil" ditekan.', url: '', layar: true });
+  const card = (r) => '<div class="share-row" data-row="' + esc(r.id) + '"><div class="share-qr" data-qr>' + (r.url ? '<div class="sk" style="width:100%;height:100%"></div>' : ic('qr-code', 'ic-xl')) + '</div>' +
+    '<div class="grow" style="min-width:0"><div class="row" style="gap:8px"><span class="icon-tile" style="width:32px;height:32px">' + ic(r.icon, 'ic-sm') + '</span><b>' + esc(r.judul) + '</b></div><div class="small muted mt-8" style="line-height:1.5">' + esc(r.ket) + '</div>' +
+    (r.warn ? '<div class="alert alert-amber small mt-8">' + ic('triangle-alert', 'ic-sm') + '<span>' + esc(r.warn) + '</span></div>' : '') +
+    '<div class="share-url mt-8"><input class="input input-sm mono" readonly value="' + esc(r.url) + '" data-url placeholder="' + (r.layar ? 'Membuat link layar…' : '') + '"></div>' +
+    '<div class="row row-wrap mt-8"><button class="btn btn-primary btn-sm" data-sh="salin">' + ic('copy', 'ic-sm') + ' Salin</button><button class="btn btn-sm" data-sh="buka">' + ic('external-link', 'ic-sm') + ' Buka</button><button class="btn btn-sm" data-sh="besar">' + ic('qr-code', 'ic-sm') + ' QR Besar</button>' +
+    (r.layar ? '<button class="btn btn-ghost btn-sm" data-sh="ganti" title="Link lama tidak berlaku lagi">' + ic('refresh-cw', 'ic-sm') + ' Ganti Link</button>' : '') + '</div></div></div>';
+  const m = modal({ title: 'Bagikan Link — ' + e.Judul, size: 'lg', sub: 'Salin, buka, atau tampilkan kode QR agar siswa dan guru cukup memindai.', body: '<div class="stack" style="gap:14px">' + rows.map(card).join('') + '</div>' + (AppState.mode === 'demo' ? '<div class="alert alert-amber small mt-16">' + ic('flask-conical', 'ic-sm') + '<span>Link Mode Demo membuka data contoh dan berhenti berfungsi setelah demo diakhiri.</span></div>' : '') });
+  const paintQr = async (row, url) => { const box = row.querySelector('[data-qr]'); try { box.innerHTML = await qrSvg(url, 120); } catch (x) { box.innerHTML = ic('qr-code', 'ic-xl'); } };
+  const setUrl = (id, url) => { const row = m.q('[data-row="' + id + '"]'); if (!row) return; row.querySelector('[data-url]').value = url; paintQr(row, url); };
+  rows.forEach(r => { if (r.url) setUrl(r.id, r.url); });
+  const layarLink = async (baru) => {
+    const res = await api('linkLayar', { eventId: e.EventID, baru: !!baru });
+    if (!res.success) { toast('Gagal membuat link layar', res.message, 'error'); return; }
+    setUrl('layar', linkApp('layar-tv/' + e.EventID + '/' + res.data.token));
+    if (baru) toast('Link layar diganti', 'Link lama sudah tidak berlaku.');
+  };
+  if (rows.some(r => r.layar)) layarLink(false);
+  if (fokus) setTimeout(() => { const r = m.q('[data-row="' + (fokus === 'layar' ? 'layar' : fokus) + '"]'); if (r) { r.scrollIntoView({ block: 'center' }); r.classList.add('flash'); } }, 60);
+  m.el.addEventListener('click', async (x) => {
+    const b = x.target.closest('[data-sh]'); if (!b) return;
+    const row = b.closest('[data-row]'), url = row.querySelector('[data-url]').value, r = rows.find(z => z.id === row.dataset.row);
+    if (!url && b.dataset.sh !== 'ganti') return toast('Link belum siap', 'Tunggu sebentar.', 'info');
+    if (b.dataset.sh === 'salin') { if (await copyText(url)) toast('Link disalin', r.judul); }
+    if (b.dataset.sh === 'buka') window.open(url, '_blank', 'noopener');
+    if (b.dataset.sh === 'ganti') { if (await confirmBox({ title: 'Ganti link layar?', text: 'Layar yang sedang memakai link lama akan berhenti menampilkan hasil sampai dibuka dengan link baru.', ok: 'Ganti Link' })) busy(b, () => layarLink(true)); }
+    if (b.dataset.sh === 'besar') {
+      const svg = await qrSvg(url, 520).catch(() => '');
+      const q = modal({ title: r.judul, size: 'lg', body: '<div class="center qr-big">' + svg + '<div class="mono small mt-12" style="word-break:break-all">' + esc(url) + '</div><p class="muted mt-8">Pindai dengan kamera HP untuk membuka.</p></div>',
+        foot: '<button class="btn" data-close>Tutup</button><button class="btn btn-primary" id="qr-dl">' + ic('download', 'ic-sm') + ' Unduh QR</button>' });
+      q.q('#qr-dl').onclick = () => downloadBlob('QR - ' + r.judul.replace(/[\\/:*?"<>|]/g, '') + '.svg', new Blob([svg], { type: 'image/svg+xml' }));
+    }
+  });
+};
+
 /* ============================================================
    DETAIL EVENT
    ============================================================ */
@@ -288,7 +338,7 @@ function evRender(el) {
   const tabs = EV_TABS[ev.JenisEvent] || EV_TABS.Lainnya;
   if (!tabs.some(t => t[0] === el._tab)) el._tab = 'info';
   const body = (EV_RENDER[el._tab] || EV_RENDER.info)(det, el);
-  const actions = (ev.JenisEvent !== 'Lainnya' ? '<a class="btn" href="#/tayang/' + esc(ev.EventID) + '">' + ic('monitor', 'ic-sm') + ' Layar Hasil</a>' : '') +
+  const actions = '<button class="btn btn-soft" data-act="bagikan">' + ic('share-2', 'ic-sm') + ' Bagikan Link</button>' + (ev.JenisEvent !== 'Lainnya' ? '<a class="btn" href="#/tayang/' + esc(ev.EventID) + '">' + ic('monitor', 'ic-sm') + ' Layar Hasil</a>' : '') +
     (isAdmin() ? '<button class="btn btn-ghost btn-icon" data-act="hapus-event" title="Hapus event">' + ic('trash-2', 'ic-sm') + '</button>' : '');
   el.innerHTML = '<div class="crumb"><a href="#/event">Event</a>' + ic('chevron-right', 'ic-sm') + '<b>' + esc(ev.Judul) + '</b></div>' +
     '<div class="page-head"><div><div class="row row-wrap"><h1>' + esc(ev.Judul) + '</h1>' + statusBadge(ev.Status) + '</div><div class="row muted mt-8">' + ic('calendar', 'ic-sm') + '<span>' + esc(rentangTgl(ev.TanggalMulai, ev.TanggalSelesai)) + '</span>' + (ev.Tempat ? ic('map-pin', 'ic-sm') + '<span>' + esc(ev.Tempat) + '</span>' : '') + '</div></div><div class="row">' + actions + '</div></div>' +
@@ -296,6 +346,7 @@ function evRender(el) {
     '<div id="ev-body">' + body + '</div>';
   if (EV_AFTER[el._tab]) EV_AFTER[el._tab](det, el);
 }
+EVH.bagikan = (el, b, det) => bukaBagikan(det.event.EventID, b.dataset.fokus || '');
 EVH.tab = (el, b) => { el._tab = b.dataset.v; history.replaceState(null, '', '#/ev/' + el._id + '/' + el._tab + (el._sub ? '/' + el._sub : '')); evRender(el); window.scrollTo({ top: 0 }); };
 EVH['hapus-event'] = async (el, b, det) => {
   const ok = await confirmBox({ title: 'Hapus event?', html: 'Semua data <b>' + esc(det.event.Judul) + '</b> (calon/cabang, peserta, suara, nilai, formulir, jawaban, kehadiran) akan dihapus permanen.', ok: 'Hapus Event', danger: true, typed: 'HAPUS' });
@@ -367,15 +418,17 @@ EVH['sk-save'] = async (el, b, det) => {
 
 /* ---------------- Tab: Calon OSIS ---------------- */
 EV_RENDER.calon = (det) => {
-  const e = det.event, h = det.hasil;
-  return '<div class="card card-pad mb-16 row row-wrap between"><div class="row"><span class="icon-tile ' + (e.VotingDibuka === 'Ya' ? 'green' : 'gray') + '">' + ic(e.VotingDibuka === 'Ya' ? 'lock-open' : 'lock') + '</span><div><div class="card-title">Voting ' + (e.VotingDibuka === 'Ya' ? 'sedang dibuka' : 'ditutup') + '</div><div class="card-sub">' + h.totalSuara + ' suara masuk · ' + (h.pemilihSiswa) + ' siswa & ' + h.pemilihPtk + ' PTK sudah memilih</div></div></div>' +
+  const e = det.event, h = det.hasil, tunggal = e.SistemCalon === 'Tunggal', adaSuara = h.totalSuara > 0;
+  return '<div class="card card-pad mb-16"><div class="row row-wrap between" style="gap:12px"><div><div class="card-title">Sistem Pencalonan</div><div class="card-sub">' + (tunggal ? 'Setiap calon maju sendiri. <b>Suara terbanyak menjadi Ketua</b>, suara terbanyak kedua menjadi <b>Wakil Ketua</b>.' : 'Calon maju berpasangan: Ketua & Wakil Ketua dalam satu nomor urut.') + '</div></div>' +
+    '<div class="seg" id="sistem-calon">' + [['Pasangan', 'users', 'Pasangan'], ['Tunggal', 'user-round', 'Calon Tunggal']].map(x => '<button data-act="sistem-calon" data-v="' + x[0] + '" class="' + ((tunggal ? 'Tunggal' : 'Pasangan') === x[0] ? 'on' : '') + '"' + (adaSuara ? ' disabled title="Tidak dapat diubah karena sudah ada suara masuk"' : '') + '>' + ic(x[1], 'ic-sm') + ' ' + x[2] + '</button>').join('') + '</div></div></div>' +
+    '<div class="card card-pad mb-16 row row-wrap between"><div class="row"><span class="icon-tile ' + (e.VotingDibuka === 'Ya' ? 'green' : 'gray') + '">' + ic(e.VotingDibuka === 'Ya' ? 'lock-open' : 'lock') + '</span><div><div class="card-title">Voting ' + (e.VotingDibuka === 'Ya' ? 'sedang dibuka' : 'ditutup') + '</div><div class="card-sub">' + h.totalSuara + ' suara masuk · ' + (h.pemilihSiswa) + ' siswa & ' + h.pemilihPtk + ' PTK sudah memilih</div></div></div>' +
     '<label class="switch"><input type="checkbox" data-chg="voting-osis"' + (e.VotingDibuka === 'Ya' ? ' checked' : '') + '><span class="track"></span><b>' + (e.VotingDibuka === 'Ya' ? 'Buka' : 'Tutup') + '</b></label></div>' +
     '<div class="row between mb-16"><div class="card-title">Daftar Calon (' + det.kandidat.length + ')</div><button class="btn btn-primary" data-act="calon-baru">' + ic('user-plus', 'ic-sm') + ' Tambah Calon</button></div>' +
-    (det.kandidat.length ? '<div class="ev-grid">' + det.kandidat.map(k => '<div class="card card-pad"><div class="row"><span class="cand-no">' + noUrut(k.NoUrut) + '</span><div class="grow" style="min-width:0"><div style="font-weight:700" class="ellipsis">' + esc(k.Slogan || (k.Tipe === 'Pasangan' ? 'Pasangan Calon' : 'Calon')) + '</div><span class="badge badge-gray">' + esc(k.Tipe) + '</span></div></div>' +
+    (det.kandidat.length ? '<div class="ev-grid">' + det.kandidat.map(k => '<div class="card card-pad"><div class="row"><span class="cand-no">' + noUrut(k.NoUrut) + '</span><div class="grow" style="min-width:0"><div style="font-weight:700" class="ellipsis">' + esc(k.Slogan || (k.Tipe === 'Pasangan' ? 'Pasangan Calon' : 'Calon')) + '</div><span class="badge badge-gray">' + (k.Tipe === 'Perorangan' ? 'Calon tunggal' : 'Pasangan') + '</span></div></div>' +
       '<div class="cand-photos' + (k.Tipe === 'Pasangan' ? '' : ' single') + ' mt-12"><div><div class="cand-photo" style="aspect-ratio:1">' + photoHtml(k.FotoFileId, k.Nama1, 300) + '</div><div class="cand-name">' + esc(k.Nama1) + '</div><div class="small muted">' + esc(k.Kelas1) + '</div></div>' +
       (k.Tipe === 'Pasangan' ? '<div><div class="cand-photo" style="aspect-ratio:1">' + photoHtml(k.FotoFileId2, k.Nama2, 300) + '</div><div class="cand-name">' + esc(k.Nama2) + '</div><div class="small muted">' + esc(k.Kelas2) + '</div></div>' : '') + '</div>' +
       '<div class="row mt-16"><button class="btn btn-soft btn-sm grow" data-act="calon-edit" data-id="' + esc(k.KandidatID) + '">' + ic('pencil', 'ic-sm') + ' Ubah</button><button class="btn btn-danger-soft btn-sm btn-icon" data-act="calon-hapus" data-id="' + esc(k.KandidatID) + '" title="Hapus">' + ic('trash-2', 'ic-sm') + '</button></div></div>').join('') + '</div>'
-      : '<div class="card">' + emptyState('user-plus', 'Belum ada calon', 'Tambahkan calon ketua (perorangan atau pasangan) beserta foto, visi, dan misi.', '<button class="btn btn-primary" data-act="calon-baru">' + ic('user-plus', 'ic-sm') + ' Tambah Calon</button>') + '</div>');
+      : '<div class="card">' + emptyState('user-plus', 'Belum ada calon', tunggal ? 'Tambahkan minimal 2 calon beserta foto, visi, dan misi.' : 'Tambahkan pasangan calon ketua & wakil beserta foto, visi, dan misi.', '<button class="btn btn-primary" data-act="calon-baru">' + ic('user-plus', 'ic-sm') + ' Tambah Calon</button>') + '</div>');
 };
 EVH['voting-osis'] = async (el, t, det) => {
   const buka = t.checked;
@@ -383,6 +436,17 @@ EVH['voting-osis'] = async (el, t, det) => {
   const res = await api('setVoting', { eventId: det.event.EventID, buka });
   if (toastRes(res, buka ? 'Voting dibuka' : 'Voting ditutup', buka ? 'Siswa & PTK sekarang bisa memilih.' : '')) { det.event.VotingDibuka = buka ? 'Ya' : 'Tidak'; if (buka) det.event.Status = 'Berjalan'; evRender(el); invalidateEvent(det.event.EventID); }
   else { t.checked = !buka; }
+};
+EVH['sistem-calon'] = async (el, b, det) => {
+  const v = b.dataset.v, e = det.event;
+  if ((e.SistemCalon === 'Tunggal' ? 'Tunggal' : 'Pasangan') === v) return;
+  if (det.kandidat.length && !(await confirmBox({ title: 'Ubah sistem pencalonan?', html: v === 'Tunggal' ? 'Semua calon menjadi <b>calon tunggal</b>. Data calon wakil (nama, kelas, foto) pada setiap nomor urut akan dihapus.' : 'Semua calon menjadi <b>pasangan</b>. Lengkapi calon wakil untuk setiap nomor urut sebelum voting dibuka.', ok: 'Ubah Sistem' }))) return;
+  const res = await busy(b, () => api('simpanEvent', { event: { EventID: e.EventID, Judul: e.Judul, SistemCalon: v } }));
+  if (toastRes(res, 'Sistem pencalonan diubah', v === 'Tunggal' ? 'Wakil diambil dari suara terbanyak ke-2' : 'Pasangan Ketua & Wakil')) {
+    e.SistemCalon = v;
+    det.kandidat.forEach(k => { if (v === 'Tunggal') Object.assign(k, { Tipe: 'Perorangan', Nama2: '', Kelas2: '', FotoFileId2: '' }); else k.Tipe = 'Pasangan'; });
+    evRender(el); invalidateEvent(e.EventID);
+  }
 };
 EVH['calon-baru'] = (el, b, det) => formCalon(el, det, null);
 EVH['calon-edit'] = (el, b, det) => formCalon(el, det, det.kandidat.find(k => k.KandidatID === b.dataset.id));
@@ -393,28 +457,28 @@ EVH['calon-hapus'] = async (el, b, det) => {
   if (toastRes(res, 'Calon dihapus')) { det.kandidat = det.kandidat.filter(x => x !== k); evRender(el); invalidateEvent(det.event.EventID); }
 };
 function formCalon(el, det, k) {
-  const c = Object.assign({ Tipe: 'Pasangan', NoUrut: (det.kandidat.reduce((m, x) => Math.max(m, +x.NoUrut), 0) + 1), Nama1: '', Kelas1: '', Nama2: '', Kelas2: '', FotoFileId: '', FotoFileId2: '', Visi: '', Misi: '', Slogan: '' }, k || {});
+  const tunggal = det.event.SistemCalon === 'Tunggal';
+  const c = Object.assign({ Tipe: tunggal ? 'Perorangan' : 'Pasangan', NoUrut: (det.kandidat.reduce((m, x) => Math.max(m, +x.NoUrut), 0) + 1), Nama1: '', Kelas1: '', Nama2: '', Kelas2: '', FotoFileId: '', FotoFileId2: '', Visi: '', Misi: '', Slogan: '' }, k || {});
   if (!AppState.siswa) loadSiswa();
   const fotoBox = (key, label) => '<div class="field"><label>' + label + '</label><div class="row"><span class="photo-thumb" id="pv-' + key + '" style="width:64px;height:64px;border-radius:14px">' + photoHtml(c[key], label, 160) + '</span><button type="button" class="btn btn-soft btn-sm" data-up="' + key + '">' + ic('upload', 'ic-sm') + ' Unggah</button>' + (c[key] ? '<button type="button" class="btn btn-ghost btn-sm" data-rm="' + key + '">Hapus</button>' : '') + '</div></div>';
   const m = modal({
     title: k ? 'Ubah Calon' : 'Tambah Calon', size: 'lg',
     body: '<datalist id="sw-list">' + (AppState.siswa || []).map(s => '<option value="' + esc(s.Nama) + '">' + esc(s.Kelas) + '</option>').join('') + '</datalist>' + kelasDatalist('kls-list') +
-      '<div class="grid-2"><div class="field"><label>Nomor urut <span class="req">*</span></label><input class="input" type="number" min="1" id="c-no" value="' + esc(c.NoUrut) + '"></div><div class="field"><label>Jenis calon</label><div class="seg seg-block" id="c-tipe"><button type="button" data-v="Pasangan" class="' + (c.Tipe === 'Pasangan' ? 'on' : '') + '">Pasangan</button><button type="button" data-v="Perorangan" class="' + (c.Tipe === 'Perorangan' ? 'on' : '') + '">Perorangan</button></div></div></div>' +
+      '<div class="grid-2"><div class="field"><label>Nomor urut <span class="req">*</span></label><input class="input" type="number" min="1" id="c-no" value="' + esc(c.NoUrut) + '"></div><div class="field"><label>Sistem pencalonan</label><div class="alert alert-blue small" style="margin:0">' + ic(tunggal ? 'user-round' : 'users', 'ic-sm') + '<span>' + (tunggal ? 'Calon tunggal — wakil dari suara terbanyak ke-2' : 'Pasangan Ketua & Wakil') + '</span></div></div></div>' +
       '<div class="field mt-16"><label>Slogan / tagline</label><input class="input" id="c-slogan" value="' + esc(c.Slogan) + '" placeholder="mis. Maju Bersama, Berprestasi Nyata"></div>' +
-      '<div class="subcard mt-16"><div class="label mb-8">Calon Ketua</div><div class="grid-2"><div class="field"><label>Nama <span class="req">*</span></label><input class="input" id="c-n1" list="sw-list" value="' + esc(c.Nama1) + '"></div><div class="field"><label>Kelas</label><input class="input" id="c-k1" list="kls-list" value="' + esc(c.Kelas1) + '"></div></div><div class="mt-12">' + fotoBox('FotoFileId', 'Foto calon ketua') + '</div></div>' +
-      '<div class="subcard mt-16" id="c-wakil"' + (c.Tipe === 'Pasangan' ? '' : ' hidden') + '><div class="label mb-8">Calon Wakil</div><div class="grid-2"><div class="field"><label>Nama <span class="req">*</span></label><input class="input" id="c-n2" list="sw-list" value="' + esc(c.Nama2) + '"></div><div class="field"><label>Kelas</label><input class="input" id="c-k2" list="kls-list" value="' + esc(c.Kelas2) + '"></div></div><div class="mt-12">' + fotoBox('FotoFileId2', 'Foto calon wakil') + '</div></div>' +
+      '<div class="subcard mt-16"><div class="label mb-8">' + (tunggal ? 'Calon' : 'Calon Ketua') + '</div><div class="grid-2"><div class="field"><label>Nama <span class="req">*</span></label><input class="input" id="c-n1" list="sw-list" value="' + esc(c.Nama1) + '"></div><div class="field"><label>Kelas</label><input class="input" id="c-k1" list="kls-list" value="' + esc(c.Kelas1) + '"></div></div><div class="mt-12">' + fotoBox('FotoFileId', tunggal ? 'Foto calon' : 'Foto calon ketua') + '</div></div>' +
+      (tunggal ? '' : '<div class="subcard mt-16" id="c-wakil"><div class="label mb-8">Calon Wakil</div><div class="grid-2"><div class="field"><label>Nama <span class="req">*</span></label><input class="input" id="c-n2" list="sw-list" value="' + esc(c.Nama2) + '"></div><div class="field"><label>Kelas</label><input class="input" id="c-k2" list="kls-list" value="' + esc(c.Kelas2) + '"></div></div><div class="mt-12">' + fotoBox('FotoFileId2', 'Foto calon wakil') + '</div></div>') +
       '<div class="field mt-16"><label>Visi</label><textarea class="textarea" id="c-visi" rows="2">' + esc(c.Visi) + '</textarea></div><div class="field mt-12"><label>Misi</label><textarea class="textarea" id="c-misi" rows="4" placeholder="1. ...&#10;2. ...">' + esc(c.Misi) + '</textarea></div><div id="c-err"></div>',
     foot: '<button class="btn" data-close>Batal</button><button class="btn btn-primary" id="c-save">' + ic('save', 'ic-sm') + ' Simpan Calon</button>'
   });
   m.el.addEventListener('click', async (e) => {
-    const t = e.target.closest('#c-tipe button'); if (t) { c.Tipe = t.dataset.v; m.qa('#c-tipe button').forEach(x => x.classList.toggle('on', x === t)); m.q('#c-wakil').hidden = c.Tipe !== 'Pasangan'; }
     const up = e.target.closest('[data-up]');
     if (up) { const key = up.dataset.up; const r = await busy(up, () => uploadImage('foto', { max: 700 })); if (r) { c[key] = r.fileId; m.q('#pv-' + key).innerHTML = photoHtml(r.fileId, '', 160); toast('Foto diunggah'); } }
     const rm = e.target.closest('[data-rm]'); if (rm) { c[rm.dataset.rm] = ''; m.q('#pv-' + rm.dataset.rm).innerHTML = photoHtml('', '?'); rm.remove(); }
   });
   m.el.addEventListener('change', (e) => { const map = { 'c-n1': 'c-k1', 'c-n2': 'c-k2' }; if (map[e.target.id]) { const s = (AppState.siswa || []).find(x => x.Nama === e.target.value); if (s) m.q('#' + map[e.target.id]).value = s.Kelas; } });
   m.q('#c-save').onclick = async (e) => {
-    const d = Object.assign({}, c, { EventID: det.event.EventID, NoUrut: m.q('#c-no').value, Slogan: m.q('#c-slogan').value, Nama1: m.q('#c-n1').value.trim(), Kelas1: m.q('#c-k1').value.trim(), Nama2: m.q('#c-n2').value.trim(), Kelas2: m.q('#c-k2').value.trim(), Visi: m.q('#c-visi').value, Misi: m.q('#c-misi').value });
+    const d = Object.assign({}, c, { EventID: det.event.EventID, NoUrut: m.q('#c-no').value, Slogan: m.q('#c-slogan').value, Nama1: m.q('#c-n1').value.trim(), Kelas1: m.q('#c-k1').value.trim(), Nama2: tunggal ? '' : m.q('#c-n2').value.trim(), Kelas2: tunggal ? '' : m.q('#c-k2').value.trim(), Visi: m.q('#c-visi').value, Misi: m.q('#c-misi').value });
     const res = await busy(e.currentTarget, () => api('simpanKandidat', { kandidat: d }));
     if (!res.success) { m.q('#c-err').innerHTML = '<div class="alert alert-red mt-12 small">' + esc(res.message) + '</div>'; return; }
     m.close(); toast('Calon disimpan', d.Nama1);
@@ -685,12 +749,11 @@ EVH['nilai-manual'] = (el, b, det) => {
 
 /* ---------------- Tab: Formulir ---------------- */
 EV_RENDER.formulir = (det) => {
-  const base = location.href.split('#')[0];
   return '<div class="row between mb-16"><div><div class="card-title">Formulir Pendaftaran</div><div class="card-sub">Buat formulir dengan 6 jenis isian; bagikan lewat link atau cetak untuk diisi manual.</div></div><button class="btn btn-primary" data-act="form-baru">' + ic('plus', 'ic-sm') + ' Buat Formulir</button></div>' +
     (det.formulir.length ? '<div class="ev-grid">' + det.formulir.map(f => '<div class="card ev-card"><div class="row between"><span class="icon-tile">' + ic('file-text') + '</span><span class="badge ' + (f.Status === 'Buka' ? 'badge-green' : 'badge-gray') + '">' + (f.Status === 'Buka' ? 'Dibuka' : 'Ditutup') + '</span></div>' +
       '<div><div style="font-weight:700;font-size:16px">' + esc(f.Judul) + '</div><div class="small muted mt-8">' + (f.Akses === 'LoginSiswa' ? 'Khusus siswa (NISN)' : 'Siapa saja yang punya link') + (f.BatasWaktu ? ' · s.d. ' + esc(tglPendek(f.BatasWaktu)) : '') + '</div></div>' +
       '<div class="meta"><span>' + ic('list', 'ic-sm') + f.pertanyaan.length + ' isian</span><span>' + ic('inbox', 'ic-sm') + f.jumlahJawaban + ' jawaban</span></div>' +
-      '<div class="row row-wrap"><a class="btn btn-soft btn-sm grow" href="#/jawaban/' + esc(f.FormID) + '">' + ic('inbox', 'ic-sm') + ' Jawaban</a><a class="btn btn-sm" href="#/form/' + esc(f.FormID) + '">' + ic('pencil', 'ic-sm') + ' Ubah</a><button class="btn btn-sm btn-icon" data-act="salin" data-v="' + esc(base + '#/f/' + f.TokenLink) + '" title="Salin link">' + ic('link', 'ic-sm') + '</button><button class="btn btn-sm btn-icon" data-act="cetak-doc" data-jenis="Formulir" data-form="' + esc(f.FormID) + '" title="Cetak formulir kosong">' + ic('printer', 'ic-sm') + '</button></div></div>').join('') + '</div>'
+      '<div class="row row-wrap"><a class="btn btn-soft btn-sm grow" href="#/jawaban/' + esc(f.FormID) + '">' + ic('inbox', 'ic-sm') + ' Jawaban</a><a class="btn btn-sm" href="#/form/' + esc(f.FormID) + '">' + ic('pencil', 'ic-sm') + ' Ubah</a><button class="btn btn-sm btn-icon" data-act="salin" data-v="' + esc(linkApp('f/' + f.TokenLink)) + '" title="Salin link">' + ic('link', 'ic-sm') + '</button><button class="btn btn-sm btn-icon" data-act="bagikan" data-fokus="f-' + esc(f.FormID) + '" title="Kode QR & bagikan">' + ic('qr-code', 'ic-sm') + '</button><button class="btn btn-sm btn-icon" data-act="cetak-doc" data-jenis="Formulir" data-form="' + esc(f.FormID) + '" title="Cetak formulir kosong">' + ic('printer', 'ic-sm') + '</button></div></div>').join('') + '</div>'
       : '<div class="card">' + emptyState('file-plus', 'Belum ada formulir', 'Buat formulir pendaftaran lomba, pemilihan, atau event lain.', '<button class="btn btn-primary" data-act="form-baru">' + ic('plus', 'ic-sm') + ' Buat Formulir</button>') + '</div>');
 };
 EVH['form-baru'] = (el, b, det) => go('form/baru/' + det.event.EventID);
@@ -700,13 +763,15 @@ EVH.salin = async (el, b) => { if (await copyText(b.dataset.v)) toast('Link disa
 EV_RENDER.hasil = (det, el) => {
   const ev = det.event;
   if (ev.JenisEvent === 'OSIS') {
-    const h = det.hasil, maxV = Math.max(1, ...h.kandidat.map(k => k.suara));
-    return (h.seri ? '<div class="alert alert-amber mb-16"><span class="icon-tile amber" style="width:40px;height:40px">' + ic('triangle-alert') + '</span><div class="grow"><b>Hasil seri</b> — perolehan suara teratas sama. Tetapkan pemenang beserta alasannya.</div><button class="btn btn-amber" data-act="seri-osis">Tetapkan Pemenang</button></div>' : '') +
+    const h = det.hasil, maxV = Math.max(1, ...h.kandidat.map(k => k.suara)), tunggal = h.sistem === 'Tunggal';
+    const ketua = h.kandidat.find(k => k.jabatan === 'Ketua'), wakil = h.kandidat.find(k => k.jabatan === 'Wakil Ketua');
+    return (h.seri ? '<div class="alert alert-amber mb-16"><span class="icon-tile amber" style="width:40px;height:40px">' + ic('triangle-alert') + '</span><div class="grow"><b>Hasil seri</b> — ' + (tunggal ? 'perolehan suara sama pada posisi Ketua/Wakil Ketua. Tetapkan urutannya' : 'perolehan suara teratas sama. Tetapkan pemenang') + ' beserta alasannya.</div><button class="btn btn-amber" data-act="seri-osis">' + (tunggal ? 'Tetapkan Urutan' : 'Tetapkan Pemenang') + '</button></div>' : '') +
+      (tunggal && (ketua || wakil) ? '<div class="grid-2 mb-16">' + [['Ketua', ketua, 'crown', 'amber'], ['Wakil Ketua', wakil, 'award', '']].map(x => '<div class="card card-pad row"><span class="icon-tile ' + x[3] + '">' + ic(x[2]) + '</span><div class="grow"><div class="small muted" style="font-weight:700;letter-spacing:.05em">' + x[0].toUpperCase() + ' TERPILIH</div><div style="font-weight:800;font-size:18px">' + (x[1] ? esc(x[1].Nama1) : '<span class="muted">Belum ditetapkan</span>') + '</div>' + (x[1] ? '<div class="small muted">Calon ' + noUrut(x[1].NoUrut) + ' · ' + x[1].suara + ' suara</div>' : '') + '</div></div>').join('') + '</div>' : '') +
       (h.penetapan ? '<div class="alert alert-blue mb-16">' + ic('gavel') + '<div><b>Pemenang ditetapkan</b> oleh ' + esc(h.penetapan.DitetapkanOleh) + ' — ' + esc(h.penetapan.Alasan) + '</div></div>' : '') +
       '<div class="grid-4 mb-16">' + [['Total Suara', h.totalSuara, 'vote'], ['Pemilih Siswa', h.pemilihSiswa + ' / ' + h.totalSiswa, 'users'], ['Pemilih PTK', h.pemilihPtk + ' / ' + h.totalPtk, 'user-check'], ['Partisipasi', fmtNum(pct(h.pemilihSiswa + h.pemilihPtk, h.totalSiswa + h.totalPtk), 1) + '%', 'chart-pie']].map(s => '<div class="card stat" style="min-height:0"><div class="row between"><span class="lbl">' + s[0] + '</span><span class="icon-tile">' + ic(s[2]) + '</span></div><div class="num" style="font-size:28px">' + s[1] + '</div></div>').join('') + '</div>' +
       '<div class="card" style="overflow:hidden"><div class="card-head"><div class="card-title">Peringkat Calon</div><div class="row"><a class="btn btn-sm" href="#/tayang/' + esc(ev.EventID) + '">' + ic('monitor', 'ic-sm') + ' Layar Hasil</a><button class="btn btn-sm" data-act="cetak-doc" data-jenis="Rekap">' + ic('printer', 'ic-sm') + ' Rekap</button><button class="btn btn-sm" data-act="cetak-doc" data-jenis="BeritaAcara">' + ic('file-text', 'ic-sm') + ' Berita Acara</button></div></div>' +
       '<div class="tbl-wrap mt-16"><table class="tbl"><thead><tr><th style="width:80px">Peringkat</th><th>Calon</th><th style="width:40%">Perolehan</th><th class="num">Suara</th><th class="num">%</th></tr></thead><tbody>' +
-      h.kandidat.map(k => '<tr class="' + (k.seri ? 'row-seri' : '') + '"><td><span class="rank r' + k.peringkat + '">' + k.peringkat + '</span></td><td><div class="row"><span class="cand-no" style="width:36px;height:36px;font-size:15px">' + noUrut(k.NoUrut) + '</span><div><b>' + esc(k.Nama1) + (k.Nama2 ? ' &amp; ' + esc(k.Nama2) : '') + '</b><div class="small muted">' + esc([k.Kelas1, k.Kelas2].filter(Boolean).join(' & ')) + '</div></div>' + (k.seri ? '<span class="badge badge-amber">Seri</span>' : '') + '</div></td><td><div class="prog"><i style="width:' + (k.suara / maxV * 100) + '%"></i></div></td><td class="num"><b>' + k.suara + '</b></td><td class="num">' + fmtNum(k.persen, 1) + '%</td></tr>').join('') + '</tbody></table></div></div>';
+      h.kandidat.map(k => '<tr class="' + (k.seri ? 'row-seri' : '') + '"><td><span class="rank r' + k.peringkat + '">' + k.peringkat + '</span></td><td><div class="row"><span class="cand-no" style="width:36px;height:36px;font-size:15px">' + noUrut(k.NoUrut) + '</span><div><b>' + esc(k.Nama1) + (k.Nama2 ? ' &amp; ' + esc(k.Nama2) : '') + '</b><div class="small muted">' + esc([k.Kelas1, k.Kelas2].filter(Boolean).join(' & ')) + '</div></div>' + (k.seri ? '<span class="badge badge-amber">Seri</span>' : '') + (tunggal && k.jabatan ? '<span class="badge ' + (k.jabatan === 'Ketua' ? 'badge-amber' : '') + '">' + ic(k.jabatan === 'Ketua' ? 'crown' : 'award', 'ic-sm') + ' ' + esc(k.jabatan) + '</span>' : '') + '</div></td><td><div class="prog"><i style="width:' + (k.suara / maxV * 100) + '%"></i></div></td><td class="num"><b>' + k.suara + '</b></td><td class="num">' + fmtNum(k.persen, 1) + '%</td></tr>').join('') + '</tbody></table></div></div>';
   }
   if (ev.JenisEvent !== 'Lomba') return '';
   const c = curCabang(el, det);
@@ -724,8 +789,10 @@ EV_RENDER.hasil = (det, el) => {
     '</tbody></table></div></div>';
 };
 EVH['seri-osis'] = (el, b, det) => {
-  const h = det.hasil, top = h.kandidat[0].suara, tied = h.kandidat.filter(k => k.suara === top);
-  formSeri(det, '', tied.map(k => ({ id: k.KandidatID, label: noUrut(k.NoUrut) + ' — ' + k.Nama1 + (k.Nama2 ? ' & ' + k.Nama2 : ''), sub: k.suara + ' suara' })), true, el);
+  const h = det.hasil, ids = (h.seriIds || []).concat(h.penetapan ? h.penetapan.urutan : []);
+  const skor = uniq(h.kandidat.filter(k => ids.indexOf(k.KandidatID) > -1).map(k => k.suara));
+  const tied = h.kandidat.filter(k => skor.indexOf(k.suara) > -1);   // urut sesuai peringkat saat ini
+  formSeri(det, '', tied.map(k => ({ id: k.KandidatID, label: noUrut(k.NoUrut) + ' — ' + k.Nama1 + (k.Nama2 ? ' & ' + k.Nama2 : ''), sub: k.suara + ' suara' })), h.sistem === 'Tunggal' ? 'tunggal' : true, el);
 };
 EVH['seri-lomba'] = (el, b, det) => {
   const c = curCabang(el, det), ids = c.hasil.seriIds;
@@ -735,8 +802,8 @@ EVH['seri-lomba'] = (el, b, det) => {
 };
 function formSeri(det, cabangId, items, osis, el) {
   let order = items.slice();
-  const m = modal({ title: osis ? 'Tetapkan Pemenang' : 'Tetapkan Urutan Juara', size: 'lg',
-    body: '<p class="muted mb-16">' + (osis ? 'Pilih pemenang di antara calon dengan suara sama. Urutan teratas = pemenang.' : 'Atur urutan peserta dengan skor sama. Geser atau gunakan tombol panah.') + '</p><div id="sr-list"></div>' +
+  const m = modal({ title: osis === 'tunggal' ? 'Tetapkan Urutan Ketua & Wakil' : osis ? 'Tetapkan Pemenang' : 'Tetapkan Urutan Juara', size: 'lg',
+    body: '<p class="muted mb-16">' + (osis === 'tunggal' ? 'Atur urutan calon dengan suara sama. Urutan lebih atas mendapat peringkat lebih tinggi (peringkat 1 = Ketua, peringkat 2 = Wakil Ketua).' : osis ? 'Pilih pemenang di antara calon dengan suara sama. Urutan teratas = pemenang.' : 'Atur urutan peserta dengan skor sama. Geser atau gunakan tombol panah.') + '</p><div id="sr-list"></div>' +
       '<div class="field mt-16"><label>Alasan / catatan penetapan <span class="req">*</span></label><textarea class="textarea" id="sr-alasan" placeholder="mis. Berdasarkan musyawarah panitia dan dewan guru pada ' + esc(tgl(todayStr())) + '"></textarea><div class="hint">Keputusan & alasan dicatat di log dan tampil di berita acara/rekap.</div></div>',
     foot: '<button class="btn" data-close>Batal</button><button class="btn btn-primary" id="sr-ok">' + ic('gavel', 'ic-sm') + ' Tetapkan</button>' });
   const paint = () => {
