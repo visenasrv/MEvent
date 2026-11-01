@@ -358,8 +358,9 @@ SET.simpanUmum = async (el, b) => {
 /* ---- Kop Surat ---- */
 SET_RENDER.kop = (el) => {
   const s = B().settings || {};
+  const fid = { logo: s.LogoFileId, logoInstansi: s.LogoInstansiFileId };
   const tile = (kind, label, side, url) => '<div class="logo-tile grow"><div class="logo-prev">' + (logoHtml(url) || '<span class="muted small">Belum ada</span>') + '</div><div class="grow" style="min-width:0"><div class="row between row-wrap"><b>' + label + '</b><span class="badge ' + (side === 'KIRI' ? '' : 'badge-amber') + '">Tercetak di sisi ' + side + ' kop</span></div>' +
-    '<div class="small muted mt-8">' + (url ? 'Logo tersimpan di Drive' : 'PNG persegi berlatar transparan') + '</div><div class="row mt-12"><button class="btn btn-sm" data-act="unggahLogo" data-k="' + kind + '">' + ic(url ? 'refresh-cw' : 'upload', 'ic-sm') + ' ' + (url ? 'Ganti' : 'Unggah') + '</button>' + (url && url.indexOf('inisial:') < 0 ? '<a class="btn btn-ghost btn-sm" href="' + esc(url) + '" target="_blank" rel="noopener">' + ic('eye', 'ic-sm') + ' Lihat</a>' : '') + '</div></div></div>';
+    '<div class="small muted mt-8">' + (!url ? 'PNG persegi berlatar transparan' : url.indexOf('inisial:') === 0 ? 'Logo contoh (Mode Demo)' : /^data:/.test(url) ? 'Tersimpan · latar transparan terjaga' : 'Tersimpan di Drive · unggah ulang bila latarnya tampak hitam') + '</div><div class="row mt-12"><button class="btn btn-sm" data-act="unggahLogo" data-k="' + kind + '">' + ic(url ? 'refresh-cw' : 'upload', 'ic-sm') + ' ' + (url ? 'Ganti' : 'Unggah') + '</button>' + (url && url.indexOf('inisial:') < 0 && fid[kind] ? '<a class="btn btn-ghost btn-sm" href="' + esc('https://drive.google.com/file/d/' + fid[kind] + '/view') + '" target="_blank" rel="noopener">' + ic('eye', 'ic-sm') + ' Lihat</a>' : '') + '</div></div></div>';
   return '<div class="card card-pad mb-16"><div class="row between"><div><div class="card-title">Logo pada Kop</div><div class="card-sub">Atur logo yayasan atau dinas pendidikan serta lambang sekolah resmi untuk dokumen cetak.</div></div></div>' +
     '<div class="row gap-16 mt-16" style="flex-wrap:wrap">' + tile('logoInstansi', 'Logo Dinas / Yayasan', 'KIRI', s.LogoInstansiUrl) + tile('logo', 'Logo Sekolah', 'KANAN', s.LogoUrl) + '</div>' +
     '<div class="alert alert-blue small mt-16">' + ic('info', 'ic-sm') + '<span>Format disarankan: PNG persegi, latar transparan, resolusi ideal 300×300 px. Ukuran maksimal 10 MB per berkas (otomatis diperkecil ≤ 512 px).</span></div></div>' +
@@ -394,10 +395,12 @@ SET.kopSimpan = async (el, b) => {
 };
 SET.unggahLogo = async (el, b) => {
   const kind = b.dataset.k;
-  const r = await busy(b, () => uploadImage(kind, { max: 512, png: true, maxMB: 10 }));
+  const r = await busy(b, () => uploadImage(kind, { max: 512, png: true, maxMB: 10, tampil: 320 }));
   if (!r) return;
-  B().settings[kind === 'logo' ? 'LogoUrl' : 'LogoInstansiUrl'] = r.url;
-  B().settings[kind === 'logo' ? 'LogoFileId' : 'LogoInstansiFileId'] = r.fileId;
+  const ku = kind === 'logo' ? 'LogoUrl' : 'LogoInstansiUrl', kf = kind === 'logo' ? 'LogoFileId' : 'LogoInstansiFileId';
+  B().settings[ku] = r.url; B().settings[kf] = r.fileId;
+  if (el._draft) { el._draft[ku] = r.url; el._draft[kf] = r.fileId; }   // pratinjau kop ikut memakai logo baru
+  if (AppState.pub && AppState.pub.sekolah) { AppState.pub.sekolah[ku] = r.url; swrPut('pub', AppState.pub, true); }
   swrPut('boot', B());
   toast('Logo diunggah'); setPaint(el); Shell.refreshBadges(); refreshBoot();
 };

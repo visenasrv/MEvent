@@ -5,7 +5,7 @@
    ============================================================ */
 'use strict';
 
-const APP_VER = '1.2.0';
+const APP_VER = '1.3.0';
 const LS_PREFIX = 'mevent:v1:';
 
 /* ---------------- Penyimpanan perangkat ---------------- */
@@ -336,10 +336,36 @@ async function uploadImage(kind, opt = {}) {
   let img;
   try { img = await resizeImage(f, opt.max || 600, opt.png ? 'image/png' : 'image/jpeg', opt.q); }
   catch (e) { toast('Gagal', e.message, 'error'); return null; }
+  let tampil = '';
+  if (opt.tampil) { try { tampil = await logoDataUrl(f, opt.tampil); } catch (e) { /* tetap unggah tanpa versi tampilan */ } }
   if (opt.onStart) opt.onStart();
-  const res = await api('unggahBerkas', { kind, b64: img.b64, mime: img.mime, name: f.name.replace(/\.[^.]+$/, '') + (opt.png ? '.png' : '.jpg') });
+  const res = await api('unggahBerkas', { kind, b64: img.b64, mime: img.mime, tampil, name: f.name.replace(/\.[^.]+$/, '') + (opt.png ? '.png' : '.jpg') });
   if (!res.success) { toast('Unggah gagal', res.message, 'error'); return null; }
   return res.data;
+}
+/**
+ * Versi tampilan logo yang TETAP transparan (PNG/WebP sebagai data URL, ≤ ±130 KB).
+ * Gambar dari Drive (lh3) kehilangan transparansi sehingga latarnya menjadi hitam.
+ */
+function logoDataUrl(file, max) {
+  return new Promise((res, rej) => {
+    const url = URL.createObjectURL(file), img = new Image();
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      let best = '';
+      for (const m of [max, Math.round(max * .8), Math.round(max * .62)]) {
+        const sc = Math.min(1, m / Math.max(img.width, img.height)), c = document.createElement('canvas');
+        c.width = Math.max(1, Math.round(img.width * sc)); c.height = Math.max(1, Math.round(img.height * sc));
+        const g = c.getContext('2d'); g.imageSmoothingQuality = 'high'; g.drawImage(img, 0, 0, c.width, c.height);   // tanpa isi latar → alfa tetap
+        const png = c.toDataURL('image/png'), webp = c.toDataURL('image/webp', .92);
+        best = /^data:image\/webp/.test(webp) && webp.length < png.length ? webp : png;
+        if (best.length <= 130000) break;
+      }
+      best.length <= 175000 ? res(best) : rej(new Error('Logo terlalu besar'));
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); rej(new Error('Berkas gambar tidak dapat dibaca.')); };
+    img.src = url;
+  });
 }
 const _scripts = {};
 function loadScript(src) {
