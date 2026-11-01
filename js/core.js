@@ -5,7 +5,7 @@
    ============================================================ */
 'use strict';
 
-const APP_VER = '1.3.0';
+const APP_VER = '1.4.0';
 const LS_PREFIX = 'mevent:v1:';
 
 /* ---------------- Penyimpanan perangkat ---------------- */
@@ -238,6 +238,7 @@ function setPrimary(hex) {
   const rgb = hexToRgb(hex || '#2563EB'), s = document.documentElement.style;
   s.setProperty('--primary', rgbHex(rgb));
   s.setProperty('--primary-hover', rgbHex(mix(rgb, 0, .16)));
+  s.setProperty('--primary-deep', rgbHex(mix(rgb, 0, .42)));   // latar menu samping
   s.setProperty('--primary-tint', rgbHex(mix(rgb, 255, .93)));
   s.setProperty('--primary-tint-2', rgbHex(mix(rgb, 255, .84)));
   s.setProperty('--primary-ring', 'rgba(' + rgb.join(',') + ',.16)');

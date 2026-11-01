@@ -37,7 +37,8 @@ function kioskHome() { const k = AppState.kiosk; return k ? (k.kind === 'osis' ?
    ============================================================ */
 registerPage('home', {
   init(el) { el.addEventListener('click', onHomeClick); },
-  show(el) { endVoter(); AppState.kiosk = null; renderHome(el); loadPublicBoot(); },
+  // Aplikasi dibuka langsung di halaman login Admin / Panitia. Voting & juri lewat link dari admin.
+  show(el) { endVoter(); AppState.kiosk = null; history.replaceState(null, '', location.pathname + location.search + '#/masuk-admin'); route(); },
   onPub() { const el = $('.page[data-page="home"]'); if (el && !el.hidden) renderHome(el); }
 });
 function renderHome(el) {
@@ -445,8 +446,9 @@ registerPage('masuk-admin', {
     el._tab = 'admin'; el._pt = { tab: 'ptk', sel: '', q: '' };
     el.addEventListener('click', (e) => {
       const b = e.target.closest('[data-act]'); if (!b) return;
-      if (b.dataset.act === 'back') go('');
-      if (b.dataset.act === 'eye') { const pw = $('#apw', el); if (pw) pw.type = pw.type === 'password' ? 'text' : 'password'; }
+        if (b.dataset.act === 'eye') { const pw = $('#apw', el); if (pw) pw.type = pw.type === 'password' ? 'text' : 'password'; }
+      if (b.dataset.act === 'demo') enterDemo();
+      if (b.dataset.act === 'demo-link') go(b.dataset.v);
       if (b.dataset.act === 'mtab' && b.dataset.v !== el._tab) { el._tab = b.dataset.v; el._pt = { tab: 'ptk', sel: '', q: '' }; adminLoginPaint(el); }
     });
     bindPtkForm(el, () => el._tab === 'panitia' ? el._pt : null, () => ptkSubmit(el, el._pt));
@@ -468,17 +470,35 @@ registerPage('masuk-admin', {
   show(el, tab) {
     if (AppState.role === 'admin') return go('dasbor');
     if (AppState.role === 'ptk' || AppState.role === 'tamu') return go('ptk');
+    endVoter(); AppState.kiosk = null;
     ensureAdminBundle().catch(() => {}); warmUpServer();
     el._tab = tab === 'panitia' ? 'panitia' : 'admin'; el._pt = { tab: 'ptk', sel: '', q: '' };
     adminLoginPaint(el);
+    loadPublicBoot();
   },
-  onPub() { const el = $('.page[data-page="masuk-admin"]'); if (el && !el.hidden && el._tab === 'panitia') ptkPaintList(el, el._pt); }
+  onPub() {
+    const el = $('.page[data-page="masuk-admin"]'); if (!el || el.hidden) return;
+    if (el._tab === 'panitia') ptkPaintList(el, el._pt);
+    const x = $('#login-extra', el); if (x) x.innerHTML = loginExtraHtml();
+    const n = $('#login-school', el); if (n) n.textContent = sekolah().NamaSekolah || 'MEvent';
+    const lg = $('.hero-logo', el); if (lg) lg.outerHTML = heroLogo('mt-12');
+  }
 });
+/** Bagian bawah halaman login: info link voting, Mode Demo, dan link demo. */
+function loginExtraHtml() {
+  const p = AppState.pub, osis = p && p.osis.find(o => o.VotingDibuka === 'Ya'), lomba = p && (p.lombaEvent || [])[0];
+  return '<div class="card card-pad row" style="align-items:flex-start;background:var(--primary-tint);border-color:var(--primary-tint-2)"><span class="icon-tile" style="background:#fff">' + ic('qr-code', 'ic-lg') + '</span><div class="grow"><div style="font-weight:700">Voting siswa, PTK & juri</div><div class="small muted mt-8" style="line-height:1.5">Gunakan <b>link atau kode QR</b> yang dibagikan admin. Halaman voting dan penilaian juri hanya bisa dibuka dari link tersebut.</div></div></div>' +
+    (AppState.mode === 'live' && p && p.demo && p.demo.aktif ? '<div class="card menu-card card-tap mt-12" data-act="demo" tabindex="0" role="button" style="border-style:dashed"><span class="icon-tile amber">' + ic('flask-conical', 'ic-lg') + '</span><div class="grow"><div class="t">Coba Mode Demo</div><div class="s">Jelajahi semua fitur dengan data contoh</div></div><span class="chev">' + ic('chevron-right') + '</span></div>' : '') +
+    (AppState.mode === 'demo' && (osis || lomba) ? '<div class="card card-pad mt-12" style="border-style:dashed"><div class="small muted" style="font-weight:700;letter-spacing:.05em">COBA LINK DEMO</div><div class="stack mt-8" style="gap:8px">' +
+      (osis ? '<button class="btn btn-soft btn-block" data-act="demo-link" data-v="voting-osis/' + esc(osis.EventID) + '">' + ic('vote', 'ic-sm') + ' Link Voting OSIS (Siswa & PTK)</button>' : '') +
+      (lomba ? '<button class="btn btn-soft btn-block" data-act="demo-link" data-v="voting-lomba/' + esc(lomba.EventID) + '">' + ic('trophy', 'ic-sm') + ' Link Voting & Penilaian Lomba</button>' : '') + '</div></div>' : '') +
+    '<p class="center muted small" style="margin-top:22px">© ' + new Date().getFullYear() + ' MEvent · ' + esc(sekolah().NamaSekolah || '') + '</p>';
+}
 function adminLoginPaint(el) {
   const adm = el._tab === 'admin';
   el.innerHTML = '<div class="pub"><div class="pub-inner">' +
-    '<div class="hero hero-sm"><div class="row" style="position:relative;z-index:2"><button class="btn btn-sm" data-act="back" style="background:rgba(255,255,255,.16);border-color:transparent;color:#fff">' + ic('arrow-left', 'ic-sm') + ' Kembali</button></div>' +
-    heroLogo('mt-12') + '<div style="font-size:24px;font-weight:800">Masuk ' + (adm ? 'Admin' : 'Panitia') + '</div><div class="hero-sub">' + esc(sekolah().NamaSekolah || 'MEvent') + '</div></div>' +
+    '<div class="hero hero-sm" style="padding-top:30px">' +
+    heroLogo('mt-12') + '<div style="font-size:24px;font-weight:800">Masuk ' + (adm ? 'Admin' : 'Panitia') + '</div><div class="hero-sub" id="login-school">' + esc(sekolah().NamaSekolah || 'MEvent') + '</div></div>' +
     '<div class="float-card card card-pad"><div class="seg seg-light seg-block kiosk-tabs">' +
     [['admin', 'shield-check', 'Admin'], ['panitia', 'user-check', 'Panitia (PTK)']].map(t => '<button type="button" data-act="mtab" data-v="' + t[0] + '" class="' + (el._tab === t[0] ? 'on' : '') + '">' + ic(t[1], 'ic-sm') + ' ' + t[2] + '</button>').join('') + '</div>' +
     (adm ? '<form class="mt-16" autocomplete="on"><div class="field"><label for="aun">Username</label><div class="input-group">' + ic('user-round') + '<input class="input" id="aun" autocomplete="username" placeholder="admin" autofocus></div></div>' +
@@ -486,7 +506,7 @@ function adminLoginPaint(el) {
       '<div id="aerr"></div><button class="btn btn-primary btn-block btn-lg mt-16" id="abtn" type="submit">Masuk ' + ic('log-in') + '</button>' + demoHintCard('admin') + '</form>'
       : ptkFormHtml(el._pt, { tamu: false, cls: 'mt-16', tombol: 'Masuk' }) +
         '<div class="row muted small mt-12" style="align-items:flex-start">' + ic('info', 'ic-sm') + '<span>Untuk PTK yang ditunjuk sebagai panitia (atau juri). Voting PTK dan penilaian juri juga bisa lewat link dari admin.</span></div>') +
-    '</div></div></div>';
+    '</div><div class="pub-body" id="login-extra">' + loginExtraHtml() + '</div></div></div>';
   if (!adm) ptkPaintList(el, el._pt);
 }
 

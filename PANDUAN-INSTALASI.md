@@ -60,15 +60,16 @@ Kerjakan berurutan: **Backend dulu → salin URL → Frontend**.
 
 ## Bagian C — Penggunaan Pertama
 
-1. Buka situs → **Admin / Panitia** → tab **Admin** → username **`admin`**, kata sandi **`admin123`**.
-   - Halaman awal hanya berisi login **Admin / Panitia** dan Formulir. Login voting siswa, PTK, dan juri **tidak** ada di halaman awal — semuanya lewat link yang dibagikan admin (lihat tabel di bawah).
+1. Buka situs → langsung tampil halaman **Masuk** → tab **Admin** → username **`admin`**, kata sandi **`admin123`**.
+   - Situs selalu dibuka di halaman login Admin / Panitia. Voting siswa, PTK, juri, dan formulir **hanya** lewat link yang dibagikan admin (lihat tabel di bawah).
    - **Panitia (PTK)** masuk lewat tab **Panitia (PTK)** pada halaman yang sama.
 2. **Segera ganti** kata sandi: **Pengaturan › Akun**.
 3. **Pengaturan › Umum**: isi identitas sekolah, kota tanda tangan, dan pilih **Kepala Sekolah** (setelah data PTK diisi).
-4. **Pengaturan › Kop Surat**: unggah **logo sekolah** (kanan) dan **logo yayasan/dinas** (kiri), atur baris kop. Logo PNG berlatar transparan tetap transparan (tidak berlatar hitam).
-5. **Data Siswa → Unduh Template Excel → Impor Excel** (format: Nama | Jenis Kelamin | NISN | Tempat Lahir | Tanggal Lahir | Kelas).
-6. **Data PTK → Impor Excel** (Nama | Tanggal Lahir | NIP/NIY/NUPTK | Jabatan), lalu **Kata Sandi Massal** → cetak kartunya.
-7. Ingin mencoba dulu? **Pengaturan › Mode Demo → Mulai Demo**. Data contoh dibuat terpisah dan dihapus saat demo diakhiri.
+4. **Pengaturan › Tampilan**: pilih warna tema — warna menu samping dan tombol mengikuti warna ini.
+5. **Pengaturan › Kop Surat**: unggah **logo sekolah** (kanan) dan **logo yayasan/dinas** (kiri), atur baris kop. Logo PNG berlatar transparan tetap transparan (tidak berlatar hitam).
+6. **Data Siswa → Unduh Template Excel → Impor Excel** (format: Nama | Jenis Kelamin | NISN | Tempat Lahir | Tanggal Lahir | Kelas).
+7. **Data PTK → Impor Excel** (Nama | Tanggal Lahir | NIP/NIY/NUPTK | Jabatan), lalu **Kata Sandi Massal** → cetak kartunya.
+8. Ingin mencoba dulu? **Pengaturan › Mode Demo → Mulai Demo**. Data contoh dibuat terpisah dan dihapus saat demo diakhiri.
 
 ### Link yang dibagikan admin (tombol **Bagikan Link** di halaman event)
 | Link | Untuk | Isi halaman |
@@ -89,6 +90,8 @@ Setiap link punya **kode QR** (tombol *QR Besar* untuk ditampilkan di layar agar
 4. Saat pengumuman, tekan **Tampilkan Hasil** (atau tombol Spasi): hitung mundur + drumroll, grafik persentase tumbuh, lalu fanfare, tepuk tangan, dan konfeti. **Umumkan Pemenang** menampilkan nama pemenang satu per satu.
 5. Matikan voting → tab **Hasil** → cetak **Rekap** & **Berita Acara** (otomatis menyebut Ketua & Wakil untuk sistem calon tunggal).
 
+> 📺 Bila peserta banyak (lebih dari 8 di layar awal, atau lebih dari 6 saat hasil ditampilkan), layar hasil otomatis bisa **digulir**: 6 teratas tampil sebagai grafik, sisanya di daftar **Peringkat 7–dst.** di bawahnya. Tombol kendali melayang di pojok kanan bawah. Nama peserta selalu tampil utuh.
+
 > 🔊 Efek suara berasal dari perangkat yang menampilkan layar (IFP/laptop). Pastikan volume IFP menyala. Ikon speaker di layar untuk mematikan/menyalakan efek suara.
 
 ### Kehadiran lomba
@@ -107,10 +110,10 @@ Event Lomba → **Cabang & Peserta** (mode Juri/Voting/Gabungan + bobot) → **J
 3. **Terapkan → Kelola deployment → ✏️ Edit → Versi: Versi baru → Terapkan.**
 ⚠️ Jangan memilih *Deployment baru* — URL `/exec` akan berubah dan aplikasi berhenti bekerja.
 
-> **Dari versi sebelumnya ke 1.3:** lakukan 3 langkah di atas, lalu perbarui frontend (isi ulang `GAS_URL`). Data lama tetap terbaca; kehadiran dari voting kini dihitung otomatis dari daftar pemilih, jadi tidak ada data yang perlu dipindahkan.
+> **Dari versi sebelumnya ke 1.4:** lakukan 3 langkah di atas, lalu perbarui frontend (isi ulang `GAS_URL`). Data lama tetap terbaca; kehadiran dari voting kini dihitung otomatis dari daftar pemilih, jadi tidak ada data yang perlu dipindahkan.
 
 **Frontend** (bila ada perubahan di `css/` atau `js/`):
-1. Bila mengubah kode sendiri, naikkan angka versi di `index.html` (mis. `?v=1.1.0` → `?v=1.1.1`) dan `APP_VER` di `js/core.js` agar HP pengguna langsung memuat versi baru. (Paket 1.3.0 ini sudah dinaikkan.)
+1. Bila mengubah kode sendiri, naikkan angka versi di `index.html` (mis. `?v=1.1.0` → `?v=1.1.1`) dan `APP_VER` di `js/core.js` agar HP pengguna langsung memuat versi baru. (Paket 1.4.0 ini sudah dinaikkan.)
    Jangan lupa isi ulang `GAS_URL` di `js/config.js` bila berkas itu ikut tertimpa.
 2. Jalankan dari folder proyek:
    ```bash

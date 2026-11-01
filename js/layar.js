@@ -110,7 +110,7 @@ const Confetti = {
   burst(host, ms) {
     if (!host) return;
     const cv = document.createElement('canvas'); cv.className = 'scr-confetti'; host.appendChild(cv);
-    const W = cv.width = host.clientWidth, H = cv.height = host.clientHeight, g = cv.getContext('2d');
+    const W = cv.width = window.innerWidth, H = cv.height = window.innerHeight, g = cv.getContext('2d');   // kanvas fixed = selalu menutupi layar yang terlihat
     const few = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
     const col = ['#FBBF24', '#F59E0B', '#60A5FA', '#34D399', '#F472B6', '#A78BFA', '#ffffff', '#F87171'];
     const P = [];
@@ -168,6 +168,7 @@ const layarDef = (mode) => ({
   }
 });
 registerPage('tayang', layarDef('staff'));
+addEventListener('scroll', () => { const h = document.querySelector('.scr-scroll-hint'); if (h) h.classList.toggle('hide', window.scrollY > 40); }, { passive: true });
 registerPage('layar-tv', layarDef('tv'));
 
 function cacheKey(el) { return 'c:' + AppState.mode + ':' + (el._mode === 'tv' ? 'tv' : (AppState.user ? AppState.user.id : 'anon')) + ':live2:' + el._ev; }
@@ -219,18 +220,18 @@ function tyItems(d, h) {
   if (!h) return [];
   if (isOsis(d)) {
     const tunggal = h.sistem === 'Tunggal';
-    return h.kandidat.slice(0, tunggal ? 6 : 5).map(k => ({ id: k.KandidatID, rank: k.peringkat, no: k.NoUrut, badge: (k.Tipe === 'Pasangan' ? 'PASLON ' : 'CALON ') + noUrut(k.NoUrut),
+    return h.kandidat.map(k => ({ id: k.KandidatID, rank: k.peringkat, no: k.NoUrut, badge: (k.Tipe === 'Pasangan' ? 'PASLON ' : 'CALON ') + noUrut(k.NoUrut),
       faces: [[k.FotoFileId, k.Nama1]].concat(k.Tipe === 'Pasangan' ? [[k.FotoFileId2, k.Nama2]] : []),
-      nama: k.Nama1.split(' ').slice(0, k.Nama2 ? 1 : 2).join(' ') + (k.Nama2 ? ' & ' + k.Nama2.split(' ')[0] : ''), sub: [k.Kelas1, k.Kelas2].filter(Boolean).length ? 'Kelas ' + [k.Kelas1, k.Kelas2].filter(Boolean).join(' & ') : '',
+      nama: k.Nama1 + (k.Nama2 ? ' & ' + k.Nama2 : ''), sub: [k.Kelas1, k.Kelas2].filter(Boolean).length ? 'Kelas ' + [k.Kelas1, k.Kelas2].filter(Boolean).join(' & ') : '',
       val: k.suara, dec: 0, valLbl: 'suara', pc: fmtNum(k.persen, 1) + '%', jab: tunggal ? k.jabatan : '', seri: k.seri, namaFull: k.Nama1 + (k.Nama2 ? ' & ' + k.Nama2 : '') }));
   }
   const vote = h.ModePenilaian === 'Voting';
-  return h.peserta.slice(0, 6).map(p => ({ id: p.PesertaID, rank: p.peringkat, no: p.NoUrut, juara: p.juara, badge: 'NO. ' + noUrut(p.NoUrut), faces: [[p.FotoFileId, p.NamaTampil]], nama: p.NamaTampil, sub: 'Kelas ' + p.Kelas,
+  return h.peserta.map(p => ({ id: p.PesertaID, rank: p.peringkat, no: p.NoUrut, juara: p.juara, badge: 'NO. ' + noUrut(p.NoUrut), faces: [[p.FotoFileId, p.NamaTampil]], nama: p.NamaTampil, sub: 'Kelas ' + p.Kelas,
     val: vote ? p.suara : p.skorAkhir, dec: vote ? 0 : 2, valLbl: vote ? 'suara' : 'poin', pc: vote ? fmtNum(p.persenSuara, 1) + '%' : (h.ModePenilaian === 'Gabungan' ? p.suara + ' suara' : ''), seri: p.seri, jab: p.juara ? 'JUARA ' + p.juara : '', namaFull: p.NamaTampil }));
 }
 function lineup(d, h) {
   if (!h) return [];
-  if (isOsis(d)) return h.kandidat.slice().sort((a, b) => a.NoUrut - b.NoUrut).map(k => ({ badge: (k.Tipe === 'Pasangan' ? 'PASLON ' : 'CALON ') + noUrut(k.NoUrut), faces: [[k.FotoFileId, k.Nama1]].concat(k.Tipe === 'Pasangan' ? [[k.FotoFileId2, k.Nama2]] : []), nama: k.Nama1.split(' ').slice(0, 2).join(' ') + (k.Nama2 ? ' & ' + k.Nama2.split(' ')[0] : '') }));
+  if (isOsis(d)) return h.kandidat.slice().sort((a, b) => a.NoUrut - b.NoUrut).map(k => ({ badge: (k.Tipe === 'Pasangan' ? 'PASLON ' : 'CALON ') + noUrut(k.NoUrut), faces: [[k.FotoFileId, k.Nama1]].concat(k.Tipe === 'Pasangan' ? [[k.FotoFileId2, k.Nama2]] : []), nama: k.Nama1 + (k.Nama2 ? ' & ' + k.Nama2 : '') }));
   return h.peserta.slice().sort((a, b) => a.NoUrut - b.NoUrut).map(p => ({ badge: 'NO. ' + noUrut(p.NoUrut), faces: [[p.FotoFileId, p.NamaTampil]], nama: p.NamaTampil }));
 }
 function centerOut(arr) { const out = []; arr.forEach((x, i) => { if (i % 2 === 0) out.push(x); else out.unshift(x); }); return arr.length % 2 === 0 ? out.reverse() : out; }
@@ -245,9 +246,9 @@ function tyPaint(el, o) {
   const conf = Array.from({ length: 12 }, (_, i) => '<i class="confetti" style="left:' + (i * 8.3 % 100) + '%;background:' + ['#FBBF24', '#60A5FA', '#34D399', '#F472B6'][i % 4] + ';animation-duration:' + (10 + i % 5) + 's;animation-delay:' + (-i * 1.4) + 's"></i>').join('');
   const tabs = !osis && (d.cabangList || []).length > 1 ? '<div class="scr-tabs">' + d.cabangList.map(c => '<button data-act="cab" data-id="' + esc(c.CabangID) + '" class="' + (c.CabangID === el._cab ? 'on' : '') + '">' + esc(c.NamaCabang) + (el._reveal[c.CabangID] ? ' ✓' : '') + '</button>').join('') + '</div>' : '';
   const pill = '<div class="live-pill' + (el._paused || el._offline ? ' paused' : '') + '"><i></i>' + (el._offline ? 'MENYAMBUNG ULANG…' : el._paused ? 'DIJEDA' : open ? 'HASIL DITAMPILKAN · LIVE' : 'LIVE · SUARA MASUK') + '</div>';
-  const head = '<div class="scr-head"><div class="scr-logo"><span class="lg">' + (logoHtml(s.LogoInstansiUrl) || ic('shield', 'ic-xl')) + '</span><div><small>' + esc(s.NamaYayasan ? 'Yayasan / Dinas' : '') + '</small><b>' + esc(s.NamaYayasan || '') + '</b></div></div>' +
+  const head = '<div class="scr-head"><div class="scr-logo"><span class="lg" title="' + esc(s.NamaYayasan || '') + '">' + (logoHtml(s.LogoInstansiUrl) || ic('shield', 'ic-xl')) + '</span></div>' +
     '<div class="scr-title">' + pill + '<h1>' + esc((osis && !/^hasil/i.test(judul) ? 'HASIL ' : '') + judul.toUpperCase()) + '</h1><div class="sub">' + esc(s.NamaSekolah || '') + (osis ? (h && h.sistem === 'Tunggal' ? ' · Ketua = suara terbanyak · Wakil = terbanyak ke-2' : ' · Suara Real-Time') : h ? ' · ' + esc(h.NamaCabang) : '') + '</div>' + tabs + '</div>' +
-    '<div class="scr-logo r"><div><small>Portal Resmi MEvent</small><b>' + esc(s.NamaSekolah || '') + '</b></div><span class="lg">' + (logoHtml(s.LogoUrl) || ic('graduation-cap', 'ic-xl')) + '</span></div></div>';
+    '<div class="scr-logo r"><span class="lg" title="' + esc(s.NamaSekolah || '') + '">' + (logoHtml(s.LogoUrl) || ic('graduation-cap', 'ic-xl')) + '</span></div></div>';
   const main = !h ? '<div class="scr-bars" style="align-items:center"><div class="center" style="opacity:.8"><div class="scr-face" style="margin:0 auto 16px">' + ic('vote', 'ic-xl') + '</div><b style="font-size:26px">Belum ada data</b></div></div>'
     : open ? barsHtml(d, h, o.anim) : teaserHtml(el, d, h);
   const foot = footHtml(d, h);
@@ -258,7 +259,17 @@ function tyPaint(el, o) {
     '<button class="btn btn-icon" data-act="jeda" title="' + (el._paused ? 'Lanjutkan pembaruan' : 'Jeda pembaruan') + ' (P)">' + ic(el._paused ? 'play' : 'pause', 'ic-sm') + '</button>' +
     (h ? (open ? '<button class="btn" data-act="tutup">' + ic('eye-off', 'ic-sm') + ' Sembunyikan</button><button class="btn btn-amber" data-act="umumkan">' + ic('trophy', 'ic-sm') + ' Umumkan ' + (osis ? 'Pemenang' : 'Juara') + '</button>'
       : '<button class="btn btn-amber" data-act="ungkap">' + ic('sparkles', 'ic-sm') + ' Tampilkan Hasil</button>') : '') + '</div>';
-  el.innerHTML = '<div class="screen' + (open ? ' is-open' : ' is-teaser') + '">' + conf + (AppState.mode === 'demo' ? '<span class="scr-demo">DEMO</span>' : '') + head + main + '<div class="scr-foot">' + foot + ctrl + '</div></div>';
+  // Peserta banyak → layar bisa digulir (tidak ada nama yang terpotong / tersembunyi)
+  el._paksaGulir = el._paksaGulir || {};
+  const gulir = !!h && (open ? tyItems(d, h).length > batasBatang(d, h) : lineup(d, h).length > 8) || !!el._paksaGulir[key + '|' + open];
+  el.innerHTML = '<div class="screen' + (open ? ' is-open' : ' is-teaser') + (gulir ? ' scroll' : '') + '">' + conf + (AppState.mode === 'demo' ? '<span class="scr-demo">DEMO</span>' : '') + head + main + '<div class="scr-foot">' + foot + ctrl + '</div>' +
+    (gulir ? '<div class="scr-scroll-hint' + (window.scrollY > 40 ? ' hide' : '') + '">' + ic('chevron-down', 'ic-sm') + ' Gulir untuk melihat semua peserta</div>' : '') + '</div>';
+  // Isi tidak muat satu layar (nama panjang / layar pendek) → otomatis beralih ke mode gulir
+  if (!gulir && h) {
+    const m = $('.scr-teaser, .scr-bars', el), cols = $$('.scr-col', el);
+    const sesak = m && (m.scrollHeight > m.clientHeight + 2 || cols.some(c => c.scrollHeight > c.clientHeight + 2));
+    if (sesak) { el._paksaGulir[key + '|' + open] = true; return tyPaint(el, o); }
+  }
   el._lastKey = key;
   if (!open && h) animateTeaser(el, key, totalOf(el));
   if (open && o.anim) animateBars(el);
@@ -272,15 +283,19 @@ function teaserHtml(el, d, h) {
   if (osis) { const tot = h.totalSiswa + h.totalPtk, pem = h.pemilihSiswa + h.pemilihPtk; sub = 'dari <em>' + fmtNum(tot) + '</em> pemilih terdaftar · partisipasi <em>' + fmtNum(pct(pem, tot), 1) + '%</em>'; }
   else if (juri) { const all = (h.juriProgress || []).reduce((s, j) => s + j.total, 0); sub = 'dari <em>' + all + '</em> penilaian (' + (h.juriProgress || []).length + ' juri × ' + h.peserta.length + ' peserta)'; }
   else sub = h.NamaCabang + (h.ModePenilaian === 'Gabungan' ? ' · skor akhir = juri ' + h.BobotJuri + '% + voting ' + h.BobotVoting + '%' : ' · voting siswa');
-  const L = lineup(d, h), many = L.length > 8;
+  const L = lineup(d, h), many = L.length > 8;   // semua peserta tampil; layar digulir bila banyak
   return '<div class="scr-teaser"><div class="tz-label">' + (juri ? 'PENILAIAN JURI MASUK' : 'SUARA MASUK') + '</div>' +
     '<div class="tz-num" data-to="' + total + '">' + fmtNum(el._shown[rkey(el)] != null ? el._shown[rkey(el)] : total) + '</div><div class="tz-sub">' + sub + '</div>' +
-    '<div class="tz-lineup' + (many ? ' many' : '') + (el._lastKey !== rkey(el) ? ' anim' : '') + '">' + L.slice(0, many ? 10 : 8).map(x => '<div class="tz-cand"><div class="scr-faces">' + x.faces.map(faceHtml).join('') + '</div><span class="nobadge">' + esc(x.badge) + '</span><b>' + esc(x.nama) + '</b></div>').join('') + (L.length > 10 ? '<div class="tz-cand more"><b>+' + (L.length - 10) + ' lainnya</b></div>' : '') + '</div>' +
-    '<button class="tz-btn" data-act="ungkap">' + ic('sparkles') + ' Tampilkan Hasil</button><div class="tz-hint">Tekan tombol atau <b>Spasi</b> untuk menampilkan perolehan</div></div>';
+    '<button class="tz-btn" data-act="ungkap">' + ic('sparkles') + ' Tampilkan Hasil</button><div class="tz-hint">Tekan tombol atau <b>Spasi</b> untuk menampilkan perolehan</div>' +
+    '<div class="tz-lineup' + (many ? ' many' : '') + (el._lastKey !== rkey(el) ? ' anim' : '') + '">' + L.map(x => '<div class="tz-cand"><div class="scr-faces">' + x.faces.map(faceHtml).join('') + '</div><span class="nobadge">' + esc(x.badge) + '</span><b>' + esc(x.nama) + '</b></div>').join('') + '</div>' +
+    '</div>';
 }
 
+/** Jumlah peserta yang ditampilkan sebagai batang; sisanya tampil di daftar peringkat di bawahnya. */
+function batasBatang(d, h) { return isOsis(d) ? (h.sistem === 'Tunggal' ? 6 : 5) : 6; }
 function barsHtml(d, h, anim) {
-  const items = tyItems(d, h), osis = isOsis(d), tunggal = osis && h.sistem === 'Tunggal';
+  const semua = tyItems(d, h), osis = isOsis(d), tunggal = osis && h.sistem === 'Tunggal';
+  const items = semua.slice(0, batasBatang(d, h)), sisa = semua.slice(items.length);
   if (!items.length) return '<div class="scr-bars" style="align-items:center"><b style="font-size:26px;opacity:.8">Belum ada peserta</b></div>';
   const maxV = Math.max(1, ...items.map(x => x.val));
   const lead = items[0].val > 0 && !items[0].seri ? items[0].id : '';
@@ -296,7 +311,9 @@ function barsHtml(d, h, anim) {
       '<div class="who"><b>' + esc(x.nama) + (isLead ? ' 🏆' : '') + '</b><span>' + esc(x.sub) + '</span></div>' +
       '<div class="scr-num"><b data-to="' + x.val + '" data-dec="' + x.dec + '">' + fmtNum(anim ? 0 : x.val, x.dec) + '</b><small>' + x.valLbl + '</small>' + (x.pc ? '<span class="pc">' + esc(x.pc) + '</span>' : '') + '</div>' +
       '<div class="scr-track"><div class="scr-fill" data-h="' + hgt + '" style="height:' + (anim ? 0 : hgt) + '%"><span data-to="' + x.val + '" data-dec="' + (x.dec ? 1 : 0) + '">' + fmtNum(anim ? 0 : x.val, x.dec ? 1 : 0) + '</span></div></div></div>';
-  }).join('') + '</div>';
+  }).join('') + '</div>' +
+    (sisa.length ? '<div class="scr-rest' + (anim ? ' scr-anim' : '') + '"><div class="scr-rest-title">PERINGKAT ' + (items.length + 1) + '–' + semua.length + '</div><div class="scr-rest-grid">' + sisa.map(x =>
+      '<div class="scr-rest-row"><span class="rk">' + x.rank + '</span>' + x.faces.map(faceHtml).join('') + '<div class="nm"><b>' + esc(x.nama) + '</b><span>' + esc(x.badge + (x.sub ? ' · ' + x.sub : '')) + '</span></div><div class="vl"><b data-to="' + x.val + '" data-dec="' + x.dec + '">' + fmtNum(anim ? 0 : x.val, x.dec) + '</b><small>' + x.valLbl + (x.pc ? ' · ' + esc(x.pc) : '') + '</small></div></div>').join('') + '</div></div>' : '');
 }
 
 function footHtml(d, h) {
