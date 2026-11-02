@@ -101,7 +101,23 @@ Setiap link punya **kode QR** (tombol *QR Besar* untuk ditampilkan di layar agar
 Tab **Kehadiran** pada event lomba menampilkan kolom **Lomba yang di-voting** untuk setiap siswa (beserta lomba yang diikuti sebagai peserta) dan ringkasan jumlah siswa yang sudah voting per cabang. Informasi yang sama ikut ke **Excel** dan **cetak Daftar Hadir**.
 
 ### Alur lomba
-Event Lomba → **Cabang & Peserta** (mode Juri/Voting/Gabungan + bobot; urutan tampil peserta diatur dengan menggeser ikon ⋮⋮) → **Juri & Kriteria** → bagikan **Link Voting & Penilaian Lomba** → **Kunci Penilaian** → tab **Hasil** (tetapkan urutan bila seri) → **Cetak Piagam Juara**. Di layar hasil, tombol nama cabang (atau panah ← →) berpindah cabang seketika.
+Event Lomba → **Cabang & Peserta** (mode Juri/Voting/Gabungan/Babak + bobot; urutan tampil peserta diatur dengan menggeser ikon ⋮⋮) → **Juri & Kriteria** → bagikan **Link Voting & Penilaian Lomba** → **Kunci Penilaian** → tab **Hasil** (tetapkan urutan bila seri) → **Cetak Piagam Juara**. Di layar hasil, tombol nama cabang (atau panah ← →) berpindah cabang seketika.
+
+### Lomba sistem babak / eliminasi (mis. Spelling Bee, Cerdas Cermat)
+Skor tiap babak = **jumlah jawaban benar**. Peserta yang lolos maju ke babak berikutnya sampai **Final**.
+
+1. **Cabang & Peserta** → pilih cabang → Mode Penilaian **Babak / Eliminasi**.
+2. Atur **Susunan Babak**: nama babak dan jumlah soal/kata (mis. Babak 1 — 20, Babak 2 — 15, Final — 10). **+ Tambah Babak** menyisipkan babak sebelum Final (maks. 10 babak). Babak yang sudah berisi skor terkunci (ikon gembok) dan tidak bisa dihapus.
+3. Pilih **Penentuan Juara**:
+   - **Total akumulasi semua babak** — juara = jumlah benar terbanyak dari semua babak yang diikuti.
+   - **Skor babak final saja** — juara = jumlah benar terbanyak di Final; bila sama, total akumulasi jadi penentu.
+   Peserta yang mencapai babak lebih jauh selalu berada di atas peserta yang gugur lebih awal.
+4. **Simpan Pengaturan**, lalu tambahkan juri di tab **Juri & Kriteria** (tidak perlu kriteria).
+5. Saat lomba berjalan:
+   - **Juri** membuka link penilaian → memilih babak → mengisi jumlah benar dengan tombol **−/+** atau mengetik angka. Skor **tersimpan otomatis**; angka tidak bisa melebihi jumlah soal.
+   - **Panitia** di tab **Juri & Kriteria** → kartu **Skor Babak**: bisa mengisi/mengoreksi skor, lalu menandai **Lolos** (atau isi angka di **Loloskan … teratas → Terapkan**, nilai seri di batas kelulusan ikut lolos) → **Simpan Skor & Lolos**. Peserta yang lolos langsung muncul di babak berikutnya, juga di HP juri.
+   - Ulangi sampai Final. **Juara baru ditetapkan setelah finalis mendapat skor Final.**
+6. Tab **Hasil** menampilkan skor per babak, total, status (Gugur di …/Finalis/Juara). **Cetak Lembar Juri** untuk babak ini punya kolom centang per soal (bila ≤ 20 soal) + Jumlah Benar + Lolos. Layar hasil menampilkan "SKOR … MASUK" untuk babak yang sedang berjalan.
 
 ---
 
@@ -113,10 +129,12 @@ Event Lomba → **Cabang & Peserta** (mode Juri/Voting/Gabungan + bobot; urutan 
 3. **Terapkan → Kelola deployment → ✏️ Edit → Versi: Versi baru → Terapkan.**
 ⚠️ Jangan memilih *Deployment baru* — URL `/exec` akan berubah dan aplikasi berhenti bekerja.
 
+> **Dari versi sebelumnya ke 1.6 (sistem babak):** ganti ketiga berkas `.gs`, **wajib jalankan `setupAwal` sekali** (membuat sheet baru **Skor_Babak** dan kolom **Babak** di Cabang_Lomba), lalu buat versi deployment baru seperti langkah 3. Setelah itu perbarui frontend. Cabang lama tidak berubah.
+
 > **Dari versi sebelumnya ke 1.5:** lakukan 3 langkah di atas, lalu perbarui frontend (isi ulang `GAS_URL`). Data lama tetap terbaca; kehadiran dari voting kini dihitung otomatis dari daftar pemilih, jadi tidak ada data yang perlu dipindahkan.
 
 **Frontend** (bila ada perubahan di `css/` atau `js/`):
-1. Bila mengubah kode sendiri, naikkan angka versi di `index.html` (mis. `?v=1.1.0` → `?v=1.1.1`) dan `APP_VER` di `js/core.js` agar HP pengguna langsung memuat versi baru. (Paket 1.5.0 ini sudah dinaikkan.)
+1. Bila mengubah kode sendiri, naikkan angka versi di `index.html` (mis. `?v=1.1.0` → `?v=1.1.1`) dan `APP_VER` di `js/core.js` agar HP pengguna langsung memuat versi baru. (Paket 1.6.0 ini sudah dinaikkan.)
    Jangan lupa isi ulang `GAS_URL` di `js/config.js` bila berkas itu ikut tertimpa.
 2. Jalankan dari folder proyek:
    ```bash

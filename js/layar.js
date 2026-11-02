@@ -212,10 +212,12 @@ function rkey(el) { return isOsis(el._d) ? 'osis' : (curCab(el) || '-'); }
 function revealed(el) { return !!el._reveal[rkey(el)]; }
 function totalOf(el, d) {
   const h = hasilNow(el, d); if (!h) return 0;
+  if (!isOsis(d) && h.ModePenilaian === 'Babak') return babakAktif(h).dinilai || 0;
   if (isOsis(d) || h.ModePenilaian !== 'Juri') return h.totalSuara;
   return (h.juriProgress || []).reduce((s, j) => s + j.dinilai, 0);
 }
 
+function babakAktif(h) { return (h.babak || []).find(b => b.id === h.babakAktif) || { nama: 'Babak', jumlah: 0, dinilai: 0, maks: 0 }; }
 function tyItems(d, h) {
   if (!h) return [];
   if (isOsis(d)) {
@@ -225,6 +227,11 @@ function tyItems(d, h) {
       nama: k.Nama1 + (k.Nama2 ? ' & ' + k.Nama2 : ''), sub: [k.Kelas1, k.Kelas2].filter(Boolean).length ? 'Kelas ' + [k.Kelas1, k.Kelas2].filter(Boolean).join(' & ') : '',
       val: k.suara, dec: 0, valLbl: 'suara', pc: fmtNum(k.persen, 1) + '%', jab: tunggal ? k.jabatan : '', seri: k.seri, namaFull: k.Nama1 + (k.Nama2 ? ' & ' + k.Nama2 : '') }));
   }
+  if (h.ModePenilaian === 'Babak') {
+    const fin = h.juaraDari === 'final';
+    return h.peserta.map(p => ({ id: p.PesertaID, rank: p.peringkat, no: p.NoUrut, juara: p.juara, badge: 'NO. ' + noUrut(p.NoUrut), faces: [[p.FotoFileId, p.NamaTampil]], nama: p.NamaTampil, sub: 'Kelas ' + p.Kelas,
+      val: p.skorAkhir, dec: 0, valLbl: fin ? 'benar di final' : 'benar', pc: (fin ? 'total ' + p.total + ' · ' : '') + (p.babakNama || ''), seri: p.seri, jab: p.juara ? 'JUARA ' + p.juara : '', namaFull: p.NamaTampil }));
+  }
   const vote = h.ModePenilaian === 'Voting';
   return h.peserta.map(p => ({ id: p.PesertaID, rank: p.peringkat, no: p.NoUrut, juara: p.juara, badge: 'NO. ' + noUrut(p.NoUrut), faces: [[p.FotoFileId, p.NamaTampil]], nama: p.NamaTampil, sub: 'Kelas ' + p.Kelas,
     val: vote ? p.suara : p.skorAkhir, dec: vote ? 0 : 2, valLbl: vote ? 'suara' : 'poin', pc: vote ? fmtNum(p.persenSuara, 1) + '%' : (h.ModePenilaian === 'Gabungan' ? p.suara + ' suara' : ''), seri: p.seri, jab: p.juara ? 'JUARA ' + p.juara : '', namaFull: p.NamaTampil }));
@@ -232,7 +239,8 @@ function tyItems(d, h) {
 function lineup(d, h) {
   if (!h) return [];
   if (isOsis(d)) return h.kandidat.slice().sort((a, b) => a.NoUrut - b.NoUrut).map(k => ({ badge: (k.Tipe === 'Pasangan' ? 'PASLON ' : 'CALON ') + noUrut(k.NoUrut), faces: [[k.FotoFileId, k.Nama1]].concat(k.Tipe === 'Pasangan' ? [[k.FotoFileId2, k.Nama2]] : []), nama: k.Nama1 + (k.Nama2 ? ' & ' + k.Nama2 : '') }));
-  return h.peserta.slice().sort((a, b) => a.NoUrut - b.NoUrut).map(p => ({ badge: 'NO. ' + noUrut(p.NoUrut), faces: [[p.FotoFileId, p.NamaTampil]], nama: p.NamaTampil }));
+  const ps = h.ModePenilaian === 'Babak' ? h.peserta.filter(p => Object.prototype.hasOwnProperty.call(p.skorBabak || {}, h.babakAktif)) : h.peserta;
+  return ps.slice().sort((a, b) => a.NoUrut - b.NoUrut).map(p => ({ badge: 'NO. ' + noUrut(p.NoUrut), faces: [[p.FotoFileId, p.NamaTampil]], nama: p.NamaTampil }));
 }
 function centerOut(arr) { const out = []; arr.forEach((x, i) => { if (i % 2 === 0) out.push(x); else out.unshift(x); }); return arr.length % 2 === 0 ? out.reverse() : out; }
 function faceHtml(f) { return '<span class="scr-face">' + (f[0] ? '<img alt="" src="' + imgUrl(f[0], 300) + '">' : esc(initials(f[1]))) + '</span>'; }
@@ -277,14 +285,16 @@ function tyPaint(el, o) {
 }
 
 function teaserHtml(el, d, h) {
-  const osis = isOsis(d), juri = !osis && h.ModePenilaian === 'Juri';
+  const osis = isOsis(d), juri = !osis && h.ModePenilaian === 'Juri', bk = !osis && h.ModePenilaian === 'Babak', BA = bk ? babakAktif(h) : null;
   const total = totalOf(el);
   let sub;
+  if (bk) sub = 'dari <em>' + BA.jumlah + '</em> peserta ' + esc(BA.nama) + (BA.maks ? ' · ' + BA.maks + ' soal' : '') + ' · skor = jumlah jawaban benar';
+  else
   if (osis) { const tot = h.totalSiswa + h.totalPtk, pem = h.pemilihSiswa + h.pemilihPtk; sub = 'dari <em>' + fmtNum(tot) + '</em> pemilih terdaftar · partisipasi <em>' + fmtNum(pct(pem, tot), 1) + '%</em>'; }
   else if (juri) { const all = (h.juriProgress || []).reduce((s, j) => s + j.total, 0); sub = 'dari <em>' + all + '</em> penilaian (' + (h.juriProgress || []).length + ' juri × ' + h.peserta.length + ' peserta)'; }
   else sub = h.NamaCabang + (h.ModePenilaian === 'Gabungan' ? ' · skor akhir = juri ' + h.BobotJuri + '% + voting ' + h.BobotVoting + '%' : ' · voting siswa');
   const L = lineup(d, h), many = L.length > 8;   // semua peserta tampil; layar digulir bila banyak
-  return '<div class="scr-teaser"><div class="tz-label">' + (juri ? 'PENILAIAN JURI MASUK' : 'SUARA MASUK') + '</div>' +
+  return '<div class="scr-teaser"><div class="tz-label">' + (bk ? 'SKOR ' + esc(BA.nama.toUpperCase()) + ' MASUK' : juri ? 'PENILAIAN JURI MASUK' : 'SUARA MASUK') + '</div>' +
     '<div class="tz-num" data-to="' + total + '">' + fmtNum(el._shown[rkey(el)] != null ? el._shown[rkey(el)] : total) + '</div><div class="tz-sub">' + sub + '</div>' +
     '<button class="tz-btn" data-act="ungkap">' + ic('sparkles') + ' Tampilkan Hasil</button><div class="tz-hint">Tekan tombol atau <b>Spasi</b> untuk menampilkan perolehan</div>' +
     '<div class="tz-lineup' + (many ? ' many' : '') + (el._lastKey !== rkey(el) ? ' anim' : '') + '">' + L.map(x => '<div class="tz-cand"><div class="scr-faces">' + x.faces.map(faceHtml).join('') + '</div><span class="nobadge">' + esc(x.badge) + '</span><b>' + esc(x.nama) + '</b></div>').join('') + '</div>' +
@@ -323,6 +333,7 @@ function footHtml(d, h) {
     return '<div class="grow" style="min-width:280px"><div class="small" style="opacity:.7;letter-spacing:.1em;font-weight:700">TOTAL PARTISIPASI PEMILIHAN</div><div class="big">Suara masuk: <em>' + h.totalSuara + '</em> dari ' + tot + ' pemilih <em>(' + fmtNum(pct(pem, tot), 1) + '%)</em></div>' +
       '<div class="row mt-8" style="gap:12px;flex-wrap:wrap"><span class="badge scr-chip">' + ic('users', 'ic-sm') + ' Siswa ' + h.pemilihSiswa + '/' + h.totalSiswa + '</span><span class="badge scr-chip">' + ic('graduation-cap', 'ic-sm') + ' PTK ' + h.pemilihPtk + '/' + h.totalPtk + '</span></div><div class="prog"><i style="width:' + pct(pem, tot) + '%"></i></div></div>';
   }
+  if (h.ModePenilaian === 'Babak') { const BA = babakAktif(h); return '<div class="grow"><div class="small" style="opacity:.7;letter-spacing:.1em;font-weight:700">' + esc(h.NamaCabang.toUpperCase()) + ' · SISTEM BABAK · JUARA DARI ' + (h.juaraDari === 'final' ? 'SKOR FINAL' : 'TOTAL AKUMULASI') + '</div><div class="big">' + esc(BA.nama) + ': <em>' + BA.dinilai + '</em> dari ' + BA.jumlah + ' peserta dinilai</div></div>'; }
   return '<div class="grow"><div class="small" style="opacity:.7;letter-spacing:.1em;font-weight:700">' + esc(h.NamaCabang.toUpperCase()) + ' · ' + esc(h.ModePenilaian === 'Gabungan' ? 'JURI ' + h.BobotJuri + '% + VOTING ' + h.BobotVoting + '%' : h.ModePenilaian === 'Juri' ? 'PENILAIAN JURI' : 'VOTING SISWA') + '</div><div class="big">' + (h.ModePenilaian !== 'Juri' ? 'Suara masuk: <em>' + h.totalSuara + '</em>' : '<em>' + h.peserta.length + '</em> peserta dinilai') + '</div></div>';
 }
 
@@ -391,7 +402,7 @@ const TY = {
       const k = h.kandidat;
       if (h.sistem === 'Tunggal') list = k.filter(x => x.jabatan).map(x => ({ rk: x.jabatan.toUpperCase(), nm: x.Nama1, sc: 'Calon ' + noUrut(x.NoUrut) + ' · ' + x.suara + ' suara · ' + fmtNum(x.persen, 1) + '%' })).reverse();
       else list = h.seri ? [] : k.slice(0, 1).filter(x => x.suara > 0).map(x => ({ rk: 'PASANGAN TERPILIH', nm: x.Nama1 + (x.Nama2 ? ' & ' + x.Nama2 : ''), sc: (x.Tipe === 'Pasangan' ? 'Paslon ' : 'Calon ') + noUrut(x.NoUrut) + ' · ' + x.suara + ' suara · ' + fmtNum(x.persen, 1) + '%' }));
-    } else list = h.peserta.filter(p => p.juara).map(p => ({ rk: 'JUARA ' + p.juara, nm: p.NamaTampil, sc: 'Kelas ' + p.Kelas + ' · ' + fmtNum(p.skorAkhir, 2) + ' poin' })).reverse();
+    } else list = h.peserta.filter(p => p.juara).map(p => ({ rk: 'JUARA ' + p.juara, nm: p.NamaTampil, sc: 'Kelas ' + p.Kelas + ' · ' + (h.ModePenilaian === 'Babak' ? (h.juaraDari === 'final' ? p.skorAkhir + ' benar di final (total ' + p.total + ')' : p.total + ' jawaban benar') : fmtNum(p.skorAkhir, 2) + ' poin') })).reverse();
     if (!list.length) return toast(h.seri ? 'Hasil masih seri' : 'Belum ada pemenang', h.seri ? 'Tetapkan pemenang di menu Hasil terlebih dahulu.' : '', 'warning');
     Sfx.ensure();
     const ov = document.createElement('div'); ov.className = 'announce';

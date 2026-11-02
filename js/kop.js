@@ -145,6 +145,7 @@ function docRekap(det, cfg, o) {
   const cabs = (det.cabang || []).filter(c => !o.cabangId || c.CabangID === o.cabangId);
   return cabs.map(c => {
     const h = c.hasil;
+    if (h.ModePenilaian === 'Babak') return rekapBabak(det, cfg, c);
     const showJ = h.ModePenilaian !== 'Voting', showV = h.ModePenilaian !== 'Juri';
     const t = '<table class="dt"><thead><tr><th style="width:56px">Peringkat</th><th>Nama Peserta</th><th style="width:56px">Kelas</th>' + (showJ ? '<th style="width:70px">Skor Juri</th>' : '') + (showV ? '<th style="width:60px">Suara</th>' : '') + '<th style="width:70px">Skor Akhir</th><th style="width:80px">Keterangan</th></tr></thead><tbody>' +
       h.peserta.map(p => '<tr><td class="c">' + p.peringkat + '</td><td>' + esc(p.NamaTampil) + '</td><td class="c">' + esc(p.Kelas) + '</td>' + (showJ ? '<td class="c">' + fmtNum(p.skorJuri, 2) + '</td>' : '') + (showV ? '<td class="c">' + p.suara + '</td>' : '') + '<td class="c"><b>' + fmtNum(p.skorAkhir, 2) + '</b></td><td class="c">' + (p.juara ? 'Juara ' + p.juara : '') + (p.seri ? ' (seri)' : '') + '</td></tr>').join('') + '</tbody></table>';
@@ -152,6 +153,17 @@ function docRekap(det, cfg, o) {
       (h.penetapan ? '<p style="font-size:10.5pt"><i>Penetapan urutan oleh ' + esc(h.penetapan.DitetapkanOleh) + ': ' + esc(h.penetapan.Alasan) + '</i></p>' : '');
     return docPage(judulDoc('Rekap Hasil Lomba', esc(ev.Judul) + ' — ' + esc(c.NamaCabang) + '<br>' + esc(hariTgl(c.TanggalPelaksanaan))) + t + info + ttdHtml(cfg, { tanggal: c.TanggalPelaksanaan }), { kop: cfg.kop });
   }).join('');
+}
+
+function rekapBabak(det, cfg, c) {
+  const h = c.hasil, L = h.babak || [], fin = h.juaraDari === 'final';
+  const t = '<table class="dt"><thead><tr><th style="width:50px">Peringkat</th><th>Nama Peserta</th><th style="width:48px">Kelas</th>' + L.map(b => '<th style="width:58px">' + esc(b.nama) + (b.maks ? '<br><span style="font-weight:400;font-size:8.5pt">(maks ' + b.maks + ')</span>' : '') + '</th>').join('') + '<th style="width:56px">Total</th><th style="width:96px">Keterangan</th></tr></thead><tbody>' +
+    h.peserta.map(p => '<tr><td class="c">' + p.peringkat + '</td><td>' + esc(p.NamaTampil) + '</td><td class="c">' + esc(p.Kelas) + '</td>' +
+      L.map(b => { const ada = Object.prototype.hasOwnProperty.call(p.skorBabak || {}, b.id), v = ada ? p.skorBabak[b.id] : null; return '<td class="c">' + (!ada ? '–' : v === null ? '' : (b.final && fin ? '<b>' + v + '</b>' : v) + ((p.lolos || {})[b.id] === 'Ya' && !b.final ? ' ✓' : '')) + '</td>'; }).join('') +
+      '<td class="c"><b>' + p.total + '</b></td><td class="c">' + esc(p.juara ? 'Juara ' + p.juara : p.status || '') + (p.seri ? ' (seri)' : '') + '</td></tr>').join('') + '</tbody></table>';
+  const info = '<p style="margin-top:8px;font-size:10.5pt">Mode penilaian: Sistem babak / eliminasi (' + L.map(b => esc(b.nama)).join(' → ') + '). Skor = jumlah jawaban benar; ✓ = lolos ke babak berikutnya. Juara ditentukan dari ' + (fin ? 'skor babak final (total akumulasi sebagai penentu bila sama)' : 'total akumulasi jawaban benar semua babak') + '.</p>' +
+    (h.penetapan ? '<p style="font-size:10.5pt"><i>Penetapan urutan oleh ' + esc(h.penetapan.DitetapkanOleh) + ': ' + esc(h.penetapan.Alasan) + '</i></p>' : '');
+  return docPage(judulDoc('Rekap Hasil Lomba', esc(det.event.Judul) + ' — ' + esc(c.NamaCabang) + '<br>' + esc(hariTgl(c.TanggalPelaksanaan))) + t + info + ttdHtml(cfg, { tanggal: c.TanggalPelaksanaan }), { kop: cfg.kop });
 }
 
 function docBeritaAcara(det, cfg) {
@@ -183,7 +195,9 @@ function docLembarJuri(det, cfg, o) {
   if (!c) return '';
   const juri = o.juriId === '_kosong' ? [{ Nama: '', Jabatan: '' }] : c.juri.filter(j => !o.juriId || j.JuriID === o.juriId);
   const list = juri.length ? juri : [{ Nama: '', Jabatan: '' }];
+  const bk = c.ModePenilaian === 'Babak' && (c.hasil.babak || []).length;
   return list.map(j => {
+    if (bk) return lembarBabak(det, cfg, c, j, o);
     const t = '<table class="dt"><thead><tr><th style="width:36px">No</th><th>Nama Peserta</th><th style="width:50px">Kelas</th>' +
       c.kriteria.map(k => '<th style="width:' + Math.max(56, Math.floor(300 / Math.max(1, c.kriteria.length))) + 'px">' + esc(k.NamaKriteria) + '<br><span style="font-weight:400;font-size:8.5pt">(' + k.NilaiMin + '–' + k.NilaiMaks + ', ' + k.Bobot + '%)</span></th>').join('') +
       '<th style="width:60px">Total</th></tr></thead><tbody>' +
@@ -195,6 +209,25 @@ function docLembarJuri(det, cfg, o) {
     return docPage(judulDoc('Lembar Penilaian Juri', esc(det.event.Judul)) + head + t +
       '<p style="font-size:9.5pt;margin-top:6px">Total = Σ (nilai ÷ nilai maksimal × bobot). Isi nilai sesuai rentang masing-masing kriteria.</p>' + ttdJuri + extra, { kop: cfg.kop });
   }).join('');
+}
+
+/** Lembar juri sistem babak: kolom centang per soal (bila ≤ 20 soal) + jumlah benar + lolos. */
+function lembarBabak(det, cfg, c, j, o) {
+  const L = c.hasil.babak, B = L.find(b => b.id === o.babakId) || L.find(b => b.id === c.hasil.babakAktif) || L[0];
+  const ids = c.hasil.peserta.filter(p => Object.prototype.hasOwnProperty.call(p.skorBabak || {}, B.id)).map(p => p.PesertaID);
+  let pes = c.peserta.filter(p => ids.indexOf(p.PesertaID) > -1);
+  const kosong = !pes.length;
+  if (kosong) pes = Array.from({ length: Math.max(5, L[L.indexOf(B) - 1] ? L[L.indexOf(B) - 1].lolos : 0) }, () => ({ NoUrut: '', NamaTampil: '', Kelas: '' }));
+  const grid = B.maks >= 1 && B.maks <= 20 ? B.maks : 0;
+  const t = '<table class="dt"><thead><tr><th style="width:32px">No</th><th>Nama Peserta</th><th style="width:44px">Kelas</th>' +
+    Array.from({ length: grid }, (_, i) => '<th style="width:18px;padding:2px;font-size:8pt">' + (i + 1) + '</th>').join('') +
+    '<th style="width:58px">Jumlah Benar</th>' + (B.final ? '' : '<th style="width:44px">Lolos</th>') + '</tr></thead><tbody>' +
+    pes.map(p => '<tr style="height:30px"><td class="c">' + (p.NoUrut ? noUrut(p.NoUrut) : '') + '</td><td>' + esc(p.NamaTampil) + '</td><td class="c">' + esc(p.Kelas) + '</td>' + Array.from({ length: grid }, () => '<td></td>').join('') + '<td></td>' + (B.final ? '' : '<td></td>') + '</tr>').join('') + '</tbody></table>';
+  const head = '<table class="info"><tr><td style="width:120px">Cabang lomba</td><td>: <b>' + esc(c.NamaCabang) + '</b> — ' + esc(B.nama) + (B.final && !/final/i.test(B.nama) ? ' (Final)' : '') + '</td></tr><tr><td>Hari/tanggal</td><td>: ' + esc(hariTgl(c.TanggalPelaksanaan)) + '</td></tr><tr><td>Nama juri</td><td>: ' + (j.Nama ? esc(j.Nama) : '..........................................') + '</td></tr></table>';
+  const ttdJuri = '<div class="ttd-wrap single"><div class="ttd"><div>Juri,</div><div class="sp"></div><div class="nm">' + (j.Nama ? esc(j.Nama) : '..............................') + '</div><div>' + esc(j.NIP_NIY_NUPTK ? (j.JenisNomor || 'NIP') + '. ' + j.NIP_NIY_NUPTK : '') + '</div></div></div>';
+  const extra = cfg.ttd || cfg.pt2 ? ttdHtml(cfg, { tanggal: c.TanggalPelaksanaan }) : '';
+  return docPage(judulDoc('Lembar Skor ' + esc(B.nama), esc(det.event.Judul)) + head + t +
+    '<p style="font-size:9.5pt;margin-top:6px">' + (grid ? 'Beri tanda ✓ pada nomor soal/kata yang dijawab benar, lalu tulis jumlahnya. ' : 'Tulis jumlah jawaban benar tiap peserta. ') + (B.maks ? 'Jumlah soal ' + B.maks + '. ' : '') + (B.final ? 'Babak final menentukan juara.' : 'Kolom Lolos diisi panitia untuk peserta yang maju ke babak berikutnya.') + (kosong ? ' (Daftar peserta babak ini belum ditetapkan.)' : '') + '</p>' + ttdJuri + extra, { kop: cfg.kop });
 }
 
 function docFormulirKosong(det, cfg, o) {

@@ -789,7 +789,7 @@ registerPage('ptk', {
         (!d ? skeletonCards(3, 96) :
           (d.osis.length ? sec('Pemilihan OSIS', d.osis.map(o => '<div class="card menu-card"><span class="icon-tile">' + ic('vote', 'ic-lg') + '</span><div class="grow"><div class="t">' + esc(o.Judul) + '</div><div class="s">' + (o.sudahMemilih ? 'Anda sudah memberikan suara' : o.VotingDibuka === 'Ya' ? 'Voting sedang dibuka' : 'Voting belum dibuka') + '</div></div>' +
             (o.sudahMemilih ? '<span class="badge badge-green">' + ic('check', 'ic-sm') + ' Sudah</span>' : o.VotingDibuka === 'Ya' ? '<button class="btn btn-primary btn-sm" data-act="osis" data-id="' + esc(o.EventID) + '">Beri Suara</button>' : '<span class="badge badge-gray">Ditutup</span>') + '</div>').join('')) : '') +
-          sec('Tugas Juri', d.juri.length ? d.juri.map(j => '<div class="card menu-card card-tap" tabindex="0" role="button" data-act="nilai" data-id="' + esc(j.CabangID) + '"><span class="icon-tile amber">' + ic('clipboard-check', 'ic-lg') + '</span><div class="grow"><div class="t">' + esc(j.NamaCabang) + '</div><div class="s">' + esc(j.EventJudul) + ' · ' + esc(tglPendek(j.TanggalPelaksanaan)) + '</div>' +
+          sec('Tugas Juri', d.juri.length ? d.juri.map(j => '<div class="card menu-card card-tap" tabindex="0" role="button" data-act="nilai" data-id="' + esc(j.CabangID) + '"><span class="icon-tile amber">' + ic('clipboard-check', 'ic-lg') + '</span><div class="grow"><div class="t">' + esc(j.NamaCabang) + '</div><div class="s">' + esc(j.EventJudul) + ' · ' + esc(tglPendek(j.TanggalPelaksanaan)) + (j.ModePenilaian === 'Babak' && j.BabakAktif ? ' · <b>' + esc(j.BabakAktif) + '</b>' : '') + '</div>' +
             '<div class="row mt-8"><div class="prog grow ' + (j.dinilai >= j.jumlahPeserta && j.jumlahPeserta ? 'green' : '') + '"><i style="width:' + pct(j.dinilai, j.jumlahPeserta) + '%"></i></div><span class="small muted tnum">' + j.dinilai + '/' + j.jumlahPeserta + '</span></div></div>' + (j.Terkunci ? '<span class="badge badge-gray">' + ic('lock', 'ic-sm') + '</span>' : '<span class="chev">' + ic('chevron-right') + '</span>') + '</div>').join('')
             : '<div class="card"><div class="empty" style="padding:24px"><div class="empty-art">' + ic('clipboard-check', 'ic-xl') + '</div><div>Belum ada tugas juri untuk Anda.</div></div></div>') +
           (d.panitia.length ? sec('Event Kepanitiaan', d.panitia.map(p => '<div class="card menu-card"><span class="icon-tile green">' + ic('users', 'ic-lg') + '</span><div class="grow"><div class="t">' + esc(p.Judul) + '</div><div class="s">' + esc(p.JabatanPanitia) + ' · ' + esc(p.JenisEvent) + '</div></div><span class="badge ' + (p.Status === 'Berjalan' ? 'badge-green' : p.Status === 'Selesai' ? 'badge-blue' : 'badge-gray') + '">' + esc(p.Status) + '</span></div>').join('') +
@@ -810,8 +810,14 @@ registerPage('nilai', {
     el.addEventListener('click', (e) => {
       const b = e.target.closest('[data-act]'); if (!b) return;
       const S = el._s, a = b.dataset.act;
-      if (a === 'back') return go('ptk');
+      if (a === 'back') { if (S && S.bk && Object.keys(S.pend).length) bkKirim(el); return go('ptk'); }
       if (!S) return;
+      if (S.bk) {
+        if (a === 'bk-babak') { S.babak = b.dataset.id; bkPaint(el); }
+        if ((a === 'bk-min' || a === 'bk-plus') && !S.d.terkunci) { const cur = bkVal(S, S.babak, b.dataset.p); bkSet(el, b.dataset.p, cur === '' ? (a === 'bk-plus' ? 1 : 0) : cur + (a === 'bk-plus' ? 1 : -1)); }
+        if (a === 'bk-flush') bkKirim(el, true);
+        return;
+      }
       if (a === 'pes') { juriAmbil(el); S.idx = +b.dataset.i; juriPaint(el); }
       if (a === 'min' || a === 'plus') { if (S.d.terkunci) return; const k = S.d.kriteria.find(x => x.KriteriaID === b.dataset.k); const cur = juriVals(S)[k.KriteriaID]; const base = cur === undefined || cur === '' ? (a === 'plus' ? k.NilaiMin : k.NilaiMaks) : Number(cur); juriSet(el, k, base + (a === 'plus' ? 1 : -1)); }
       if (a === 'prev') { juriAmbil(el); if (S.idx > 0) { S.idx--; juriPaint(el); } }
@@ -819,6 +825,7 @@ registerPage('nilai', {
     });
     el.addEventListener('input', (e) => {
       const S = el._s; if (!S) return;
+      if (S.bk) { if (e.target.dataset.bk && !S.d.terkunci) bkSet(el, e.target.dataset.bk, e.target.value.trim(), true); return; }
       if (e.target.dataset.rng) { const k = S.d.kriteria.find(x => x.KriteriaID === e.target.dataset.rng); juriSet(el, k, e.target.value, 'rng'); }
       if (e.target.dataset.val) { const k = S.d.kriteria.find(x => x.KriteriaID === e.target.dataset.val); juriSet(el, k, e.target.value, 'val'); }
       if (e.target.id === 'catatan') juriVals(S)._catatan = e.target.value;
@@ -829,6 +836,13 @@ registerPage('nilai', {
     el.innerHTML = '<div class="pub"><div class="pub-inner">' + appbar({ title: 'Penilaian Juri', sub: 'Memuat…' }) + '<div class="pub-body">' + skeletonCards(4, 140) + '</div></div></div>';
     const res = await swr('juri:' + cabangId, 'juriData', { cabangId }, (d) => {
       const prev = el._s;
+      if (d.mode === 'Babak') {
+        const pend = prev && prev.bk ? prev.pend : {};
+        d.skor = d.skor || {};
+        Object.keys(pend).forEach(k => { const x = pend[k]; const m = (d.skor[x.babakId] = d.skor[x.babakId] || {}); m[x.pesertaId] = Object.assign({ lolos: '' }, m[x.pesertaId], { benar: x.benar === '' ? null : x.benar }); });
+        el._s = { bk: true, d, cabangId, pend, gagal: prev && prev.bk ? prev.gagal : {}, babak: prev && prev.bk && d.babak.some(b => b.id === prev.babak) ? prev.babak : d.babakAktif, t: prev && prev.t };
+        bkPaint(el); return;
+      }
       const vals = {};
       d.peserta.forEach(p => { const m = d.nilai[p.PesertaID]; vals[p.PesertaID] = m ? Object.assign({ _catatan: m.catatan || '' }, m.nilai) : {}; });
       if (prev) Object.keys(prev.dirty).forEach(pid => { vals[pid] = prev.vals[pid]; });
@@ -839,6 +853,75 @@ registerPage('nilai', {
     if (!res.success && el._s) toast('Mode luring', 'Data diambil dari perangkat. ' + res.message, 'warning');
   }
 });
+/* ---- Juri: sistem babak (skor = jumlah jawaban benar), simpan otomatis ---- */
+function bkBabak(S) { return S.d.babak.find(x => x.id === S.babak) || S.d.babak[0]; }
+function bkVal(S, bid, pid) { const m = (S.d.skor[bid] || {})[pid]; return m && m.benar !== null && m.benar !== undefined && m.benar !== '' ? Number(m.benar) : ''; }
+function bkPaint(el) {
+  const S = el._s, d = S.d, lock = d.terkunci;
+  const top = appbar({ title: 'Penilaian Juri', sub: d.cabang.NamaCabang + ' · ' + d.namaJuri });
+  if (!d.peserta.length || !d.babak.length) { el.innerHTML = '<div class="pub"><div class="pub-inner">' + top + '<div class="card" style="margin:16px"><div class="empty"><div class="empty-art">' + ic('clipboard-list', 'ic-xl') + '</div><div class="empty-title">Belum ada peserta</div><div>Hubungi panitia untuk melengkapi data cabang ini.</div></div></div></div></div>'; return; }
+  const B = bkBabak(S); S.babak = B.id;
+  const bi = d.babak.indexOf(B), nxt = d.babak[bi + 1];
+  const pes = d.peserta.filter(p => B.ikut.indexOf(p.PesertaID) > -1);
+  el.innerHTML = '<div class="pub"><div class="pub-inner" style="display:flex;flex-direction:column;min-height:calc(100vh - var(--ribbon))">' + top +
+    '<div style="padding:12px 16px 4px">' + (lock ? '<div class="alert alert-amber small mb-8">' + ic('lock', 'ic-sm') + '<span>Penilaian sudah dikunci panitia. Skor hanya bisa dilihat.</span></div>' : '') +
+    '<div class="row row-wrap" style="gap:8px">' + d.babak.map((b, i) => '<button class="chip' + (b.id === B.id ? ' on' : '') + '" data-act="bk-babak" data-id="' + esc(b.id) + '"' + (b.ikut.length ? '' : ' disabled title="Belum dibuka panitia"') + '>' + (b.final ? ic('trophy', 'ic-sm') + ' ' : '') + esc(b.nama) + (b.id === d.babakAktif ? ' <span class="dot" style="background:var(--green)"></span>' : '') + '</button>').join('') + '</div>' +
+    '<div class="row between small mt-12"><b>' + esc(B.nama) + (B.final && !/final/i.test(B.nama) ? ' (Final)' : '') + (B.maks ? ' · ' + B.maks + ' soal' : '') + '</b><span style="color:var(--primary);font-weight:700" id="bk-done"></span></div><div class="prog mt-8"><i id="bk-prog"></i></div></div>' +
+    '<div class="pub-body grow" style="padding-top:8px"><div class="card" style="padding:4px 16px">' +
+    (pes.length ? pes.map(p => { const v = bkVal(S, B.id, p.PesertaID), m = (d.skor[B.id] || {})[p.PesertaID], lol = m && m.lolos === 'Ya';
+      return '<div class="bk-row' + (v !== '' ? ' done' : '') + '" data-pid="' + esc(p.PesertaID) + '"><span class="bk-no">' + noUrut(p.NoUrut) + '</span><div class="grow"><b>' + esc(p.NamaTampil) + '</b><div class="small muted">Kelas ' + esc(p.Kelas) + (lol && nxt ? ' · <span style="color:var(--green-text);font-weight:700">Lolos ke ' + esc(nxt.nama) + '</span>' : '') + (S.gagal[p.PesertaID] ? ' · <span class="err-text">belum tersimpan</span>' : '') + '</div></div>' +
+        '<div class="bk-step"><button type="button" data-act="bk-min" data-p="' + esc(p.PesertaID) + '" aria-label="Kurangi"' + (lock ? ' disabled' : '') + '>' + ic('minus') + '</button><input class="input" inputmode="numeric" data-bk="' + esc(p.PesertaID) + '" value="' + v + '" placeholder="–" aria-label="Jumlah benar ' + esc(p.NamaTampil) + '"' + (lock ? ' readonly' : '') + '><button type="button" data-act="bk-plus" data-p="' + esc(p.PesertaID) + '" aria-label="Tambah"' + (lock ? ' disabled' : '') + '>' + ic('plus') + '</button><span class="bk-max">' + (B.maks ? '/' + B.maks : 'benar') + '</span></div></div>'; }).join('')
+      : '<div class="empty" style="padding:24px">Belum ada peserta di babak ini.</div>') + '</div>' +
+    '<div class="row muted small mt-12" style="align-items:flex-start">' + ic('info', 'ic-sm') + '<span>Isi <b>jumlah jawaban benar</b> tiap peserta — tersimpan otomatis. ' + (B.final ? 'Juara ditentukan dari hasil akhir.' : 'Panitia yang menentukan peserta lolos ke ' + esc(nxt ? nxt.nama : 'babak berikutnya') + '.') + '</span></div></div>' +
+    '<div class="bottom-bar"><span class="small muted grow" id="bk-st" aria-live="polite">' + (lock ? 'Terkunci' : Object.keys(S.pend).length ? 'Belum tersimpan' : 'Semua skor tersimpan') + '</span><button class="btn btn-primary btn-lg" data-act="bk-flush"' + (lock ? ' disabled' : '') + '>' + ic('save') + ' Simpan</button></div></div></div>';
+  bkCount(el);
+}
+function bkCount(el) {
+  const S = el._s, B = bkBabak(S), n = B.ikut.length, done = B.ikut.filter(pid => bkVal(S, B.id, pid) !== '').length;
+  const t = $('#bk-done', el), g = $('#bk-prog', el);
+  if (t) t.textContent = done + '/' + n + ' dinilai'; if (g) g.style.width = pct(done, n) + '%';
+}
+function bkSet(el, pid, val, dariKetik) {
+  const S = el._s, B = bkBabak(S);
+  let n = val === '' ? '' : Math.round(Number(val));
+  if (n !== '' && isNaN(n)) return;
+  if (n !== '') { n = Math.max(0, n); if (B.maks) n = Math.min(B.maks, n); }
+  const m = (S.d.skor[B.id] = S.d.skor[B.id] || {});
+  m[pid] = Object.assign({ lolos: '' }, m[pid], { benar: n === '' ? null : n });
+  const row = $('.bk-row[data-pid="' + pid + '"]', el);
+  if (row) { const inp = row.querySelector('input'); if (!dariKetik || String(n) !== inp.value) inp.value = n; row.classList.toggle('done', n !== ''); }
+  S.pend[B.id + '|' + pid] = { babakId: B.id, pesertaId: pid, benar: n };
+  delete S.gagal[pid];
+  bkCount(el);
+  const st = $('#bk-st', el); if (st) st.textContent = 'Menyimpan…';
+  clearTimeout(S.t); S.t = setTimeout(() => bkKirim(el), 900);
+}
+/** Kirim semua perubahan tertunda (dikelompokkan per babak), aman diulang dengan reqId. */
+function bkKirim(el, manual) {
+  const S = el._s; if (!S || !S.bk) return;
+  clearTimeout(S.t);
+  const keys = Object.keys(S.pend);
+  if (!keys.length) { if (manual) toast('Semua skor sudah tersimpan'); return; }
+  const grp = {};
+  keys.forEach(k => { const x = S.pend[k]; (grp[x.babakId] = grp[x.babakId] || []).push([k, x]); });
+  Object.keys(grp).forEach(bid => {
+    const items = grp[bid], reqId = (crypto.randomUUID ? crypto.randomUUID() : Date.now() + '' + Math.random());
+    api('juriSkorBabak', { cabangId: S.cabangId, babakId: bid, rows: items.map(it => ({ pesertaId: it[1].pesertaId, benar: it[1].benar })) }, { reqId }).then(res => {
+      const live = el._s === S;
+      if (res.success) {
+        items.forEach(it => { if (S.pend[it[0]] === it[1]) delete S.pend[it[0]]; });
+        swrPut('juri:' + S.cabangId, S.d); AppState.ptk = null; swrDrop('ptk');
+        const st = live && $('#bk-st', el); if (st) st.textContent = Object.keys(S.pend).length ? 'Menyimpan…' : 'Tersimpan ' + new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+        if (manual) toast('Skor tersimpan', items.length + ' peserta');
+      } else {
+        items.forEach(it => { S.gagal[it[1].pesertaId] = 1; });
+        toast('Skor belum tersimpan', res.message, 'error');
+        if (res.data && res.data.code === 'LOCKED') { S.d.terkunci = true; S.pend = {}; }
+        if (live && !el.hidden) bkPaint(el);
+      }
+    });
+  });
+}
 function juriVals(S) { const p = S.d.peserta[S.idx]; return S.vals[p.PesertaID] = S.vals[p.PesertaID] || {}; }
 function juriTotal(S, v) {
   let t = 0, any = false;
