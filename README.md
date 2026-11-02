@@ -2,7 +2,9 @@
 
 Aplikasi web untuk **pemilihan OSIS**, **perlombaan** (juri + voting siswa), **formulir pendaftaran**, **daftar hadir**, dan **dokumen cetak** (rekap, berita acara, lembar juri, piagam, SK) — dengan **Mode Demo** berisi data contoh.
 
-Versi 1.7: sistem penilaian **Rank 1** (gugur bila salah — juri cukup menetapkan Juara 1, 2, 3 dan juara harapan), juri bisa langsung meloloskan peserta ke babak berikutnya, dan login PTK/juri **cukup pilih nama** (bisa dimatikan di Pengaturan › Akun).
+Versi 1.8: **mode gelap/terang**, jadwal cabang lomba **lebih dari satu hari**, dan login panitia/juri cukup mengetuk nama dari daftar pendek (tanpa mencari) lalu mengisi kata sandi.
+
+Versi 1.7: sistem penilaian **Rank 1** (gugur bila salah — juri cukup menetapkan Juara 1, 2, 3 dan juara harapan) dan juri bisa langsung meloloskan peserta ke babak berikutnya.
 
 Versi 1.6: sistem penilaian **babak / eliminasi** untuk lomba seperti Spelling Bee — skor = jumlah jawaban benar per babak, peserta lolos maju ke babak berikutnya sampai Final, total akumulasi otomatis, juara dari total atau skor final; juri menilai dari HP dengan simpan otomatis.
 

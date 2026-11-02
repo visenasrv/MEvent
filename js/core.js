@@ -5,7 +5,7 @@
    ============================================================ */
 'use strict';
 
-const APP_VER = '1.7.0';
+const APP_VER = '1.8.0';
 const LS_PREFIX = 'mevent:v1:';
 
 /* ---------------- Penyimpanan perangkat ---------------- */
@@ -209,6 +209,16 @@ function parseTgl(s) { const m = String(s || '').match(/^(\d{4})-(\d{2})-(\d{2})
 function tgl(s) { const d = parseTgl(s); return d ? d.getDate() + ' ' + BULAN[d.getMonth()] + ' ' + d.getFullYear() : (s || '-'); }
 function tglPendek(s) { const d = parseTgl(s); return d ? d.getDate() + ' ' + BULAN[d.getMonth()].slice(0, 3) + ' ' + d.getFullYear() : (s || '-'); }
 function hariTgl(s) { const d = parseTgl(s); return d ? HARI[d.getDay()] + ', ' + tgl(s) : (s || '-'); }
+/** Jadwal satu/lebih hari: "Senin, 2 – Rabu, 4 November 2026" (pendek: "2–4 Nov 2026"). */
+function rentangHari(a, b, pendek) {
+  const d1 = parseTgl(a), d2 = parseTgl(b);
+  if (!d1 || !d2 || +d2 <= +d1) return pendek ? tglPendek(a) : hariTgl(a);
+  const samaBln = d1.getMonth() === d2.getMonth() && d1.getFullYear() === d2.getFullYear(), samaThn = d1.getFullYear() === d2.getFullYear();
+  if (pendek) return samaBln ? d1.getDate() + '–' + tglPendek(b) : (samaThn ? d1.getDate() + ' ' + BULAN[d1.getMonth()].slice(0, 3) : tglPendek(a)) + ' – ' + tglPendek(b);
+  return samaBln ? HARI[d1.getDay()] + ', ' + d1.getDate() + ' – ' + hariTgl(b) : hariTgl(a) + ' – ' + hariTgl(b);
+}
+function jadwalCabang(c, pendek) { return c ? rentangHari(c.TanggalPelaksanaan, c.TanggalSelesai, pendek) : '-'; }
+function jumlahHari(c) { const a = parseTgl(c && c.TanggalPelaksanaan), b = parseTgl(c && c.TanggalSelesai); return a && b && +b > +a ? Math.round((b - a) / 864e5) + 1 : 1; }
 function rentangTgl(a, b) {
   if (!a) return '-'; if (!b || a === b) return tgl(a);
   const x = parseTgl(a), y = parseTgl(b);
@@ -234,13 +244,30 @@ function uniq(arr) { return Array.from(new Set(arr)); }
 function hexToRgb(h) { const m = String(h).replace('#', '').match(/^([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i); return m ? [parseInt(m[1], 16), parseInt(m[2], 16), parseInt(m[3], 16)] : [37, 99, 235]; }
 function mix(rgb, w, t) { return rgb.map(c => Math.round(c + (w - c) * t)); }
 function rgbHex(r) { return '#' + r.map(x => x.toString(16).padStart(2, '0')).join(''); }
+/* ---------------- Mode gelap / terang ---------------- */
+const TEMA_KEY = 'mevent:tema';
+function temaTersimpan() { try { const t = localStorage.getItem(TEMA_KEY); return t === 'dark' || t === 'light' ? t : ''; } catch (e) { return ''; } }
+function temaAktif() { return temaTersimpan() || (window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'); }
+function temaBtn(cls) { const g = temaAktif() === 'dark'; return '<button type="button" class="theme-btn ' + (cls || '') + '" data-tema aria-label="' + (g ? 'Ganti ke mode terang' : 'Ganti ke mode gelap') + '" title="' + (g ? 'Mode terang' : 'Mode gelap') + '">' + ic(g ? 'sun' : 'moon', 'ic-sm') + '</button>'; }
+function terapkanTema() {
+  const t = temaAktif();
+  document.documentElement.dataset.theme = t;
+  if (AppState._warna) setPrimary(AppState._warna);
+  document.querySelectorAll('[data-tema]').forEach(b => { b.innerHTML = ic(t === 'dark' ? 'sun' : 'moon', 'ic-sm'); b.setAttribute('aria-label', t === 'dark' ? 'Ganti ke mode terang' : 'Ganti ke mode gelap'); b.title = t === 'dark' ? 'Mode terang' : 'Mode gelap'; });
+}
+function gantiTema() { const n = temaAktif() === 'dark' ? 'light' : 'dark'; try { localStorage.setItem(TEMA_KEY, n); } catch (e) {} terapkanTema(); }
+document.addEventListener('click', (e) => { if (e.target.closest('[data-tema]')) { e.preventDefault(); gantiTema(); } });
+try { matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => { if (!temaTersimpan()) terapkanTema(); }); } catch (e) {}
+
 function setPrimary(hex) {
-  const rgb = hexToRgb(hex || '#2563EB'), s = document.documentElement.style;
+  AppState._warna = hex || '#2563EB';
+  const rgb = hexToRgb(hex || '#2563EB'), s = document.documentElement.style, gelap = document.documentElement.dataset.theme === 'dark';
+  const ke = (T, t) => rgb.map((c, i) => Math.round(c + (T[i] - c) * t));   // campur ke warna permukaan gelap
   s.setProperty('--primary', rgbHex(rgb));
   s.setProperty('--primary-hover', rgbHex(mix(rgb, 0, .16)));
   s.setProperty('--primary-deep', rgbHex(mix(rgb, 0, .42)));   // latar menu samping
-  s.setProperty('--primary-tint', rgbHex(mix(rgb, 255, .93)));
-  s.setProperty('--primary-tint-2', rgbHex(mix(rgb, 255, .84)));
+  s.setProperty('--primary-tint', rgbHex(gelap ? ke([18, 27, 46], .8) : mix(rgb, 255, .93)));
+  s.setProperty('--primary-tint-2', rgbHex(gelap ? ke([18, 27, 46], .62) : mix(rgb, 255, .84)));
   s.setProperty('--primary-ring', 'rgba(' + rgb.join(',') + ',.16)');
   const meta = document.querySelector('meta[name=theme-color]'); if (meta) meta.setAttribute('content', rgbHex(rgb));
   Store.set('warna:' + AppState.mode, rgbHex(rgb));

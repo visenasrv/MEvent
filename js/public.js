@@ -10,15 +10,16 @@ function heroLogo(cls) { const s = sekolah(); const l = logoHtml(s.LogoUrl, 'log
 function appbar(o) {
   return '<div class="appbar">' + (o.back !== false ? '<button class="btn btn-ghost btn-icon" data-act="back" aria-label="Kembali">' + ic('arrow-left') + '</button>' : '') +
     (o.logo ? '<span class="avatar avatar-sm" style="background:var(--primary-tint)">' + (logoHtml(sekolah().LogoUrl) || ic('graduation-cap', 'ic-sm')) + '</span>' : '') +
-    '<div class="grow"><div class="ttl ellipsis">' + esc(o.title) + '</div>' + (o.sub ? '<div class="sub ellipsis">' + esc(o.sub) + '</div>' : '') + '</div>' + (o.right || '') + '</div>';
+    '<div class="grow"><div class="ttl ellipsis">' + esc(o.title) + '</div>' + (o.sub ? '<div class="sub ellipsis">' + esc(o.sub) + '</div>' : '') + '</div>' + (o.right || '') + temaBtn() + '</div>';
 }
-function demoHintCard(kind, bebas) {
+function demoHintCard(kind) {
   const h = AppState.mode === 'demo' && AppState.pub && AppState.pub.demoHint;
   if (!h) return '';
   let t = '';
   if (kind === 'admin') t = 'Username <b>' + esc(h.admin.username) + '</b> · kata sandi <b>' + esc(h.admin.password) + '</b>';
-  if (kind === 'ptk') t = 'Pilih nama mana saja' + (bebas ? ' lalu tekan Masuk' : ' · kata sandi <b>' + esc(h.ptkPassword) + '</b>') + '<br><span class="small">' + h.ptkContoh.map(esc).join(' · ') + '</span>';
-  if (kind === 'tamu') t = 'Juri tamu <b>' + esc(h.juriTamu.nama) + '</b>' + (bebas ? '' : ' · kata sandi <b>' + esc(h.juriTamu.password) + '</b>');
+  if (kind === 'ptk') t = 'Pilih nama mana saja · kata sandi <b>' + esc(h.ptkPassword) + '</b><br><span class="small">' + h.ptkContoh.map(esc).join(' · ') + '</span>';
+  if (kind === 'tamu') t = 'Juri tamu <b>' + esc(h.juriTamu.nama) + '</b> · kata sandi <b>' + esc(h.juriTamu.password) + '</b>';
+  if (kind === 'juri') t = 'Juri PTK: kata sandi <b>' + esc(h.ptkPassword) + '</b> · juri tamu <b>' + esc(h.juriTamu.nama) + '</b>: <b>' + esc(h.juriTamu.password) + '</b>';
   if (kind === 'nisn') t = 'Contoh NISN demo: ' + h.nisn.map(n => '<b class="mono">' + n + '</b>').join(', ');
   return '<div class="alert alert-amber mt-16 small">' + ic('flask-conical', 'ic-sm') + '<div><b>Akun demo:</b> ' + t + '</div></div>';
 }
@@ -61,7 +62,7 @@ function renderHome(el) {
     (sess ? '<div class="card menu-card card-tap mt-16" data-act="lanjut" tabindex="0" role="button" style="border-color:var(--primary-tint-2);background:var(--primary-tint)">' + avatarHtml(AppState.user.nama) + '<div class="grow"><div class="t">Lanjutkan sebagai ' + esc(AppState.user.nama) + '</div><div class="s">' + (AppState.role === 'admin' ? 'Buka dasbor admin' : 'Buka beranda PTK') + '</div></div><span class="chev">' + ic('chevron-right') + '</span></div>' : '') +
     '<div class="pub-section-title">Masuk</div>' +
     menu('masuk-admin', 'shield-check', '', 'Admin / Panitia', 'Kelola event, calon, lomba, dan hasil') +
-    '<div class="card card-pad mt-12 row" style="align-items:flex-start;background:var(--primary-tint);border-color:var(--primary-tint-2)"><span class="icon-tile" style="background:#fff">' + ic('qr-code', 'ic-lg') + '</span><div class="grow"><div style="font-weight:700">Voting siswa, PTK & juri</div><div class="small muted mt-8" style="line-height:1.5">Gunakan <b>link atau kode QR</b> yang dibagikan panitia. Halaman voting dan penilaian juri hanya bisa dibuka dari link tersebut.</div></div></div>' +
+    '<div class="card card-pad mt-12 row" style="align-items:flex-start;background:var(--primary-tint);border-color:var(--primary-tint-2)"><span class="icon-tile" style="background:var(--surface)">' + ic('qr-code', 'ic-lg') + '</span><div class="grow"><div style="font-weight:700">Voting siswa, PTK & juri</div><div class="small muted mt-8" style="line-height:1.5">Gunakan <b>link atau kode QR</b> yang dibagikan panitia. Halaman voting dan penilaian juri hanya bisa dibuka dari link tersebut.</div></div></div>' +
     '<button class="btn btn-soft btn-block btn-lg mt-8" data-act="formulir">' + ic('file-text') + ' Isi Formulir Pendaftaran' + (p && p.jumlahFormulir ? ' <span class="pill-num">' + p.jumlahFormulir + '</span>' : '') + '</button>' +
     (AppState.mode === 'live' && p && p.demo && p.demo.aktif ? '<div class="card menu-card card-tap mt-16" data-act="demo" tabindex="0" role="button" style="border-style:dashed"><span class="icon-tile amber">' + ic('flask-conical', 'ic-lg') + '</span><div class="grow"><div class="t">Coba Mode Demo</div><div class="s">Jelajahi semua fitur dengan data contoh</div></div><span class="chev">' + ic('chevron-right') + '</span></div>' : '') +
     (AppState.mode === 'demo' && p && (osis || (p.lombaEvent || []).length) ? '<div class="card card-pad mt-16" style="border-style:dashed"><div class="small muted" style="font-weight:700;letter-spacing:.05em">COBA LINK DEMO</div><div class="stack mt-8" style="gap:8px">' +
@@ -337,7 +338,7 @@ function votePaint(el) {
     (v.cabang.length > 1 ? '<div style="padding:12px 16px 0"><div class="seg seg-light seg-block">' + v.cabang.map(x => '<button data-act="tab" data-id="' + esc(x.CabangID) + '" class="' + (x.CabangID === c.CabangID ? 'on' : '') + '">' + esc(x.NamaCabang) + (x.sudahPilih ? ' ✓' : '') + '</button>').join('') + '</div></div>' : '') +
     '<div class="pub-body grow">' +
     (c.sudahPilih ? '<div class="alert alert-green mb-16">' + ic('circle-check') + '<span>Kamu sudah memilih di cabang ini. Terima kasih!</span></div>'
-      : '<div class="alert alert-amber mb-16" style="background:#FFFBEB">' + ic('star', '') + '<div class="small"><b>1 Siswa = 1 Pilihan Favorit</b><br>Ketuk kartu peserta di bawah ini, lalu tekan <b>Kirim Pilihan</b>.</div></div>') +
+      : '<div class="alert alert-amber mb-16">' + ic('star', '') + '<div class="small"><b>1 Siswa = 1 Pilihan Favorit</b><br>Ketuk kartu peserta di bawah ini, lalu tekan <b>Kirim Pilihan</b>.</div></div>') +
     '<div class="row between mb-8"><span class="small muted" style="font-weight:700;letter-spacing:.05em">DAFTAR PENAMPIL</span><span class="badge badge-gray">' + c.peserta.length + ' Peserta</span></div>' +
     '<div class="gal">' + c.peserta.map(x => '<button class="pcard' + (sel === x.PesertaID ? ' on' : '') + '" data-act="pilih" data-id="' + esc(x.PesertaID) + '"' + (c.sudahPilih ? ' disabled' : '') + '>' +
       '<div class="ph">' + photoHtml(x.FotoFileId, x.NamaTampil, 400) + '<span class="no"><span class="badge ' + (sel === x.PesertaID ? '' : 'badge-dark') + '" style="' + (sel === x.PesertaID ? 'background:var(--primary);color:#fff' : '') + '">No. ' + noUrut(x.NoUrut) + '</span></span><span class="sel">' + (sel === x.PesertaID ? ic('check', 'ic-sm') : '') + '</span>' +
@@ -385,24 +386,23 @@ function bindPtkForm(el, getSt, onSubmit) {
   el.addEventListener('click', (e) => {
     const b = e.target.closest('[data-act]'); if (!b) return;
     const st = getSt(); if (!st) return;
-    if (b.dataset.act === 'sel') { st.sel = b.dataset.id; ptkPaintList(el, st); setTimeout(() => { const pw = $('#pw', el), wrap = $('#pw-wrap', el); if (pw && wrap && !wrap.hidden) pw.focus(); else { const bt = $('#btn-masuk', el); if (bt) bt.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); } }, 30); }
+    if (b.dataset.act === 'sel') { st.sel = b.dataset.id; ptkPaintList(el, st); setTimeout(() => { const pw = $('#pw', el); if (pw) { pw.focus(); pw.scrollIntoView({ block: 'center', behavior: 'smooth' }); } }, 30); }
     if (b.dataset.act === 'eye') { const pw = $('#pw', el); if (pw) pw.type = pw.type === 'password' ? 'text' : 'password'; }
   });
   el.addEventListener('input', (e) => { const st = getSt(); if (e.target.id === 'q' && st) { st.q = e.target.value; ptkPaintList(el, st); } });
   el.addEventListener('submit', (e) => { if (!e.target.closest('form[data-ptk]')) return; e.preventDefault(); onSubmit(); });
 }
-/** Isi form login PTK / juri tamu. o.tamu → tampilkan tab Juri Tamu. */
+/** Isi form login PTK / juri. o.daftar: 'panitia' (PTK bertugas), 'juri' (juri event o.eventId: PTK & tamu), 'osis' (semua PTK, ada kolom cari). */
 function ptkFormHtml(st, o) {
   o = o || {};
-  return '<form class="' + (o.cls || 'float-card card card-pad') + '" data-ptk autocomplete="off"' + (o.osis ? ' data-osis="1"' : '') + ' data-tombol="' + esc(o.tombol || 'Masuk') + '">' +
-    (o.tamu !== false ? '<div class="seg seg-light seg-block"><button type="button" data-act="ptab" data-v="ptk" class="' + (st.tab === 'ptk' ? 'on' : '') + '">' + ic('user-check', 'ic-sm') + ' ' + (o.labelPtk || 'PTK') + '</button><button type="button" data-act="ptab" data-v="tamu" class="' + (st.tab === 'tamu' ? 'on' : '') + '">' + ic('gavel', 'ic-sm') + ' Juri Tamu</button></div>' : '') +
-    '<div class="row between' + (o.tamu !== false ? ' mt-16' : '') + '"><span class="label">Pilih Nama</span><span class="small" style="color:var(--primary);font-weight:600" id="jml"></span></div>' +
-    '<div class="input-group mt-8">' + ic('search') + '<input class="input" id="q" placeholder="Cari nama..." value="' + esc(st.q) + '"></div>' +
-    '<div class="name-list" id="list" style="max-height:300px"></div>' +
-    '<div id="pw-wrap"' + (loginBebas(o.osis) ? ' hidden' : '') + '><div class="field mt-16"><div class="row between"><label for="pw">Kata Sandi</label></div><div class="input-group">' + ic('lock') + '<input class="input" id="pw" type="password" autocomplete="current-password" placeholder="••••••"><button type="button" class="btn btn-ghost btn-icon btn-sm suffix" data-act="eye" aria-label="Tampilkan sandi">' + ic('eye', 'ic-sm') + '</button></div></div>' +
-    '<div class="row muted small mt-8">' + ic('info', 'ic-sm') + '<span>Kata sandi diberikan oleh Admin. Lupa? Hubungi Admin sekolah.</span></div></div>' +
-    '<div id="err"></div>' +
-    '<button class="btn btn-primary btn-block btn-lg mt-16" type="submit" id="btn-masuk">' + (o.tombol || 'Masuk') + ' ' + ic('log-in') + '</button>' + demoHintCard(st.tab, loginBebas(o.osis)) + '</form>';
+  const daftar = o.daftar || 'panitia', cari = daftar === 'osis';
+  return '<form class="' + (o.cls || 'float-card card card-pad') + '" data-ptk autocomplete="off" data-daftar="' + daftar + '" data-ev="' + esc(o.eventId || '') + '">' +
+    '<div class="row between"><span class="label">' + (daftar === 'juri' ? 'Pilih Nama Juri' : 'Pilih Nama') + '</span><span class="small" style="color:var(--primary);font-weight:600" id="jml"></span></div>' +
+    (cari ? '<div class="input-group mt-8">' + ic('search') + '<input class="input" id="q" placeholder="Cari nama..." value="' + esc(st.q) + '"></div>' : '') +
+    '<div class="name-list" id="list" style="max-height:' + (cari ? 300 : 420) + 'px"></div>' +
+    '<div class="field mt-16"><div class="row between"><label for="pw">Kata Sandi</label></div><div class="input-group">' + ic('lock') + '<input class="input" id="pw" type="password" autocomplete="current-password" placeholder="••••••"><button type="button" class="btn btn-ghost btn-icon btn-sm suffix" data-act="eye" aria-label="Tampilkan sandi">' + ic('eye', 'ic-sm') + '</button></div></div>' +
+    '<div id="err"></div><div class="row muted small mt-8">' + ic('info', 'ic-sm') + '<span>Kata sandi diberikan oleh Admin. Lupa? Hubungi Admin sekolah.</span></div>' +
+    '<button class="btn btn-primary btn-block btn-lg mt-16" type="submit" id="btn-masuk">' + (o.tombol || 'Masuk') + ' ' + ic('log-in') + '</button>' + demoHintCard(daftar === 'juri' ? 'juri' : 'ptk') + '</form>';
 }
 function ptkPaint(el) {
   const st = el._st;
@@ -416,27 +416,34 @@ function ptkPaint(el) {
     '</div></div>';
   ptkPaintList(el, st);
 }
-/** Login PTK/juri cukup pilih nama (Pengaturan › Akun). Voting OSIS PTK tetap memakai kata sandi. */
-function loginBebas(osis) { return !osis && sekolah().LoginTanpaSandi !== 'Tidak'; }
+/** Daftar nama siap ketuk — tanpa mengetik untuk panitia & juri. */
+function ptkSumber(form) {
+  const p = AppState.pub, daftar = form ? form.dataset.daftar : 'panitia';
+  if (daftar === 'juri') {
+    const ev = (p.lombaEvent || []).find(e => e.EventID === form.dataset.ev) || { juri: [] };
+    return (ev.juri || []).map(j => ({ id: j.id, nama: j.nama, sub: (j.tipe === 'Tamu' ? 'Juri tamu' : 'Juri') + (j.cabang && j.cabang.length ? ' · ' + j.cabang.join(', ') : ''), tamu: j.tipe === 'Tamu' }));
+  }
+  const semua = p.ptk.map(x => ({ id: x.id, nama: x.nama, sub: x.jabatan, tugas: x.tugas }));
+  if (daftar === 'osis') return semua;
+  const t = semua.filter(x => x.tugas);
+  return t.length ? t : semua;
+}
 function ptkPaintList(el, st) {
   const p = AppState.pub, box = $('#list', el); if (!box || !st) return;
-  const form = box.closest('form'), bebas = loginBebas(form && form.dataset.osis === '1');
-  const pw = $('#pw-wrap', el); if (pw) pw.hidden = bebas;
-  const btn = $('#btn-masuk', el);
-  if (btn && form) { const pilih = st.sel && p ? (st.tab === 'ptk' ? (p.ptk.find(x => x.id === st.sel) || {}).nama : st.sel) : ''; btn.innerHTML = esc(bebas && pilih ? 'Masuk sebagai ' + pilih.split(',')[0] : form.dataset.tombol || 'Masuk') + ' ' + ic('log-in'); }
   if (!p) { box.innerHTML = '<div class="sk sk-line"></div><div class="sk sk-line"></div><div class="sk sk-line"></div>'; return; }
-  const src = st.tab === 'ptk' ? p.ptk.map(x => ({ id: x.id, nama: x.nama, sub: x.jabatan })) : p.juriTamu.map(x => ({ id: x.nama, nama: x.nama, sub: x.jabatan }));
-  const list = src.filter(x => !st.q || x.nama.toLowerCase().indexOf(st.q.toLowerCase()) > -1);
-  $('#jml', el).textContent = src.length + (st.tab === 'ptk' ? ' PTK terdaftar' : ' juri tamu');
-  box.innerHTML = list.map(x => '<button type="button" class="name-row' + (st.sel === x.id ? ' on' : '') + '" data-act="sel" data-id="' + esc(x.id) + '">' + avatarHtml(x.nama, '', 'avatar-sm') + '<span class="grow" style="min-width:0"><span style="font-weight:600;display:block" class="ellipsis">' + esc(x.nama) + '</span><span class="muted small ellipsis" style="display:block">' + esc(x.sub || '') + '</span></span>' + (st.sel === x.id ? ic('circle-check', '') : '') + '</button>').join('') ||
-    '<div class="muted center" style="padding:20px">' + (src.length ? 'Nama tidak ditemukan.' : st.tab === 'ptk' ? 'Belum ada data PTK.' : 'Belum ada juri tamu.') + '</div>';
+  const form = box.closest('form'), daftar = form ? form.dataset.daftar : 'panitia';
+  const src = ptkSumber(form);
+  const list = daftar === 'osis' ? src.filter(x => !st.q || x.nama.toLowerCase().indexOf(st.q.toLowerCase()) > -1) : src;
+  $('#jml', el).textContent = src.length + (daftar === 'juri' ? ' juri' : daftar === 'panitia' ? ' nama' : ' PTK terdaftar');
+  box.innerHTML = list.map(x => '<button type="button" class="name-row' + (st.sel === x.id ? ' on' : '') + '" data-act="sel" data-id="' + esc(x.id) + '">' + avatarHtml(x.nama, '', 'avatar-sm') + '<span class="grow" style="min-width:0"><span style="font-weight:600;display:block" class="ellipsis">' + esc(x.nama) + '</span><span class="muted small ellipsis" style="display:block">' + esc(x.sub || '') + '</span></span>' + (x.tamu ? '<span class="badge badge-amber">Tamu</span>' : '') + (st.sel === x.id ? ic('circle-check', '') : '') + '</button>').join('') ||
+    '<div class="muted center" style="padding:20px">' + (src.length ? 'Nama tidak ditemukan.' : daftar === 'juri' ? 'Belum ada juri untuk event ini. Hubungi panitia.' : 'Belum ada data PTK.') + '</div>';
   if (st.sel) box.querySelector('.on') && box.querySelector('.on').style.setProperty('color', 'var(--primary)');
 }
 async function ptkSubmit(el, st) {
-  const pw = $('#pw', el).value, err = $('#err', el), bebas = loginBebas(false);
+  const pw = $('#pw', el).value, err = $('#err', el);
   if (!st.sel) { err.innerHTML = '<div class="alert alert-red mt-12 small">' + ic('circle-alert', 'ic-sm') + '<span>Pilih nama Anda terlebih dahulu.</span></div>'; return; }
-  if (!pw && !bebas) { err.innerHTML = '<div class="alert alert-red mt-12 small">' + ic('circle-alert', 'ic-sm') + '<span>Masukkan kata sandi.</span></div>'; return; }
-  const res = await busy($('#btn-masuk', el), () => st.tab === 'ptk' ? api('loginPtk', { ptkId: st.sel, password: pw }) : api('loginTamu', { nama: st.sel, password: pw }));
+  if (!pw) { err.innerHTML = '<div class="alert alert-red mt-12 small">' + ic('circle-alert', 'ic-sm') + '<span>Masukkan kata sandi.</span></div>'; return; }
+  const res = await busy($('#btn-masuk', el), () => /^T:/.test(st.sel) ? api('loginTamu', { nama: st.sel.slice(2), password: pw }) : api('loginPtk', { ptkId: st.sel.replace(/^P:/, ''), password: pw }));
   if (!res.success) { err.innerHTML = '<div class="alert alert-red mt-12 small">' + ic('circle-alert', 'ic-sm') + '<span>' + esc(res.message) + '</span></div>'; return; }
   setSession(res.data);
   AppState.ptk = res.data.boot;
@@ -494,7 +501,7 @@ registerPage('masuk-admin', {
 /** Bagian bawah halaman login: info link voting, Mode Demo, dan link demo. */
 function loginExtraHtml() {
   const p = AppState.pub, osis = p && p.osis.find(o => o.VotingDibuka === 'Ya'), lomba = p && (p.lombaEvent || [])[0];
-  return '<div class="card card-pad row" style="align-items:flex-start;background:var(--primary-tint);border-color:var(--primary-tint-2)"><span class="icon-tile" style="background:#fff">' + ic('qr-code', 'ic-lg') + '</span><div class="grow"><div style="font-weight:700">Voting siswa, PTK & juri</div><div class="small muted mt-8" style="line-height:1.5">Gunakan <b>link atau kode QR</b> yang dibagikan admin. Halaman voting dan penilaian juri hanya bisa dibuka dari link tersebut.</div></div></div>' +
+  return '<div class="card card-pad row" style="align-items:flex-start;background:var(--primary-tint);border-color:var(--primary-tint-2)"><span class="icon-tile" style="background:var(--surface)">' + ic('qr-code', 'ic-lg') + '</span><div class="grow"><div style="font-weight:700">Voting siswa, PTK & juri</div><div class="small muted mt-8" style="line-height:1.5">Gunakan <b>link atau kode QR</b> yang dibagikan admin. Halaman voting dan penilaian juri hanya bisa dibuka dari link tersebut.</div></div></div>' +
     (AppState.mode === 'live' && p && p.demo && p.demo.aktif ? '<div class="card menu-card card-tap mt-12" data-act="demo" tabindex="0" role="button" style="border-style:dashed"><span class="icon-tile amber">' + ic('flask-conical', 'ic-lg') + '</span><div class="grow"><div class="t">Coba Mode Demo</div><div class="s">Jelajahi semua fitur dengan data contoh</div></div><span class="chev">' + ic('chevron-right') + '</span></div>' : '') +
     (AppState.mode === 'demo' && (osis || lomba) ? '<div class="card card-pad mt-12" style="border-style:dashed"><div class="small muted" style="font-weight:700;letter-spacing:.05em">COBA LINK DEMO</div><div class="stack mt-8" style="gap:8px">' +
       (osis ? '<button class="btn btn-soft btn-block" data-act="demo-link" data-v="voting-osis/' + esc(osis.EventID) + '">' + ic('vote', 'ic-sm') + ' Link Voting OSIS (Siswa & PTK)</button>' : '') +
@@ -504,14 +511,14 @@ function loginExtraHtml() {
 function adminLoginPaint(el) {
   const adm = el._tab === 'admin';
   el.innerHTML = '<div class="pub"><div class="pub-inner">' +
-    '<div class="hero hero-sm" style="padding-top:30px">' +
+    '<div class="hero hero-sm" style="padding-top:30px">' + temaBtn('theme-hero') +
     heroLogo('mt-12') + '<div style="font-size:24px;font-weight:800">Masuk ' + (adm ? 'Admin' : 'Panitia') + '</div><div class="hero-sub" id="login-school">' + esc(sekolah().NamaSekolah || 'MEvent') + '</div></div>' +
     '<div class="float-card card card-pad"><div class="seg seg-light seg-block kiosk-tabs">' +
     [['admin', 'shield-check', 'Admin'], ['panitia', 'user-check', 'Panitia (PTK)']].map(t => '<button type="button" data-act="mtab" data-v="' + t[0] + '" class="' + (el._tab === t[0] ? 'on' : '') + '">' + ic(t[1], 'ic-sm') + ' ' + t[2] + '</button>').join('') + '</div>' +
     (adm ? '<form class="mt-16" autocomplete="on"><div class="field"><label for="aun">Username</label><div class="input-group">' + ic('user-round') + '<input class="input" id="aun" autocomplete="username" placeholder="admin" autofocus></div></div>' +
       '<div class="field mt-16"><label for="apw">Kata Sandi</label><div class="input-group">' + ic('lock') + '<input class="input" id="apw" type="password" autocomplete="current-password" placeholder="••••••"><button type="button" class="btn btn-ghost btn-icon btn-sm suffix" data-act="eye" aria-label="Tampilkan sandi">' + ic('eye', 'ic-sm') + '</button></div></div>' +
       '<div id="aerr"></div><button class="btn btn-primary btn-block btn-lg mt-16" id="abtn" type="submit">Masuk ' + ic('log-in') + '</button>' + demoHintCard('admin') + '</form>'
-      : ptkFormHtml(el._pt, { tamu: false, cls: 'mt-16', tombol: 'Masuk' }) +
+      : ptkFormHtml(el._pt, { daftar: 'panitia', cls: 'mt-16', tombol: 'Masuk' }) +
         '<div class="row muted small mt-12" style="align-items:flex-start">' + ic('info', 'ic-sm') + '<span>Untuk PTK yang ditunjuk sebagai panitia (atau juri). Voting PTK dan penilaian juri juga bisa lewat link dari admin.</span></div>') +
     '</div><div class="pub-body" id="login-extra">' + loginExtraHtml() + '</div></div></div>';
   if (!adm) ptkPaintList(el, el._pt);
@@ -525,7 +532,7 @@ function adminLoginPaint(el) {
    ============================================================ */
 function kioskHero(judul, status, sub) {
   const s = sekolah();
-  return '<div class="hero kiosk-hero">' + heroLogo() + '<div class="hero-school">' + esc(s.NamaSekolah || 'MEvent') + '</div>' +
+  return '<div class="hero kiosk-hero">' + temaBtn('theme-hero') + heroLogo() + '<div class="hero-school">' + esc(s.NamaSekolah || 'MEvent') + '</div>' +
     '<div class="kiosk-title">' + esc(judul) + '</div>' + (sub ? '<div class="hero-sub">' + esc(sub) + '</div>' : '') +
     '<span class="badge kiosk-badge ' + (status.on ? 'on' : '') + '"><span class="dot"></span>' + esc(status.t) + '</span></div>';
 }
@@ -576,7 +583,7 @@ function kioskOsisPaint(el) {
   else if (!ev) body = '<div class="pub-body">' + kioskTutup('Event tidak ditemukan', 'Event belum berjalan atau link sudah tidak berlaku. Hubungi panitia.') + '</div>';
   else if (ev.VotingDibuka !== 'Ya') body = '<div class="pub-body">' + kioskTutup('Voting belum dibuka', 'Tunggu panitia membuka voting, lalu tekan Muat ulang.') + '</div>';
   else if (el._tab === 'siswa') body = '<div class="pub-body">' + kioskTabs(el, [['siswa', 'graduation-cap', 'Siswa'], ['ptk', 'user-check', 'PTK']]) + '<div class="mt-16">' + nisnCardHtml() + '</div></div>' + keypadHtml();
-  else body = '<div class="pub-body">' + kioskTabs(el, [['siswa', 'graduation-cap', 'Siswa'], ['ptk', 'user-check', 'PTK']]) + ptkFormHtml(el._pt, { tamu: false, cls: 'card card-pad mt-16', tombol: 'Masuk & Memilih', osis: true }) + '</div>';
+  else body = '<div class="pub-body">' + kioskTabs(el, [['siswa', 'graduation-cap', 'Siswa'], ['ptk', 'user-check', 'PTK']]) + ptkFormHtml(el._pt, { daftar: 'osis', cls: 'card card-pad mt-16', tombol: 'Masuk & Memilih' }) + '</div>';
   el.innerHTML = '<div class="pub"><div class="pub-inner">' + kioskHero(ev ? ev.Judul : 'Pemilihan OSIS', ev && ev.VotingDibuka === 'Ya' ? { on: true, t: 'Voting Dibuka' } : { on: false, t: ev === undefined ? 'Memuat…' : 'Voting belum dibuka' }, ev && ev.SistemCalon === 'Tunggal' ? 'Suara terbanyak = Ketua · terbanyak ke-2 = Wakil' : 'Login Siswa & PTK') + body + '</div></div>';
   if ($('#nisn-digits', el)) nisnPaint(el);
   if (el._tab === 'ptk') ptkPaintList(el, el._pt);
@@ -635,7 +642,7 @@ function kioskLombaPaint(el) {
   else if (!ev) body = '<div class="pub-body">' + kioskTutup('Event tidak ditemukan', 'Event lomba belum berjalan atau link sudah tidak berlaku. Hubungi panitia.') + '</div>';
   else if (el._tab === 'siswa') body = '<div class="pub-body" style="padding-bottom:0">' + tabs + '</div>' + (cabs.length ? lombaBodyHtml(el) : '<div class="pub-body">' + kioskTutup('Voting lomba belum dibuka', 'Tunggu panitia membuka voting, lalu tekan Muat ulang.') + '</div>');
   else body = '<div class="pub-body">' + tabs + (sess ? '<div class="card menu-card card-tap mt-16" data-act="lanjut-juri" tabindex="0" role="button" style="border-color:var(--primary-tint-2);background:var(--primary-tint)">' + avatarHtml(AppState.user.nama) + '<div class="grow"><div class="t">Lanjutkan sebagai ' + esc(AppState.user.nama) + '</div><div class="s">Buka lembar penilaian juri</div></div><span class="chev">' + ic('chevron-right') + '</span></div>' : '') +
-    ptkFormHtml(el._pt, { cls: 'card card-pad mt-16', labelPtk: 'Juri PTK', tombol: 'Masuk Penilaian' }) + '</div>';
+    ptkFormHtml(el._pt, { daftar: 'juri', eventId: el._ev, cls: 'card card-pad mt-16', tombol: 'Masuk Penilaian' }) + '</div>';
   el.innerHTML = '<div class="pub"><div class="pub-inner">' + kioskHero(ev ? ev.Judul : 'Perlombaan', cabs.length ? { on: true, t: 'Voting Dibuka · ' + cabs.map(c => c.NamaCabang).join(', ') } : { on: false, t: ev === undefined ? 'Memuat…' : 'Voting siswa belum dibuka' }, 'Login Siswa & Juri') + body + '</div></div>';
   if (el._tab === 'siswa' && el._st.kelas) lombaPaintNames(el);
   if (el._tab === 'juri') ptkPaintList(el, el._pt);
@@ -791,12 +798,12 @@ registerPage('ptk', {
       const sec = (t, body) => '<div class="pub-section-title">' + t + '</div>' + body;
       el.innerHTML = '<div class="pub"><div class="pub-inner">' +
         '<div class="hero hero-sm" style="text-align:left;padding-bottom:26px"><div class="row" style="position:relative;z-index:2"><span class="avatar avatar-lg" style="background:#fff;color:var(--primary)">' + esc(initials(u.nama)) + '</span><div class="grow"><div class="hero-sub">Selamat datang,</div><div style="font-size:20px;font-weight:800;line-height:1.2">' + esc(u.nama) + '</div><div class="hero-sub">' + esc(u.jabatan || (AppState.role === 'tamu' ? 'Juri Tamu' : 'PTK')) + '</div></div>' +
-        '<button class="btn btn-sm" data-act="logout" style="background:rgba(255,255,255,.16);border-color:transparent;color:#fff">' + ic('log-out', 'ic-sm') + ' Keluar</button></div></div>' +
+        temaBtn('theme-hero-in') + '<button class="btn btn-sm" data-act="logout" style="background:rgba(255,255,255,.16);border-color:transparent;color:#fff">' + ic('log-out', 'ic-sm') + ' Keluar</button></div></div>' +
         '<div class="pub-body">' +
         (!d ? skeletonCards(3, 96) :
-          (d.osis.length ? sec('Pemilihan OSIS', d.osis.map(o => '<div class="card menu-card"><span class="icon-tile">' + ic('vote', 'ic-lg') + '</span><div class="grow"><div class="t">' + esc(o.Judul) + '</div><div class="s">' + (o.sudahMemilih ? 'Anda sudah memberikan suara' : d.tanpaSandi && o.VotingDibuka === 'Ya' ? 'Beri suara lewat link voting OSIS (dengan kata sandi)' : o.VotingDibuka === 'Ya' ? 'Voting sedang dibuka' : 'Voting belum dibuka') + '</div></div>' +
-            (o.sudahMemilih ? '<span class="badge badge-green">' + ic('check', 'ic-sm') + ' Sudah</span>' : d.tanpaSandi && o.VotingDibuka === 'Ya' ? '<span class="badge badge-gray" title="Gunakan link voting OSIS dari panitia">Lewat link OSIS</span>' : o.VotingDibuka === 'Ya' ? '<button class="btn btn-primary btn-sm" data-act="osis" data-id="' + esc(o.EventID) + '">Beri Suara</button>' : '<span class="badge badge-gray">Ditutup</span>') + '</div>').join('')) : '') +
-          sec('Tugas Juri', d.juri.length ? d.juri.map(j => '<div class="card menu-card card-tap" tabindex="0" role="button" data-act="nilai" data-id="' + esc(j.CabangID) + '"><span class="icon-tile amber">' + ic('clipboard-check', 'ic-lg') + '</span><div class="grow"><div class="t">' + esc(j.NamaCabang) + '</div><div class="s">' + esc(j.EventJudul) + ' · ' + esc(tglPendek(j.TanggalPelaksanaan)) + (j.ModePenilaian === 'Babak' && j.BabakAktif ? ' · <b>' + esc(j.BabakAktif) + '</b>' : j.ModePenilaian === 'Peringkat' ? ' · <b>Rank 1 — tetapkan juara</b>' : '') + '</div>' +
+          (d.osis.length ? sec('Pemilihan OSIS', d.osis.map(o => '<div class="card menu-card"><span class="icon-tile">' + ic('vote', 'ic-lg') + '</span><div class="grow"><div class="t">' + esc(o.Judul) + '</div><div class="s">' + (o.sudahMemilih ? 'Anda sudah memberikan suara' : o.VotingDibuka === 'Ya' ? 'Voting sedang dibuka' : 'Voting belum dibuka') + '</div></div>' +
+            (o.sudahMemilih ? '<span class="badge badge-green">' + ic('check', 'ic-sm') + ' Sudah</span>' : o.VotingDibuka === 'Ya' ? '<button class="btn btn-primary btn-sm" data-act="osis" data-id="' + esc(o.EventID) + '">Beri Suara</button>' : '<span class="badge badge-gray">Ditutup</span>') + '</div>').join('')) : '') +
+          sec('Tugas Juri', d.juri.length ? d.juri.map(j => '<div class="card menu-card card-tap" tabindex="0" role="button" data-act="nilai" data-id="' + esc(j.CabangID) + '"><span class="icon-tile amber">' + ic('clipboard-check', 'ic-lg') + '</span><div class="grow"><div class="t">' + esc(j.NamaCabang) + '</div><div class="s">' + esc(j.EventJudul) + ' · ' + esc(jadwalCabang(j, true)) + (j.ModePenilaian === 'Babak' && j.BabakAktif ? ' · <b>' + esc(j.BabakAktif) + '</b>' : j.ModePenilaian === 'Peringkat' ? ' · <b>Rank 1 — tetapkan juara</b>' : '') + '</div>' +
             '<div class="row mt-8"><div class="prog grow ' + (j.dinilai >= j.jumlahPeserta && j.jumlahPeserta ? 'green' : '') + '"><i style="width:' + pct(j.dinilai, j.jumlahPeserta) + '%"></i></div><span class="small muted tnum">' + j.dinilai + '/' + j.jumlahPeserta + '</span></div></div>' + (j.Terkunci ? '<span class="badge badge-gray">' + ic('lock', 'ic-sm') + '</span>' : '<span class="chev">' + ic('chevron-right') + '</span>') + '</div>').join('')
             : '<div class="card"><div class="empty" style="padding:24px"><div class="empty-art">' + ic('clipboard-check', 'ic-xl') + '</div><div>Belum ada tugas juri untuk Anda.</div></div></div>') +
           (d.panitia.length ? sec('Event Kepanitiaan', d.panitia.map(p => '<div class="card menu-card"><span class="icon-tile green">' + ic('users', 'ic-lg') + '</span><div class="grow"><div class="t">' + esc(p.Judul) + '</div><div class="s">' + esc(p.JabatanPanitia) + ' · ' + esc(p.JenisEvent) + '</div></div><span class="badge ' + (p.Status === 'Berjalan' ? 'badge-green' : p.Status === 'Selesai' ? 'badge-blue' : 'badge-gray') + '">' + esc(p.Status) + '</span></div>').join('') +

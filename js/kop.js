@@ -152,7 +152,7 @@ function docRekap(det, cfg, o) {
       h.peserta.map(p => '<tr><td class="c">' + p.peringkat + '</td><td>' + esc(p.NamaTampil) + '</td><td class="c">' + esc(p.Kelas) + '</td>' + (showJ ? '<td class="c">' + fmtNum(p.skorJuri, 2) + '</td>' : '') + (showV ? '<td class="c">' + p.suara + '</td>' : '') + '<td class="c"><b>' + fmtNum(p.skorAkhir, 2) + '</b></td><td class="c">' + (p.juara ? 'Juara ' + p.juara : '') + (p.seri ? ' (seri)' : '') + '</td></tr>').join('') + '</tbody></table>';
     const info = '<p style="margin-top:8px;font-size:10.5pt">Mode penilaian: ' + esc(h.ModePenilaian === 'Gabungan' ? 'Gabungan (Juri ' + h.BobotJuri + '% + Voting ' + h.BobotVoting + '%)' : h.ModePenilaian === 'Juri' ? 'Juri saja' : 'Voting saja') + (showV ? ' · Total suara: ' + h.totalSuara : '') + '</p>' +
       (h.penetapan ? '<p style="font-size:10.5pt"><i>Penetapan urutan oleh ' + esc(h.penetapan.DitetapkanOleh) + ': ' + esc(h.penetapan.Alasan) + '</i></p>' : '');
-    return docPage(judulDoc('Rekap Hasil Lomba', esc(ev.Judul) + ' — ' + esc(c.NamaCabang) + '<br>' + esc(hariTgl(c.TanggalPelaksanaan))) + t + info + ttdHtml(cfg, { tanggal: c.TanggalPelaksanaan }), { kop: cfg.kop });
+    return docPage(judulDoc('Rekap Hasil Lomba', esc(ev.Judul) + ' — ' + esc(c.NamaCabang) + '<br>' + esc(jadwalCabang(c))) + t + info + ttdHtml(cfg, { tanggal: c.TanggalSelesai || c.TanggalPelaksanaan }), { kop: cfg.kop });
   }).join('');
 }
 
@@ -161,7 +161,7 @@ function rekapPeringkat(det, cfg, c) {
   const t = '<table class="dt"><thead><tr><th style="width:56px">Peringkat</th><th>Nama Peserta</th><th style="width:60px">Kelas</th><th style="width:150px">Keterangan</th></tr></thead><tbody>' +
     h.peserta.map(p => '<tr><td class="c">' + (p.posisi ? p.peringkat : '–') + '</td><td>' + esc(p.NamaTampil) + '</td><td class="c">' + esc(p.Kelas) + '</td><td class="c">' + (p.juara ? '<b>Juara ' + p.juara + '</b>' : p.harapan ? 'Juara Harapan ' + p.harapan : 'Peserta') + '</td></tr>').join('') + '</tbody></table>';
   const info = '<p style="margin-top:8px;font-size:10.5pt">Mode penilaian: Sistem Rank 1 (gugur bila salah menjawab). Peserta yang bertahan paling akhir ditetapkan sebagai Juara 1, kemudian Juara 2 dan seterusnya oleh dewan juri.</p>';
-  return docPage(judulDoc('Rekap Hasil Lomba', esc(det.event.Judul) + ' — ' + esc(c.NamaCabang) + '<br>' + esc(hariTgl(c.TanggalPelaksanaan))) + t + info + ttdHtml(cfg, { tanggal: c.TanggalPelaksanaan }), { kop: cfg.kop });
+  return docPage(judulDoc('Rekap Hasil Lomba', esc(det.event.Judul) + ' — ' + esc(c.NamaCabang) + '<br>' + esc(jadwalCabang(c))) + t + info + ttdHtml(cfg, { tanggal: c.TanggalSelesai || c.TanggalPelaksanaan }), { kop: cfg.kop });
 }
 function rekapBabak(det, cfg, c) {
   const h = c.hasil, L = h.babak || [], fin = h.juaraDari === 'final';
@@ -171,7 +171,7 @@ function rekapBabak(det, cfg, c) {
       '<td class="c"><b>' + p.total + '</b></td><td class="c">' + esc(p.juara ? 'Juara ' + p.juara : p.status || '') + (p.seri ? ' (seri)' : '') + '</td></tr>').join('') + '</tbody></table>';
   const info = '<p style="margin-top:8px;font-size:10.5pt">Mode penilaian: Sistem babak / eliminasi (' + L.map(b => esc(b.nama)).join(' → ') + '). Skor = jumlah jawaban benar; ✓ = lolos ke babak berikutnya. Juara ditentukan dari ' + (fin ? 'skor babak final (total akumulasi sebagai penentu bila sama)' : 'total akumulasi jawaban benar semua babak') + '.</p>' +
     (h.penetapan ? '<p style="font-size:10.5pt"><i>Penetapan urutan oleh ' + esc(h.penetapan.DitetapkanOleh) + ': ' + esc(h.penetapan.Alasan) + '</i></p>' : '');
-  return docPage(judulDoc('Rekap Hasil Lomba', esc(det.event.Judul) + ' — ' + esc(c.NamaCabang) + '<br>' + esc(hariTgl(c.TanggalPelaksanaan))) + t + info + ttdHtml(cfg, { tanggal: c.TanggalPelaksanaan }), { kop: cfg.kop });
+  return docPage(judulDoc('Rekap Hasil Lomba', esc(det.event.Judul) + ' — ' + esc(c.NamaCabang) + '<br>' + esc(jadwalCabang(c))) + t + info + ttdHtml(cfg, { tanggal: c.TanggalSelesai || c.TanggalPelaksanaan }), { kop: cfg.kop });
 }
 
 function docBeritaAcara(det, cfg) {
@@ -212,9 +212,9 @@ function docLembarJuri(det, cfg, o) {
       '<th style="width:60px">Total</th></tr></thead><tbody>' +
       c.peserta.map(p => '<tr style="height:30px"><td class="c">' + noUrut(p.NoUrut) + '</td><td>' + esc(p.NamaTampil) + '</td><td class="c">' + esc(p.Kelas) + '</td>' + c.kriteria.map(() => '<td></td>').join('') + '<td></td></tr>').join('') +
       '</tbody></table>';
-    const head = '<table class="info"><tr><td style="width:120px">Cabang lomba</td><td>: <b>' + esc(c.NamaCabang) + '</b></td></tr><tr><td>Hari/tanggal</td><td>: ' + esc(hariTgl(c.TanggalPelaksanaan)) + '</td></tr><tr><td>Nama juri</td><td>: ' + (j.Nama ? esc(j.Nama) : '..........................................') + '</td></tr></table>';
+    const head = '<table class="info"><tr><td style="width:120px">Cabang lomba</td><td>: <b>' + esc(c.NamaCabang) + '</b></td></tr><tr><td>Hari/tanggal</td><td>: ' + esc(jadwalCabang(c)) + '</td></tr><tr><td>Nama juri</td><td>: ' + (j.Nama ? esc(j.Nama) : '..........................................') + '</td></tr></table>';
     const ttdJuri = '<div class="ttd-wrap single"><div class="ttd"><div>Juri,</div><div class="sp"></div><div class="nm">' + (j.Nama ? esc(j.Nama) : '..............................') + '</div><div>' + esc(j.NIP_NIY_NUPTK ? (j.JenisNomor || 'NIP') + '. ' + j.NIP_NIY_NUPTK : '') + '</div></div></div>';
-    const extra = cfg.ttd || cfg.pt2 ? ttdHtml(cfg, { tanggal: c.TanggalPelaksanaan }) : '';
+    const extra = cfg.ttd || cfg.pt2 ? ttdHtml(cfg, { tanggal: c.TanggalSelesai || c.TanggalPelaksanaan }) : '';
     return docPage(judulDoc('Lembar Penilaian Juri', esc(det.event.Judul)) + head + t +
       '<p style="font-size:9.5pt;margin-top:6px">Total = Σ (nilai ÷ nilai maksimal × bobot). Isi nilai sesuai rentang masing-masing kriteria.</p>' + ttdJuri + extra, { kop: cfg.kop });
   }).join('');
@@ -227,9 +227,9 @@ function lembarPeringkat(det, cfg, c, j) {
     c.peserta.map(p => '<tr style="height:28px"><td class="c">' + noUrut(p.NoUrut) + '</td><td>' + esc(p.NamaTampil) + '</td><td class="c">' + esc(p.Kelas) + '</td><td></td><td></td></tr>').join('') + '</tbody></table>';
   const slot = '<table class="dt" style="margin-top:12px"><thead><tr><th style="width:150px">Posisi</th><th>Nama Peserta</th><th style="width:60px">No</th></tr></thead><tbody>' +
     Array.from({ length: N + H }, (_, i) => '<tr style="height:30px"><td><b>' + (i < N ? 'Juara ' + (i + 1) : 'Juara Harapan ' + (i - N + 1)) + '</b></td><td></td><td></td></tr>').join('') + '</tbody></table>';
-  const head = '<table class="info"><tr><td style="width:120px">Cabang lomba</td><td>: <b>' + esc(c.NamaCabang) + '</b> (Sistem Rank 1)</td></tr><tr><td>Hari/tanggal</td><td>: ' + esc(hariTgl(c.TanggalPelaksanaan)) + '</td></tr><tr><td>Nama juri</td><td>: ' + (j.Nama ? esc(j.Nama) : '..........................................') + '</td></tr></table>';
+  const head = '<table class="info"><tr><td style="width:120px">Cabang lomba</td><td>: <b>' + esc(c.NamaCabang) + '</b> (Sistem Rank 1)</td></tr><tr><td>Hari/tanggal</td><td>: ' + esc(jadwalCabang(c)) + '</td></tr><tr><td>Nama juri</td><td>: ' + (j.Nama ? esc(j.Nama) : '..........................................') + '</td></tr></table>';
   const ttdJuri = '<div class="ttd-wrap single"><div class="ttd"><div>Juri,</div><div class="sp"></div><div class="nm">' + (j.Nama ? esc(j.Nama) : '..............................') + '</div><div>' + esc(j.NIP_NIY_NUPTK ? (j.JenisNomor || 'NIP') + '. ' + j.NIP_NIY_NUPTK : '') + '</div></div></div>';
-  const extra = cfg.ttd || cfg.pt2 ? ttdHtml(cfg, { tanggal: c.TanggalPelaksanaan }) : '';
+  const extra = cfg.ttd || cfg.pt2 ? ttdHtml(cfg, { tanggal: c.TanggalSelesai || c.TanggalPelaksanaan }) : '';
   return docPage(judulDoc('Lembar Penetapan Juara', esc(det.event.Judul)) + head + t + slot +
     '<p style="font-size:9.5pt;margin-top:6px">Catat nomor soal saat peserta salah menjawab (gugur). Peserta yang bertahan paling akhir adalah Juara 1, gugur terakhir sebelum itu Juara 2, dan seterusnya.</p>' + ttdJuri + extra, { kop: cfg.kop });
 }
@@ -245,9 +245,9 @@ function lembarBabak(det, cfg, c, j, o) {
     Array.from({ length: grid }, (_, i) => '<th style="width:18px;padding:2px;font-size:8pt">' + (i + 1) + '</th>').join('') +
     '<th style="width:58px">Jumlah Benar</th>' + (B.final ? '' : '<th style="width:44px">Lolos</th>') + '</tr></thead><tbody>' +
     pes.map(p => '<tr style="height:30px"><td class="c">' + (p.NoUrut ? noUrut(p.NoUrut) : '') + '</td><td>' + esc(p.NamaTampil) + '</td><td class="c">' + esc(p.Kelas) + '</td>' + Array.from({ length: grid }, () => '<td></td>').join('') + '<td></td>' + (B.final ? '' : '<td></td>') + '</tr>').join('') + '</tbody></table>';
-  const head = '<table class="info"><tr><td style="width:120px">Cabang lomba</td><td>: <b>' + esc(c.NamaCabang) + '</b> — ' + esc(B.nama) + (B.final && !/final/i.test(B.nama) ? ' (Final)' : '') + '</td></tr><tr><td>Hari/tanggal</td><td>: ' + esc(hariTgl(c.TanggalPelaksanaan)) + '</td></tr><tr><td>Nama juri</td><td>: ' + (j.Nama ? esc(j.Nama) : '..........................................') + '</td></tr></table>';
+  const head = '<table class="info"><tr><td style="width:120px">Cabang lomba</td><td>: <b>' + esc(c.NamaCabang) + '</b> — ' + esc(B.nama) + (B.final && !/final/i.test(B.nama) ? ' (Final)' : '') + '</td></tr><tr><td>Hari/tanggal</td><td>: ' + esc(jadwalCabang(c)) + '</td></tr><tr><td>Nama juri</td><td>: ' + (j.Nama ? esc(j.Nama) : '..........................................') + '</td></tr></table>';
   const ttdJuri = '<div class="ttd-wrap single"><div class="ttd"><div>Juri,</div><div class="sp"></div><div class="nm">' + (j.Nama ? esc(j.Nama) : '..............................') + '</div><div>' + esc(j.NIP_NIY_NUPTK ? (j.JenisNomor || 'NIP') + '. ' + j.NIP_NIY_NUPTK : '') + '</div></div></div>';
-  const extra = cfg.ttd || cfg.pt2 ? ttdHtml(cfg, { tanggal: c.TanggalPelaksanaan }) : '';
+  const extra = cfg.ttd || cfg.pt2 ? ttdHtml(cfg, { tanggal: c.TanggalSelesai || c.TanggalPelaksanaan }) : '';
   return docPage(judulDoc('Lembar Skor ' + esc(B.nama), esc(det.event.Judul)) + head + t +
     '<p style="font-size:9.5pt;margin-top:6px">' + (grid ? 'Beri tanda ✓ pada nomor soal/kata yang dijawab benar, lalu tulis jumlahnya. ' : 'Tulis jumlah jawaban benar tiap peserta. ') + (B.maks ? 'Jumlah soal ' + B.maks + '. ' : '') + (B.final ? 'Babak final menentukan juara.' : 'Kolom Lolos diisi panitia untuk peserta yang maju ke babak berikutnya.') + (kosong ? ' (Daftar peserta babak ini belum ditetapkan.)' : '') + '</p>' + ttdJuri + extra, { kop: cfg.kop });
 }
@@ -377,9 +377,9 @@ function renderPiagam(tpl, d, opt = {}) {
 }
 function fontsLayout(L) { return uniq(Object.values(L).map(e => e.font).filter(Boolean)); }
 function dataPiagam(det, c, p, i) {
-  const s = settingsNow(), d = parseTgl(c.TanggalPelaksanaan || det.event.TanggalSelesai) || new Date();
+  const s = settingsNow(), akhir = c.TanggalSelesai || c.TanggalPelaksanaan || det.event.TanggalSelesai, d = parseTgl(akhir) || new Date();
   return { nama: p.NamaTampil, kelas: p.Kelas, juara: p.juara || (p.harapan ? 'HARAPAN ' + p.harapan : ''), cabang: (/^lomba/i.test(c.NamaCabang) ? '' : 'Lomba ') + c.NamaCabang, event: det.event.Judul,
-    tanggal: tgl(c.TanggalPelaksanaan || det.event.TanggalSelesai), tempat: s.TempatTtd || '', no: String(i + 1).padStart(3, '0'), tahun: d.getFullYear(), sekolah: s.NamaSekolah || '' };
+    tanggal: tgl(akhir), tempat: s.TempatTtd || '', no: String(i + 1).padStart(3, '0'), tahun: d.getFullYear(), sekolah: s.NamaSekolah || '' };
 }
 
 /* ---------------- Cetak ---------------- */

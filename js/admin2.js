@@ -247,7 +247,7 @@ const JW = {
   excel: (el) => { const d = el._d, qs = d.pertanyaan; exportXlsx('Jawaban - ' + d.form.Judul.replace(/[\\/:*?"<>|]/g, '') + '.xlsx', [{ name: 'Jawaban', rows: [['No', 'Waktu', 'Sumber', 'Diinput oleh'].concat(qs.map(q => q.Label))].concat(d.jawaban.map((j, i) => [i + 1, j.Waktu.replace('T', ' '), j.TipePengisi, j.DiinputOleh].concat(qs.map(q => q.Tipe === 'unggah_berkas' ? (j.berkas[q.PertanyaanID] ? 'Ada berkas: ' + j.berkas[q.PertanyaanID].nama : '') : jwJawabStr(q, j.isi[q.PertanyaanID]))))) }]); },
   detail: (el, b) => {
     const d = el._d, j = d.jawaban.find(x => x.JawabanID === b.dataset.id);
-    modal({ title: j.nama, sub: esc(tglPendek(j.Waktu) + ' ' + jam(j.Waktu)), size: 'lg', body: d.pertanyaan.map((q, i) => '<div style="padding:10px 0;border-bottom:1px solid #F1F5F9"><div class="small muted">' + (i + 1) + '. ' + esc(q.Label) + '</div><div style="font-weight:600;margin-top:2px">' +
+    modal({ title: j.nama, sub: esc(tglPendek(j.Waktu) + ' ' + jam(j.Waktu)), size: 'lg', body: d.pertanyaan.map((q, i) => '<div style="padding:10px 0;border-bottom:1px solid var(--line-soft)"><div class="small muted">' + (i + 1) + '. ' + esc(q.Label) + '</div><div style="font-weight:600;margin-top:2px">' +
       (q.Tipe === 'unggah_berkas' ? (j.berkas[q.PertanyaanID] ? '<button class="btn btn-soft btn-sm" data-berkas="' + esc(j.berkas[q.PertanyaanID].id) + '">' + ic('paperclip', 'ic-sm') + ' ' + esc(j.berkas[q.PertanyaanID].nama) + '</button>' : '-') : esc(jwJawabStr(q, j.isi[q.PertanyaanID]) || '-')) + '</div></div>').join('') })
       .el.addEventListener('click', (e) => { const x = e.target.closest('[data-berkas]'); if (x) lihatBerkas(x.dataset.berkas, x); });
   },
@@ -472,18 +472,7 @@ SET_RENDER.akun = () => '<div class="card card-pad" style="max-width:560px"><div
   '<div class="field"><label>Username baru (opsional)</label><input class="input" id="ak-un" placeholder="' + esc((AppState.user || {}).username || 'admin') + '" autocomplete="username"></div>' +
   '<div class="field mt-12"><label>Kata sandi lama <span class="req">*</span></label><input class="input" type="password" id="ak-lama" autocomplete="current-password"></div>' +
   '<div class="grid-2 mt-12"><div class="field"><label>Kata sandi baru <span class="req">*</span></label><input class="input" type="password" id="ak-baru" autocomplete="new-password" placeholder="min. 6 karakter"></div><div class="field"><label>Ulangi kata sandi baru</label><input class="input" type="password" id="ak-baru2" autocomplete="new-password"></div></div>' +
-  '<div class="row mt-24" style="justify-content:flex-end"><button class="btn btn-primary" data-act="akunSimpan">' + ic('save', 'ic-sm') + ' Simpan</button></div></div>' +
-  '<div class="card card-pad mt-16" style="max-width:560px"><div class="card-title">Login Panitia (PTK) & Juri</div><div class="card-sub mb-16">Atur cara PTK dan juri masuk dari halaman awal atau link penilaian lomba.</div>' +
-  '<label class="switch"><input type="checkbox" id="ak-bebas" data-act="loginBebas"' + ((B().settings || {}).LoginTanpaSandi !== 'Tidak' ? ' checked' : '') + '><span class="track"></span><span><b>Cukup pilih nama (tanpa kata sandi)</b><br><span class="small muted">PTK & juri tamu tinggal mengetuk namanya lalu Masuk.</span></span></label>' +
-  '<div class="alert alert-amber small mt-16">' + ic('triangle-alert', 'ic-sm') + '<span>Saat aktif, siapa pun yang membuka situs bisa masuk sebagai PTK mana saja. Memberi suara OSIS sebagai PTK tetap wajib kata sandi (lewat link voting OSIS). Matikan bila tidak diperlukan.</span></div></div>';
-SET.loginBebas = async (el, b) => {
-  const st = B().settings || (B().settings = {}), lama = st.LoginTanpaSandi, nilai = b.checked ? 'Ya' : 'Tidak';
-  st.LoginTanpaSandi = nilai;
-  const res = await api('simpanPengaturan', { pengaturan: { LoginTanpaSandi: nilai } });
-  if (!toastRes(res, nilai === 'Ya' ? 'Login cukup pilih nama' : 'Login wajib kata sandi', nilai === 'Ya' ? 'PTK & juri tidak perlu mengetik kata sandi.' : 'PTK & juri masuk dengan kata sandi.')) { st.LoginTanpaSandi = lama; b.checked = lama !== 'Tidak'; return; }
-  if (AppState.pub && AppState.pub.sekolah) AppState.pub.sekolah.LoginTanpaSandi = nilai;
-  try { swrDrop('pub'); } catch (e) {}
-};
+  '<div class="row mt-24" style="justify-content:flex-end"><button class="btn btn-primary" data-act="akunSimpan">' + ic('save', 'ic-sm') + ' Simpan</button></div></div>';
 SET.akunSimpan = async (el, b) => {
   const baru = $('#ak-baru', el).value;
   if (baru !== $('#ak-baru2', el).value) return toast('Kata sandi baru tidak sama', '', 'warning');

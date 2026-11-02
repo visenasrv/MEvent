@@ -70,14 +70,14 @@ Kerjakan berurutan: **Backend dulu → salin URL → Frontend**.
    Urutan baris kop diatur dengan menahan ikon ⋮⋮ lalu menggeser (atau fokus ikon itu dan tekan ↑/↓).
 6. **Data Siswa → Unduh Template Excel → Impor Excel** (format: Nama | Jenis Kelamin | NISN | Tempat Lahir | Tanggal Lahir | Kelas).
 7. **Data PTK → Impor Excel** (Nama | Tanggal Lahir | NIP/NIY/NUPTK | Jabatan), lalu **Kata Sandi Massal** → cetak kartunya.
-8. **Pengaturan › Akun → Login Panitia (PTK) & Juri**: bila **Cukup pilih nama** aktif (bawaan), PTK dan juri tamu tinggal mengetuk namanya lalu **Masuk** — tanpa mengetik kata sandi. Matikan bila ingin tetap memakai kata sandi. Memberi suara OSIS sebagai PTK selalu memakai kata sandi (lewat Link Voting OSIS).
+8. **Mode gelap / terang**: ketuk ikon 🌙/☀️ di bilah atas (admin) atau di pojok kanan atas halaman login & link. Bawaannya mengikuti pengaturan HP/laptop; pilihan disimpan di perangkat masing-masing. Dokumen cetak, kop, piagam, dan layar hasil tetap tampil seperti aslinya.
 9. Ingin mencoba dulu? **Pengaturan › Mode Demo → Mulai Demo**. Data contoh dibuat terpisah dan dihapus saat demo diakhiri.
 
 ### Link yang dibagikan admin (tombol **Bagikan Link** di halaman event)
 | Link | Untuk | Isi halaman |
 |---|---|---|
 | **Link Voting OSIS** | Siswa & PTK | Tab **Siswa** (NISN) dan **PTK** (nama + kata sandi). Setelah memilih, layar kembali ke login siswa — cocok untuk HP/laptop yang dipakai bergantian. |
-| **Link Voting & Penilaian Lomba** | Siswa & Juri | Tab **Siswa** (kelas → nama) dan **Juri** (PTK / juri tamu → pilih nama → lembar penilaian). |
+| **Link Voting & Penilaian Lomba** | Siswa & Juri | Tab **Siswa** (kelas → nama) dan **Juri**: tampil **daftar juri event ini saja** (PTK & juri tamu) — ketuk nama, isi kata sandi, Masuk. Tanpa mengetik/mencari nama. |
 | **Link Formulir** | Pendaftar | Satu link per formulir, juga dari ikon QR di tab Formulir. |
 | **Link Layar Hasil** | IFP / proyektor | Terbuka **tanpa login admin**, jadi admin tetap bisa memakai aplikasi di laptopnya. Tombol **Ganti Link** membatalkan link lama. |
 
@@ -101,8 +101,11 @@ Setiap link punya **kode QR** (tombol *QR Besar* untuk ditampilkan di layar agar
 ### Kehadiran lomba
 Tab **Kehadiran** pada event lomba menampilkan kolom **Lomba yang di-voting** untuk setiap siswa (beserta lomba yang diikuti sebagai peserta) dan ringkasan jumlah siswa yang sudah voting per cabang. Informasi yang sama ikut ke **Excel** dan **cetak Daftar Hadir**.
 
+### Login Panitia (PTK) & Juri
+Tidak perlu mengetik atau mencari nama: tab **Panitia (PTK)** di halaman awal menampilkan PTK yang menjadi panitia atau juri, dan tab **Juri** di link lomba hanya menampilkan juri event tersebut. Ketuk nama → isi **kata sandi** → **Masuk**. (Pada Link Voting OSIS, tab PTK tetap punya kolom cari karena berisi semua guru.)
+
 ### Alur lomba
-Event Lomba → **Cabang & Peserta** (mode Juri/Voting/Gabungan/Babak/Rank 1 + bobot; urutan tampil peserta diatur dengan menggeser ikon ⋮⋮) → **Juri & Kriteria** → bagikan **Link Voting & Penilaian Lomba** → **Kunci Penilaian** → tab **Hasil** (tetapkan urutan bila seri) → **Cetak Piagam Juara**. Di layar hasil, tombol nama cabang (atau panah ← →) berpindah cabang seketika.
+Event Lomba → **Cabang & Peserta** (jadwal **Tanggal Mulai – Tanggal Selesai**, kosongkan tanggal selesai bila hanya 1 hari; mode Juri/Voting/Gabungan/Babak/Rank 1 + bobot; urutan tampil peserta diatur dengan menggeser ikon ⋮⋮) → **Juri & Kriteria** → bagikan **Link Voting & Penilaian Lomba** → **Kunci Penilaian** → tab **Hasil** (tetapkan urutan bila seri) → **Cetak Piagam Juara**. Di layar hasil, tombol nama cabang (atau panah ← →) berpindah cabang seketika.
 
 ### Lomba sistem babak / eliminasi (mis. Spelling Bee, Cerdas Cermat)
 Skor tiap babak = **jumlah jawaban benar**. Peserta yang lolos maju ke babak berikutnya sampai **Final**.
@@ -140,14 +143,16 @@ Semua peserta diberi pertanyaan yang sama; yang salah menjawab gugur. Peserta ya
 3. **Terapkan → Kelola deployment → ✏️ Edit → Versi: Versi baru → Terapkan.**
 ⚠️ Jangan memilih *Deployment baru* — URL `/exec` akan berubah dan aplikasi berhenti bekerja.
 
-> **Dari versi sebelumnya ke 1.7 (Rank 1, juri meloloskan, login pilih nama):** ganti ketiga berkas `.gs`, **wajib jalankan `setupAwal` sekali** (membuat sheet baru **Peringkat_Lomba** dan kolom **JumlahHarapan** di Cabang_Lomba), lalu buat versi deployment baru seperti langkah 3. Setelah itu perbarui frontend. Login PTK/juri otomatis menjadi **cukup pilih nama**; ubah di **Pengaturan › Akun** bila perlu.
+> **Dari versi sebelumnya ke 1.8 (mode gelap, jadwal cabang beberapa hari, login pilih nama):** ganti ketiga berkas `.gs`, **wajib jalankan `setupAwal` sekali** (menambah kolom **TanggalSelesai** di Cabang_Lomba; bila memperbarui langsung dari 1.6 atau lebih lama, sheet Peringkat_Lomba dan kolom JumlahHarapan ikut dibuat), lalu buat versi deployment baru. Perbarui frontend. Cabang lama tetap 1 hari sampai tanggal selesai diisi.
+
+> **Dari versi sebelumnya ke 1.7 (Rank 1, juri meloloskan):** ganti ketiga berkas `.gs`, **wajib jalankan `setupAwal` sekali** (membuat sheet baru **Peringkat_Lomba** dan kolom **JumlahHarapan** di Cabang_Lomba), lalu buat versi deployment baru seperti langkah 3. Setelah itu perbarui frontend.
 
 > **Dari versi sebelumnya ke 1.6 (sistem babak):** ganti ketiga berkas `.gs`, **wajib jalankan `setupAwal` sekali** (membuat sheet baru **Skor_Babak** dan kolom **Babak** di Cabang_Lomba), lalu buat versi deployment baru seperti langkah 3. Setelah itu perbarui frontend. Cabang lama tidak berubah.
 
 > **Dari versi sebelumnya ke 1.5:** lakukan 3 langkah di atas, lalu perbarui frontend (isi ulang `GAS_URL`). Data lama tetap terbaca; kehadiran dari voting kini dihitung otomatis dari daftar pemilih, jadi tidak ada data yang perlu dipindahkan.
 
 **Frontend** (bila ada perubahan di `css/` atau `js/`):
-1. Bila mengubah kode sendiri, naikkan angka versi di `index.html` (mis. `?v=1.1.0` → `?v=1.1.1`) dan `APP_VER` di `js/core.js` agar HP pengguna langsung memuat versi baru. (Paket 1.7.0 ini sudah dinaikkan.)
+1. Bila mengubah kode sendiri, naikkan angka versi di `index.html` (mis. `?v=1.1.0` → `?v=1.1.1`) dan `APP_VER` di `js/core.js` agar HP pengguna langsung memuat versi baru. (Paket 1.8.0 ini sudah dinaikkan.)
    Jangan lupa isi ulang `GAS_URL` di `js/config.js` bila berkas itu ikut tertimpa.
 2. Jalankan dari folder proyek:
    ```bash
