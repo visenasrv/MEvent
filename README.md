@@ -2,6 +2,8 @@
 
 Aplikasi web untuk **pemilihan OSIS**, **perlombaan** (juri + voting siswa), **formulir pendaftaran**, **daftar hadir**, dan **dokumen cetak** (rekap, berita acara, lembar juri, piagam, SK) — dengan **Mode Demo** berisi data contoh.
 
+Versi 1.5: geser-urut (kop surat, peserta, pertanyaan formulir) berfungsi di mouse & layar sentuh, kolom ukuran font tidak terpotong, menu Kehadiran & Cetak Dokumen dipindah ke dalam event.
+
 Versi 1.4: situs langsung membuka login Admin/Panitia, menu samping mengikuti warna tema, tampilan tidak terpotong di semua ukuran layar, dan layar hasil bisa digulir saat peserta banyak (nama utuh, logo tanpa teks).
 
 Versi 1.3: logo PNG transparan tidak lagi berlatar hitam; login voting siswa, PTK, dan juri hanya lewat link dari admin (halaman awal: Admin / Panitia).

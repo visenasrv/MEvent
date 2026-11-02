@@ -479,7 +479,6 @@ input[type=range].rng { width: 100%; accent-color: var(--primary); height: 28px;
 .photo-thumb img { width: 100%; height: 100%; object-fit: cover; }
 .drag-h { cursor: grab; color: var(--muted-2); touch-action: none; display: inline-flex; padding: 4px; border-radius: 6px; }
 .drag-h:hover { color: var(--text); background: var(--surface-2); }
-.dragging { opacity: .96; box-shadow: var(--sh-modal) !important; transform: rotate(.6deg); border-color: var(--primary) !important; position: relative; z-index: 5; }
 .drop-slot { border: 2px dashed var(--primary); border-radius: 12px; background: var(--primary-tint); color: var(--primary); font-size: 12.5px; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 6px; }
 
 /* Hasil */
@@ -528,7 +527,14 @@ input[type=range].rng { width: 100%; accent-color: var(--primary); height: 28px;
 .kop-row { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border: 1px solid var(--border); border-radius: 12px; background: #fff; margin-bottom: 8px; transition: box-shadow .15s; }
 .kop-row .no { width: 26px; height: 26px; border-radius: 7px; background: var(--surface-2); font-weight: 700; font-size: 12px; display: flex; align-items: center; justify-content: center; flex: 0 0 auto; }
 .kop-row .nm { font-weight: 600; min-width: 150px; }
-.kop-row .sz { width: 92px; } .kop-row .tg { display: inline-flex; gap: 6px; }
+.kop-row .sz { width: 112px; flex: 0 0 auto; } .kop-row .tg { display: inline-flex; gap: 6px; }
+.kop-row .sz .input { padding-left: 12px !important; padding-right: 34px !important; text-align: right; font-variant-numeric: tabular-nums; }
+/* Kolom angka: tanpa tombol panah bawaan agar angka (mis. 10, 7.5) tidak terpotong */
+.input[type=number] { -moz-appearance: textfield; appearance: textfield; }
+.input[type=number]::-webkit-outer-spin-button, .input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+body.is-dragging, body.is-dragging * { cursor: grabbing !important; user-select: none !important; }
+.dragging { box-shadow: 0 14px 34px rgba(15, 23, 42, .18) !important; border-color: var(--primary) !important; position: relative; z-index: 5; background: #fff; }
+tr.dragging td { background: var(--primary-tint); }
 .tg-btn { height: 30px; min-width: 36px; padding: 0 8px; border-radius: 8px; border: 1px solid var(--border); background: #fff; font-weight: 800; font-size: 12px; cursor: pointer; color: var(--muted); }
 .tg-btn.on { background: var(--primary-tint); border-color: var(--primary-tint-2); color: var(--primary); }
 .color-swatch { width: 36px; height: 36px; border-radius: 10px; border: 2px solid #fff; box-shadow: 0 0 0 1px var(--border); cursor: pointer; }

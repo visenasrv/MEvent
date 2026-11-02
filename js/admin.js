@@ -38,7 +38,7 @@ window.Shell = {
     const pendingForm = (b.forms || []).filter(f => f.Status === 'Buka').length;
     const items = [['dasbor', 'layout-dashboard', 'Dasbor'], ['event', 'calendar', 'Event'], ['formulir-admin', 'file-text', 'Formulir', pendingForm]];
     if (adm) items.push(['siswa', 'users', 'Data Siswa'], ['data-ptk', 'user-check', 'Data PTK']);
-    items.push(['kehadiran', 'clock', 'Kehadiran'], ['cetak', 'printer', 'Cetak Dokumen'], ['layar', 'monitor', 'Layar Hasil']);
+    items.push(['layar', 'monitor', 'Layar Hasil']);   // Kehadiran & Cetak ada di dalam tiap event (tab)
     if (adm) items.push(['pengaturan', 'settings', 'Pengaturan']);
     else items.push(['ptk', 'house', 'Beranda PTK']);
     return items;
@@ -657,30 +657,48 @@ EVH['ambil-formulir'] = async (el, b, det) => {
 };
 
 /* Geser untuk mengurutkan (Pointer Events: sentuh & tetikus) */
+/**
+ * Geser untuk mengurutkan (mouse, sentuh, pena) + panah ↑/↓ di keyboard.
+ * Gerakan dipantau di window (bukan pointer capture di pegangan) karena memindah elemen di DOM
+ * membuat browser melepas pointer capture — penyebab geseran berhenti setelah satu langkah.
+ */
 function dragSort(container, itemSel, onDone, idAttr) {
-  let drag = null;
+  if (!container || container._dragSort) return;
+  container._dragSort = true;
+  const urutan = () => Array.from(container.querySelectorAll(':scope > ' + itemSel)).map(x => x.dataset[idAttr]);
   container.addEventListener('pointerdown', (e) => {
-    const h = e.target.closest('[data-drag]'); if (!h) return;
-    const item = h.closest(itemSel); if (!item) return;
+    const h = e.target.closest('[data-drag]'); if (!h || !container.contains(h) || e.button > 0) return;
+    const item = h.closest(itemSel); if (!item || item.parentElement !== container) return;
     e.preventDefault();
-    drag = { item, startY: e.clientY, moved: false };
+    const awal = urutan().join('|');
+    let gulir = 0, lastY = e.clientY, raf = 0;
     item.classList.add('dragging');
-    h.setPointerCapture(e.pointerId);
+    document.body.classList.add('is-dragging');
+    const tata = () => {
+      const items = Array.from(container.querySelectorAll(':scope > ' + itemSel)).filter(x => x !== item);
+      let before = null;
+      for (const it of items) { const r = it.getBoundingClientRect(); if (lastY < r.top + r.height / 2) { before = it; break; } }
+      if (before) { if (item.nextElementSibling !== before) container.insertBefore(item, before); }
+      else if (container.lastElementChild !== item) container.appendChild(item);
+    };
+    const putar = () => {   // gulir otomatis saat menyeret dekat tepi layar
+      if (gulir) { window.scrollBy(0, gulir); tata(); }
+      raf = requestAnimationFrame(putar);
+    };
     const move = (ev) => {
-      if (!drag) return;
-      drag.moved = true;
-      const items = Array.from(container.querySelectorAll(itemSel)).filter(x => x !== item);
-      let after = null;
-      for (const it of items) { const r = it.getBoundingClientRect(); if (ev.clientY < r.top + r.height / 2) { after = it; break; } }
-      if (after) container.insertBefore(item, after); else container.appendChild(item);
+      lastY = ev.clientY;
+      gulir = ev.clientY < 70 ? -14 : ev.clientY > innerHeight - 70 ? 14 : 0;
+      tata();
     };
     const up = () => {
-      h.removeEventListener('pointermove', move); h.removeEventListener('pointerup', up); h.removeEventListener('pointercancel', up);
-      item.classList.remove('dragging');
-      const moved = drag && drag.moved; drag = null;
-      if (moved) onDone(Array.from(container.querySelectorAll(itemSel)).map(x => x.dataset[idAttr]));
+      removeEventListener('pointermove', move); removeEventListener('pointerup', up); removeEventListener('pointercancel', up);
+      cancelAnimationFrame(raf);
+      item.classList.remove('dragging'); document.body.classList.remove('is-dragging');
+      const akhir = urutan();
+      if (akhir.join('|') !== awal) onDone(akhir);
     };
-    h.addEventListener('pointermove', move); h.addEventListener('pointerup', up); h.addEventListener('pointercancel', up);
+    addEventListener('pointermove', move); addEventListener('pointerup', up); addEventListener('pointercancel', up);
+    raf = requestAnimationFrame(putar);
   });
   container.addEventListener('keydown', (e) => {
     const h = e.target.closest('[data-drag]'); if (!h || (e.key !== 'ArrowUp' && e.key !== 'ArrowDown')) return;
@@ -689,7 +707,7 @@ function dragSort(container, itemSel, onDone, idAttr) {
     if (!sib) return;
     if (e.key === 'ArrowUp') container.insertBefore(item, sib); else container.insertBefore(sib, item);
     h.focus();
-    onDone(Array.from(container.querySelectorAll(itemSel)).map(x => x.dataset[idAttr]));
+    onDone(urutan());
   });
   container.querySelectorAll('[data-drag]').forEach(h => h.setAttribute('tabindex', '0'));
 }
