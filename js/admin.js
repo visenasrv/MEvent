@@ -531,20 +531,20 @@ function curCabang(el, det) {
 }
 EV_RENDER.cabang = (det, el) => {
   const c = curCabang(el, det);
-  const modeLbl = (x) => x.ModePenilaian === 'Peringkat' ? 'Rank 1 (Gugur)' : x.ModePenilaian === 'Babak' ? 'Babak / Eliminasi' : x.ModePenilaian === 'Gabungan' ? 'Gabungan ' + x.BobotJuri + '/' + x.BobotVoting : x.ModePenilaian === 'Voting' ? 'Voting saja' : 'Juri saja';
+  const modeLbl = (x) => x.ModePenilaian === 'Poin' ? 'Tambah/Kurang Poin' : x.ModePenilaian === 'Peringkat' ? 'Rank 1 (Gugur)' : x.ModePenilaian === 'Babak' ? 'Babak / Eliminasi' : x.ModePenilaian === 'Gabungan' ? 'Gabungan ' + x.BobotJuri + '/' + x.BobotVoting : x.ModePenilaian === 'Voting' ? 'Voting saja' : 'Juri saja';
   const left = '<div><div class="row between mb-16"><div class="row"><b style="font-size:16px">Daftar Cabang</b><span class="badge">' + det.cabang.length + '</span></div><span class="small muted">Urut jadwal</span></div>' +
     det.cabang.map(x => '<div class="card list-card card-tap' + (c && x.CabangID === c.CabangID ? ' on' : '') + '" data-act="pilih-cabang" data-id="' + esc(x.CabangID) + '" tabindex="0" role="button"><div class="row between"><b style="font-size:16px;' + (c && x.CabangID === c.CabangID ? 'color:var(--primary)' : '') + '">' + esc(x.NamaCabang) + '</b>' + (c && x.CabangID === c.CabangID ? ic('circle-check', '') : ic('chevron-right', 'ic-sm')) + '</div>' +
       '<div class="small muted mt-8">' + esc(jadwalCabang(x)) + (jumlahHari(x) > 1 ? ' (' + jumlahHari(x) + ' hari)' : '') + ' · ' + x.peserta.length + ' Peserta</div><div class="row mt-8"><span class="badge ' + (x.ModePenilaian === 'Voting' ? 'badge-amber' : x.ModePenilaian === 'Babak' ? 'badge-green' : x.ModePenilaian === 'Gabungan' ? '' : 'badge-gray') + '">' + modeLbl(x) + '</span><span class="small muted row gap-4">' + ic('users', 'ic-sm') + x.juri.length + ' Juri</span>' + (x.VotingDibuka === 'Ya' ? '<span class="badge badge-green"><span class="dot"></span>Voting</span>' : '') + '</div></div>').join('') +
     '<button class="btn btn-soft btn-block btn-lg" data-act="cabang-baru">' + ic('circle-plus', 'ic-sm') + ' Tambah Cabang</button>' +
     (c ? '<div class="card card-pad mt-16"><b>Rekap Cabang Ini</b><div class="grid-2 mt-12" style="gap:10px"><div class="subcard" style="padding:14px"><div class="small muted">Total Peserta</div><div style="font-size:22px;font-weight:800">' + c.peserta.length + ' Siswa</div></div><div class="subcard" style="padding:14px"><div class="small muted">Juri Ditugaskan</div><div style="font-size:22px;font-weight:800;color:var(--primary)">' + c.juri.length + ' Juri</div></div></div></div>' : '') + '</div>';
   if (!c) return '<div class="split"><div>' + left + '</div><div class="card">' + emptyState('trophy', 'Belum ada cabang lomba', 'Tambahkan cabang seperti Baca Puisi, Pidato, atau Lomba Poster.', '<button class="btn btn-primary" data-act="cabang-baru">' + ic('plus', 'ic-sm') + ' Tambah Cabang</button>') + '</div></div>';
-  if (!el._cf || el._cf.id !== c.CabangID) { const bc = babakCabang(c); el._cf = { id: c.CabangID, mode: c.ModePenilaian, bj: +c.BobotJuri || 60, bv: +c.BobotVoting || 40, babak: bc.daftar, juara: bc.juara, jh: +c.JumlahHarapan || 0 }; }
+  if (!el._cf || el._cf.id !== c.CabangID) { const bc = babakCabang(c); el._cf = { id: c.CabangID, mode: c.ModePenilaian, bj: +c.BobotJuri || 60, bv: +c.BobotVoting || 40, babak: bc.daftar, juara: bc.juara, jh: +c.JumlahHarapan || 0, poin: poinCabang(c) }; }
   const f = el._cf, total = f.bj + f.bv;
   const right = '<div class="card card-pad"><div class="row between row-wrap"><div><div class="card-title" style="font-size:19px">Pengaturan Cabang: ' + esc(c.NamaCabang) + '</div><div class="card-sub">Kelola jadwal, tentukan bobot penilaian, serta kelola daftar peserta dan dewan juri.</div></div><button class="btn btn-ghost btn-sm" data-act="cabang-hapus">' + ic('trash-2', 'ic-sm') + ' Hapus Cabang</button></div>' +
     '<div class="grid-2 mt-16"><div class="field"><label>Nama Cabang</label><input class="input" id="cb-nama" value="' + esc(c.NamaCabang) + '"></div>' +
     '<div class="field"><label>Jumlah Juara</label><select class="select" id="cb-jj">' + [1, 2, 3, 4, 5, 6].map(n => '<option value="' + n + '"' + (+c.JumlahJuara === n ? ' selected' : '') + '>' + n + ' (Juara ' + Array.from({ length: n }, (_, i) => i + 1).join(', ') + ')</option>').join('') + '</select></div></div>' +
     '<div class="grid-2 mt-16"><div class="field"><label>Tanggal Mulai</label><input class="input" type="date" id="cb-tgl" value="' + esc(c.TanggalPelaksanaan) + '"></div><div class="field"><label>Tanggal Selesai <span class="muted small">(kosongkan bila 1 hari)</span></label><input class="input" type="date" id="cb-tgl2" min="' + esc(c.TanggalPelaksanaan || '') + '" value="' + esc(c.TanggalSelesai || '') + '"></div></div>' +
-    '<div class="field mt-16"><label>Mode Penilaian</label><div class="hint" style="margin-top:-4px">Pilih metode penentuan pemenang cabang ini.</div><div class="seg seg-light mt-8" style="max-width:860px;display:flex">' + [['Juri', 'Juri saja'], ['Voting', 'Voting saja'], ['Gabungan', 'Gabungan'], ['Babak', 'Babak / Eliminasi'], ['Peringkat', 'Rank 1 (Gugur)']].map(x => '<button type="button" style="flex:1" data-act="cb-mode" data-v="' + x[0] + '" class="' + (f.mode === x[0] ? 'on' : '') + '">' + x[1] + '</button>').join('') + '</div></div>' +
+    '<div class="field mt-16"><label>Mode Penilaian</label><div class="hint" style="margin-top:-4px">Pilih metode penentuan pemenang cabang ini.</div><div class="seg seg-light mt-8" style="max-width:1040px;display:flex">' + [['Juri', 'Juri saja'], ['Voting', 'Voting saja'], ['Gabungan', 'Gabungan'], ['Babak', 'Babak / Eliminasi'], ['Peringkat', 'Rank 1 (Gugur)'], ['Poin', 'Tambah/Kurang Poin']].map(x => '<button type="button" style="flex:1" data-act="cb-mode" data-v="' + x[0] + '" class="' + (f.mode === x[0] ? 'on' : '') + '">' + x[1] + '</button>').join('') + '</div></div>' +
     (f.mode === 'Gabungan' ? '<div class="subcard mt-16"><div class="row row-wrap gap-16"><div class="row"><b class="small">Bobot Juri:</b><div class="input-group" style="width:110px"><input class="input" type="number" min="0" max="100" id="cb-bj" data-inp="cb-bobot" value="' + f.bj + '" style="padding-right:30px"><span class="suffix muted small" style="right:12px">%</span></div></div>' +
       '<div class="row"><b class="small">Bobot Voting:</b><div class="input-group" style="width:110px"><input class="input" type="number" min="0" max="100" id="cb-bv" data-inp="cb-bobot" value="' + f.bv + '" style="padding-right:30px"><span class="suffix muted small" style="right:12px">%</span></div></div>' +
       '<span class="badge ' + (total === 100 ? 'badge-green' : 'badge-red') + '" id="cb-total" style="height:32px;margin-left:auto">' + ic(total === 100 ? 'circle-check' : 'circle-alert', 'ic-sm') + ' Total ' + total + '%' + (total === 100 ? ' (Valid)' : ' — harus 100%') + '</span></div>' +
@@ -552,12 +552,13 @@ EV_RENDER.cabang = (det, el) => {
     (f.mode === 'Babak' ? babakEditorHtml(f) : '') +
     (f.mode === 'Peringkat' ? '<div class="subcard mt-16"><div class="row" style="align-items:flex-start;gap:12px"><span class="icon-tile amber">' + ic('trophy') + '</span><div class="grow"><b>Sistem Rank 1 (gugur bila salah)</b><div class="small muted">Semua peserta menjawab pertanyaan yang sama; yang salah menjawab gugur. Peserta yang bertahan paling akhir adalah Juara 1. Juri cukup <b>menetapkan Juara 1, 2, 3</b> (dan juara harapan bila ada) — tanpa nilai atau kriteria.</div></div></div>' +
       '<div class="field mt-16" style="max-width:280px"><label>Juara Harapan</label><select class="select" id="cb-jh" data-chg="cb-jh">' + [0, 1, 2, 3, 4, 5].map(n => '<option value="' + n + '"' + (f.jh === n ? ' selected' : '') + '>' + (n ? n + ' (Harapan ' + Array.from({ length: n }, (_, i) => i + 1).join(', ') + ')' : 'Tanpa juara harapan') + '</option>').join('') + '</select></div></div>' : '') +
-    (f.mode !== 'Juri' && f.mode !== 'Babak' && f.mode !== 'Peringkat' ? '<div class="subcard mt-16 row between"><div><b>Voting Siswa Dibuka</b><div class="small muted">Izinkan seluruh siswa memberikan suara favorit melalui portal voting siswa.</div></div><label class="switch"><input type="checkbox" data-chg="voting-cabang"' + (c.VotingDibuka === 'Ya' ? ' checked' : '') + '><span class="track"></span></label></div>' : '') +
+    (f.mode === 'Poin' ? poinEditorHtml(f) : '') +
+    (['Juri', 'Babak', 'Peringkat', 'Poin'].indexOf(f.mode) < 0 ? '<div class="subcard mt-16 row between"><div><b>Voting Siswa Dibuka</b><div class="small muted">Izinkan seluruh siswa memberikan suara favorit melalui portal voting siswa.</div></div><label class="switch"><input type="checkbox" data-chg="voting-cabang"' + (c.VotingDibuka === 'Ya' ? ' checked' : '') + '><span class="track"></span></label></div>' : '') +
     '<div class="row mt-16" style="justify-content:flex-end"><button class="btn btn-primary" data-act="cabang-simpan">' + ic('save', 'ic-sm') + ' Simpan Pengaturan</button></div>' +
-    '<div class="subcard mt-24"><div class="row between row-wrap"><div class="row"><b style="font-size:16px">Peserta Cabang</b><span class="badge">' + c.peserta.length + ' Siswa</span></div><div class="row row-wrap"><button class="btn btn-sm" data-act="ambil-formulir">' + ic('file-text', 'ic-sm') + ' Ambil dari Formulir</button><button class="btn btn-primary btn-sm" data-act="peserta-tambah">' + ic('user-plus', 'ic-sm') + ' Tambah dari Data Siswa</button></div></div>' +
+    '<div class="subcard mt-24"><div class="row between row-wrap"><div class="row"><b style="font-size:16px">Peserta Cabang</b><span class="badge">' + c.peserta.length + ' Siswa</span></div><div class="row row-wrap"><button class="btn btn-sm" data-act="ambil-formulir">' + ic('file-text', 'ic-sm') + ' Ambil dari Formulir</button><button class="btn btn-sm" data-act="regu-baru">' + ic('users', 'ic-sm') + ' Buat Regu</button><button class="btn btn-primary btn-sm" data-act="peserta-tambah">' + ic('user-plus', 'ic-sm') + ' Tambah dari Data Siswa</button></div></div>' +
     (c.peserta.length ? '<div class="tbl-wrap mt-12" style="background:var(--surface);border-radius:12px"><table class="tbl" id="tbl-peserta"><thead><tr><th style="width:36px"></th><th style="width:70px">No Urut</th><th style="width:60px">Foto</th><th>Nama Peserta</th><th>Kelas</th><th>Keterangan</th><th style="text-align:right">Aksi</th></tr></thead><tbody>' +
       c.peserta.map(p => '<tr data-pid="' + esc(p.PesertaID) + '"><td><span class="drag-h" data-drag title="Geser untuk mengurutkan">' + ic('grip-vertical', 'ic-sm') + '</span></td><td><b style="font-size:16px">' + noUrut(p.NoUrut) + '</b></td><td><button class="photo-thumb" style="border:0;cursor:pointer" data-act="peserta-foto" data-id="' + esc(p.PesertaID) + '" title="Ganti foto">' + photoHtml(p.FotoFileId, p.NamaTampil, 120) + '</button></td>' +
-        '<td><b>' + esc(p.NamaTampil) + '</b></td><td>' + esc(p.Kelas) + '</td><td class="small muted">' + esc(p.Keterangan || '-') + '</td><td class="acts"><button class="btn btn-ghost btn-icon btn-sm" data-act="peserta-edit" data-id="' + esc(p.PesertaID) + '" title="Ubah">' + ic('pencil', 'ic-sm') + '</button><button class="btn btn-ghost btn-icon btn-sm" data-act="peserta-hapus" data-id="' + esc(p.PesertaID) + '" title="Hapus" style="color:var(--red)">' + ic('trash-2', 'ic-sm') + '</button></td></tr>').join('') + '</tbody></table></div>'
+        '<td><b>' + esc(p.NamaTampil) + '</b>' + ((p.Anggota || []).length ? ' <span class="badge" style="height:20px">' + ic('users', 'ic-sm') + ' Regu</span><div class="small muted">' + esc(p.Anggota.join(', ')) + '</div>' : '') + '</td><td>' + esc(p.Kelas) + '</td><td class="small muted">' + esc(p.Keterangan || '-') + '</td><td class="acts"><button class="btn btn-ghost btn-icon btn-sm" data-act="' + ((p.AnggotaIds || []).length ? 'regu-edit' : 'peserta-edit') + '" data-id="' + esc(p.PesertaID) + '" title="Ubah">' + ic('pencil', 'ic-sm') + '</button><button class="btn btn-ghost btn-icon btn-sm" data-act="peserta-hapus" data-id="' + esc(p.PesertaID) + '" title="Hapus" style="color:var(--red)">' + ic('trash-2', 'ic-sm') + '</button></td></tr>').join('') + '</tbody></table></div>'
       : '<div class="empty" style="padding:24px">Belum ada peserta. Tambahkan dari data siswa atau dari jawaban formulir.</div>') + '</div>' +
     '<div class="subcard mt-16"><div class="row between"><div class="row"><b style="font-size:16px">Dewan Juri Cabang</b><span class="badge">' + c.juri.length + ' Juri</span></div><button class="link-btn" data-act="tab" data-v="juri">' + ic('user-plus', 'ic-sm') + ' Kelola Juri</button></div>' +
     '<div class="row row-wrap mt-12">' + (c.juri.map(j => '<div class="card row" style="padding:10px 14px">' + avatarHtml(j.Nama) + '<div><div class="row"><b>' + esc(j.Nama) + '</b><span class="badge ' + (j.TipeJuri === 'Tamu' ? 'badge-amber' : '') + '">' + (j.TipeJuri === 'Tamu' ? 'Tamu' : 'PTK') + '</span></div><div class="small muted">' + esc(j.Jabatan || '') + '</div></div></div>').join('') || '<span class="muted small">' + (c.ModePenilaian === 'Voting' ? 'Mode voting saja tidak memerlukan juri.' : 'Belum ada juri.') + '</span>') + '</div></div></div>';
@@ -584,6 +585,27 @@ EVH.bb = (el, t) => { const b = el._cf.babak[+t.dataset.i]; if (t.dataset.f === 
 EVH['bb-add'] = (el) => { const L = el._cf.babak; L.splice(Math.max(0, L.length - 1), 0, { id: '', nama: 'Babak ' + L.length, maks: L.length > 1 ? L[L.length - 2].maks : 10 }); evRender(el); };
 EVH['bb-del'] = (el, b) => { el._cf.babak.splice(+b.dataset.i, 1); evRender(el); };
 EVH['cb-jh'] = (el, t) => { el._cf.jh = +t.value || 0; };
+/* ---- Sistem tambah/kurang poin ---- */
+function poinCabang(c) {
+  let o = c.PoinCfg; if (typeof o === 'string') { try { o = JSON.parse(o); } catch (e) { o = null; } }
+  o = o || (c.hasil && c.hasil.poin) || {};
+  const t = Array.isArray(o.tombol) && o.tombol.length ? o.tombol.map(Number) : [100, 50, -50, -100];
+  return { awal: +o.awal || 0, tombol: t };
+}
+function poinEditorHtml(f) {
+  const P = f.poin;
+  return '<div class="subcard mt-16"><div class="row" style="align-items:flex-start;gap:12px"><span class="icon-tile">' + ic('calculator') + '</span><div class="grow"><b>Sistem tambah / kurang poin</b><div class="small muted">Cocok untuk <b>cerdas cermat beregu</b> dan lomba sejenis: juri mengetuk tombol <b>+</b> saat regu menjawab benar dan <b>−</b> saat salah. Total poin tampil langsung di layar hasil. Buat regu lewat tombol <b>Buat Regu</b> di daftar peserta.</div></div></div>' +
+    '<div class="grid-2 mt-16"><div class="field"><label>Poin awal tiap regu</label><input class="input" type="number" id="cb-pa" data-inp="cb-poin" value="' + P.awal + '"></div>' +
+    '<div class="field"><label>Tombol poin <span class="muted small">(pisahkan dengan koma)</span></label><input class="input" id="cb-pt" data-inp="cb-poin" value="' + esc(P.tombol.join(', ')) + '" placeholder="100, 50, -50, -100"></div></div>' +
+    '<div class="row row-wrap mt-12" id="cb-pv">' + poinChips(P.tombol) + '</div></div>';
+}
+function poinChips(t) { return t.length ? t.map(v => '<span class="poin-chip ' + (v > 0 ? 'plus' : 'minus') + '">' + fmtPoin(v) + '</span>').join('') : '<span class="small" style="color:var(--red)">Isi minimal satu tombol, mis. 100, -50</span>'; }
+EVH['cb-poin'] = (el) => {
+  const P = el._cf.poin;
+  P.awal = Math.round(+$('#cb-pa', el).value || 0);
+  P.tombol = $('#cb-pt', el).value.split(/[,;\s]+/).map(x => x.replace('−', '-')).filter(x => x !== '' && x !== '+' && x !== '-').map(Number).filter(v => Number.isInteger(v) && v !== 0).slice(0, 8);
+  $('#cb-pv', el).innerHTML = poinChips(P.tombol);
+};
 EVH['bb-juara'] = (el, b) => { el._cf.juara = b.dataset.v; evRender(el); };
 EVH['cb-bobot'] = (el, t) => {
   const f = el._cf; let bj = +($('#cb-bj', el).value || 0), bv = +($('#cb-bv', el).value || 0);
@@ -598,6 +620,10 @@ EVH['cabang-simpan'] = async (el, b, det) => {
   const d = { CabangID: c.CabangID, EventID: det.event.EventID, NamaCabang: $('#cb-nama', el).value.trim(), TanggalPelaksanaan: $('#cb-tgl', el).value, TanggalSelesai: $('#cb-tgl2', el).value, JumlahJuara: $('#cb-jj', el).value, ModePenilaian: f.mode, BobotJuri: f.bj, BobotVoting: f.bv, JumlahHarapan: f.jh || 0 };
   if (f.mode === 'Gabungan' && f.bj + f.bv !== 100) return toast('Total bobot harus 100%', '', 'error');
   if (d.TanggalSelesai && d.TanggalPelaksanaan && d.TanggalSelesai < d.TanggalPelaksanaan) return toast('Tanggal selesai sebelum tanggal mulai', '', 'error');
+  if (f.mode === 'Poin') {
+    if (!f.poin.tombol.length) return toast('Isi minimal satu tombol poin', 'Contoh: 100, -50', 'error');
+    d.PoinCfg = { awal: f.poin.awal, tombol: f.poin.tombol };
+  }
   if (f.mode === 'Babak') {
     if (f.babak.some(x => !String(x.nama).trim())) return toast('Nama babak wajib diisi', '', 'error');
     d.Babak = { daftar: f.babak.map(x => ({ id: x.id, nama: String(x.nama).trim(), maks: +x.maks || 0 })), juara: f.juara };
@@ -613,12 +639,13 @@ EVH['voting-cabang'] = async (el, t, det) => {
 };
 EVH['cabang-baru'] = (el, b, det) => {
   const m = modal({ title: 'Tambah Cabang Lomba', body: '<div class="field"><label>Nama cabang <span class="req">*</span></label><input class="input" id="nc-nama" placeholder="mis. Baca Puisi" list="cb-sug"><datalist id="cb-sug">' + ['Baca Puisi', 'Pidato', 'Lomba Poster', 'Cerita Rakyat', 'Menyanyi Solo', 'Cerdas Cermat', 'Kaligrafi', 'Tari Kreasi', 'Futsal', 'Tarik Tambang'].map(x => '<option value="' + x + '">').join('') + '</datalist></div>' +
-    '<div class="grid-2 mt-16"><div class="field"><label>Tanggal mulai</label><input class="input" type="date" id="nc-tgl" value="' + esc(det.event.TanggalMulai || todayStr()) + '"></div><div class="field"><label>Tanggal selesai <span class="muted small">(opsional)</span></label><input class="input" type="date" id="nc-tgl2"></div></div><div class="grid-2 mt-16"><div class="field"><label>Mode penilaian</label><select class="select" id="nc-mode"><option value="Juri">Juri saja</option><option value="Voting">Voting saja</option><option value="Gabungan">Gabungan (60/40)</option><option value="Babak">Babak / Eliminasi (mis. Spelling Bee)</option><option value="Peringkat">Rank 1 — gugur bila salah</option></select></div></div><div id="nc-err"></div>',
+    '<div class="grid-2 mt-16"><div class="field"><label>Tanggal mulai</label><input class="input" type="date" id="nc-tgl" value="' + esc(det.event.TanggalMulai || todayStr()) + '"></div><div class="field"><label>Tanggal selesai <span class="muted small">(opsional)</span></label><input class="input" type="date" id="nc-tgl2"></div></div><div class="grid-2 mt-16"><div class="field"><label>Mode penilaian</label><select class="select" id="nc-mode"><option value="Juri">Juri saja</option><option value="Voting">Voting saja</option><option value="Gabungan">Gabungan (60/40)</option><option value="Babak">Babak / Eliminasi (mis. Spelling Bee)</option><option value="Peringkat">Rank 1 — gugur bila salah</option><option value="Poin">Tambah/Kurang Poin (cerdas cermat beregu)</option></select></div></div><div id="nc-err"></div>',
     foot: '<button class="btn" data-close>Batal</button><button class="btn btn-primary" id="nc-ok">' + ic('plus', 'ic-sm') + ' Tambah</button>' });
   m.q('#nc-ok').onclick = async (e) => {
     const mode = m.q('#nc-mode').value;
     const d = { EventID: det.event.EventID, NamaCabang: m.q('#nc-nama').value.trim(), TanggalPelaksanaan: m.q('#nc-tgl').value, TanggalSelesai: m.q('#nc-tgl2').value, ModePenilaian: mode, BobotJuri: mode === 'Gabungan' ? 60 : 100, BobotVoting: mode === 'Gabungan' ? 40 : 0, JumlahJuara: 3 };
     if (mode === 'Babak') d.Babak = { daftar: BABAK_DEF(), juara: 'akumulasi' };
+    if (mode === 'Poin') d.PoinCfg = { awal: 0, tombol: [100, 50, -50, -100] };
     const res = await busy(e.currentTarget, () => api('simpanCabang', { cabang: d }));
     if (!res.success) { m.q('#nc-err').innerHTML = '<div class="alert alert-red mt-12 small">' + esc(res.message) + '</div>'; return; }
     m.close(); toast('Cabang ditambahkan', d.NamaCabang);
@@ -658,6 +685,47 @@ EVH['peserta-tambah'] = async (el, b, det) => {
     if (toastRes(res, res.data && res.data.peserta.length + ' peserta ditambahkan')) { m.close(); c.peserta = c.peserta.concat(res.data.peserta); evRender(el); invalidateEvent(det.event.EventID); }
   };
 };
+/* ---- Regu (peserta beregu) ---- */
+EVH['regu-baru'] = (el, b, det) => bukaRegu(el, det, null);
+EVH['regu-edit'] = (el, b, det) => { const c = curCabang(el, det); bukaRegu(el, det, c.peserta.find(x => x.PesertaID === b.dataset.id)); };
+async function bukaRegu(el, det, regu) {
+  const c = curCabang(el, det), list = await loadSiswa();
+  const dipakai = {};   // siswa yang sudah jadi peserta/anggota regu lain di cabang ini
+  c.peserta.forEach(p => { if (regu && p.PesertaID === regu.PesertaID) return; if (p.SiswaID) dipakai[p.SiswaID] = p.NamaTampil; (p.AnggotaIds || []).forEach(id => { dipakai[id] = p.NamaTampil; }); });
+  const st = { q: '', kelas: '', sel: new Set(regu ? regu.AnggotaIds || [] : []) };
+  const nReg = c.peserta.filter(p => (p.AnggotaIds || []).length).length;
+  const m = modal({ title: regu ? 'Ubah Regu' : 'Buat Regu — ' + c.NamaCabang, size: 'lg',
+    body: '<div class="grid-2"><div class="field"><label>Nama regu <span class="req">*</span></label><input class="input" id="rg-n" value="' + esc(regu ? regu.NamaTampil : 'Regu ' + String.fromCharCode(65 + nReg)) + '" placeholder="mis. Regu A — Garuda"></div><div class="field"><label>Keterangan</label><input class="input" id="rg-k" value="' + esc(regu ? regu.Keterangan || '' : '') + '" placeholder="opsional, mis. asal kelas"></div></div>' +
+      '<div class="row between mt-16"><b>Anggota regu</b><span class="badge" id="rg-c">0 dipilih</span></div>' +
+      '<div class="row row-wrap mt-8"><div class="input-group grow">' + ic('search') + '<input class="input" id="rg-q" placeholder="Cari nama atau NISN"></div><select class="select" id="rg-kl" style="width:150px"><option value="">Semua kelas</option>' + (B().kelas || []).map(k => '<option>' + esc(k) + '</option>').join('') + '</select></div>' +
+      '<div id="rg-sel" class="row row-wrap mt-12"></div>' +
+      '<div id="rg-list" class="mt-12" style="max-height:42vh;overflow:auto;border:1px solid var(--border);border-radius:12px"></div><div id="rg-err"></div>',
+    foot: '<button class="btn" data-close>Batal</button><button class="btn btn-primary" id="rg-ok">' + ic('save', 'ic-sm') + ' Simpan Regu</button>' });
+  const nama = (id) => (list.find(s => s.SiswaID === id) || {}).Nama || id;
+  const paint = () => {
+    const rows = list.filter(s => s.Aktif !== 'Tidak' && (!st.kelas || s.Kelas === st.kelas) && (!st.q || s.Nama.toLowerCase().indexOf(st.q) > -1 || String(s.NISN).indexOf(st.q) > -1)).slice(0, 300);
+    m.q('#rg-list').innerHTML = rows.map(s => { const lain = dipakai[s.SiswaID]; return '<label class="name-row" style="cursor:' + (lain ? 'default;opacity:.5' : 'pointer') + '"><input type="checkbox" class="check" data-sid="' + esc(s.SiswaID) + '"' + (st.sel.has(s.SiswaID) ? ' checked' : '') + (lain ? ' disabled' : '') + ' style="width:18px;height:18px;accent-color:var(--primary)">' + avatarHtml(s.Nama, '', 'avatar-sm') + '<span class="grow"><b>' + esc(s.Nama) + '</b> <span class="muted small">· ' + esc(s.Kelas) + '</span></span>' + (lain ? '<span class="badge badge-gray">' + esc(lain) + '</span>' : '') + '</label>'; }).join('') || '<div class="empty">Tidak ada siswa.</div>';
+    paintSel();
+  };
+  const paintSel = () => { m.q('#rg-c').textContent = st.sel.size + ' dipilih'; m.q('#rg-sel').innerHTML = Array.from(st.sel).map(id => '<span class="chip chip-sm on" style="cursor:default">' + esc(nama(id)) + ' <button type="button" class="link-btn" data-un="' + esc(id) + '" aria-label="Hapus" style="color:#fff">×</button></span>').join(''); };
+  paint();
+  m.q('#rg-q').oninput = debounce((e) => { st.q = e.target.value.toLowerCase(); paint(); }, 150);
+  m.q('#rg-kl').onchange = (e) => { st.kelas = e.target.value; paint(); };
+  m.q('#rg-list').onchange = (e) => { const sId = e.target.dataset.sid; if (!sId) return; if (e.target.checked) st.sel.add(sId); else st.sel.delete(sId); paintSel(); };
+  m.q('#rg-sel').onclick = (e) => { const x = e.target.closest('[data-un]'); if (!x) return; st.sel.delete(x.dataset.un); paint(); };
+  m.q('#rg-ok').onclick = async (e) => {
+    const n = m.q('#rg-n').value.trim();
+    if (!n) return m.q('#rg-n').focus();
+    if (!st.sel.size) { m.q('#rg-err').innerHTML = '<div class="alert alert-red mt-12 small">Pilih minimal satu anggota.</div>'; return; }
+    const res = await busy(e.currentTarget, () => api('simpanRegu', { cabangId: c.CabangID, regu: { PesertaID: regu ? regu.PesertaID : '', NamaTampil: n, Keterangan: m.q('#rg-k').value.trim(), anggota: Array.from(st.sel) } }));
+    if (!res.success) { m.q('#rg-err').innerHTML = '<div class="alert alert-red mt-12 small">' + esc(res.message) + '</div>'; return; }
+    m.close(); toast(regu ? 'Regu diperbarui' : 'Regu dibuat', n + ' · ' + st.sel.size + ' anggota');
+    const row = Object.assign({}, res.data.peserta, { AnggotaIds: Array.from(st.sel), Anggota: Array.from(st.sel).map(nama) });
+    const i = c.peserta.findIndex(x => x.PesertaID === row.PesertaID);
+    if (i > -1) c.peserta[i] = row; else c.peserta.push(row);
+    evRender(el); invalidateEvent(det.event.EventID);
+  };
+}
 EVH['peserta-edit'] = (el, b, det) => {
   const c = curCabang(el, det), p = c.peserta.find(x => x.PesertaID === b.dataset.id);
   const m = modal({ title: 'Ubah Peserta', body: '<div class="field"><label>Nama tampil</label><input class="input" id="pe-n" value="' + esc(p.NamaTampil) + '"></div><div class="grid-2 mt-12"><div class="field"><label>Kelas</label><input class="input" id="pe-k" value="' + esc(p.Kelas) + '"></div><div class="field"><label>No. urut</label><input class="input" type="number" id="pe-no" value="' + esc(p.NoUrut) + '"></div></div><div class="field mt-12"><label>Keterangan (mis. judul puisi / karya)</label><input class="input" id="pe-ket" value="' + esc(p.Keterangan) + '"></div>',
@@ -759,17 +827,17 @@ EV_RENDER.juri = (det, el) => {
   const prog = {}; (c.hasil.juriProgress || []).forEach(p => prog[p.JuriID] = p);
   const chips = '<div class="row row-wrap mb-16">' + det.cabang.map(x => '<button class="chip' + (x.CabangID === c.CabangID ? ' on' : '') + '" data-act="pilih-cabang" data-id="' + esc(x.CabangID) + '">' + esc(x.NamaCabang) + '</button>').join('') + '</div>';
   if (c.ModePenilaian === 'Voting') return chips + '<div class="card">' + emptyState('vote', 'Cabang ini memakai voting saja', 'Ubah mode penilaian menjadi "Juri saja" atau "Gabungan" untuk memakai juri & kriteria.', '<button class="btn btn-primary" data-act="tab" data-v="cabang">Ubah Mode</button>') + '</div>';
-  const isR = c.ModePenilaian === 'Peringkat', isB = c.ModePenilaian === 'Babak', bAkt = isB ? ((c.hasil.babak || []).find(b => b.id === c.hasil.babakAktif) || {}) : null;
+  const isP = c.ModePenilaian === 'Poin', isR = c.ModePenilaian === 'Peringkat', isB = c.ModePenilaian === 'Babak', bAkt = isB ? ((c.hasil.babak || []).find(b => b.id === c.hasil.babakAktif) || {}) : null;
   return chips + '<div class="row gap-16" style="align-items:flex-start;flex-wrap:wrap">' +
     '<div class="card" style="flex:1 1 420px;overflow:hidden"><div class="card-head"><div><div class="card-title">Dewan Juri — ' + esc(c.NamaCabang) + '</div><div class="card-sub">Juri dari data PTK atau juri tamu.</div></div></div>' +
     '<div class="card-body">' + (c.juri.map(j => { const p = prog[j.JuriID] || { dinilai: 0, total: c.peserta.length }; return '<div class="row" style="padding:12px 0;border-bottom:1px solid var(--line-soft)">' + avatarHtml(j.Nama) + '<div class="grow" style="min-width:0"><div class="row"><b class="ellipsis">' + esc(j.Nama) + '</b><span class="badge ' + (j.TipeJuri === 'Tamu' ? 'badge-amber' : '') + '">' + (j.TipeJuri === 'Tamu' ? 'Tamu' : 'PTK') + '</span>' + (!j.punyaSandi ? '<span class="badge badge-red" title="Juri belum bisa login">Belum ada sandi</span>' : '') + '</div><div class="small muted">' + esc(j.Jabatan || '') + '</div>' +
       '<div class="row mt-8"><div class="prog grow ' + (p.dinilai >= p.total && p.total ? 'green' : '') + '"><i style="width:' + pct(p.dinilai, p.total) + '%"></i></div><span class="small muted tnum">' + p.dinilai + '/' + p.total + ' dinilai' + (isB && bAkt.nama ? ' · ' + esc(bAkt.nama) : '') + '</span></div></div>' +
-      '<div class="row gap-4">' + (j.TipeJuri === 'Tamu' ? '<button class="btn btn-ghost btn-icon btn-sm" data-act="juri-sandi" data-id="' + esc(j.JuriID) + '" title="Ubah sandi">' + ic('key-round', 'ic-sm') + '</button>' : '') + (isB || isR ? '' : '<button class="btn btn-ghost btn-icon btn-sm" data-act="nilai-manual" data-id="' + esc(j.JuriID) + '" title="Input nilai dari lembar cetak">' + ic('square-pen', 'ic-sm') + '</button>') + '<button class="btn btn-ghost btn-icon btn-sm" data-act="juri-hapus" data-id="' + esc(j.JuriID) + '" title="Hapus" style="color:var(--red)">' + ic('trash-2', 'ic-sm') + '</button></div></div>'; }).join('') || '<div class="muted small">Belum ada juri untuk cabang ini.</div>') +
+      '<div class="row gap-4">' + (j.TipeJuri === 'Tamu' ? '<button class="btn btn-ghost btn-icon btn-sm" data-act="juri-sandi" data-id="' + esc(j.JuriID) + '" title="Ubah sandi">' + ic('key-round', 'ic-sm') + '</button>' : '') + (isB || isR || isP ? '' : '<button class="btn btn-ghost btn-icon btn-sm" data-act="nilai-manual" data-id="' + esc(j.JuriID) + '" title="Input nilai dari lembar cetak">' + ic('square-pen', 'ic-sm') + '</button>') + '<button class="btn btn-ghost btn-icon btn-sm" data-act="juri-hapus" data-id="' + esc(j.JuriID) + '" title="Hapus" style="color:var(--red)">' + ic('trash-2', 'ic-sm') + '</button></div></div>'; }).join('') || '<div class="muted small">Belum ada juri untuk cabang ini.</div>') +
     '<div class="subcard mt-16"><div class="seg seg-light seg-block mb-12" id="jr-tipe"><button type="button" class="on" data-act="jr-tipe" data-v="PTK">Dari data PTK</button><button type="button" data-act="jr-tipe" data-v="Tamu">Juri tamu</button></div>' +
     '<div id="jr-ptk"><div class="row"><select class="select grow" id="jr-ptkid"><option value="">— Pilih PTK —</option>' + ptkOptions('', p => !c.juri.some(j => j.PTK_ID === p.PTK_ID)) + '</select><button class="btn btn-primary" data-act="juri-tambah">' + ic('user-plus', 'ic-sm') + ' Tambah</button></div><div class="hint mt-8">' + 'Juri memilih namanya dari daftar lalu memasukkan kata sandi akun PTK-nya.' + '</div></div>' +
     '<div id="jr-tamu" hidden><div class="grid-2"><input class="input" id="jr-nama" placeholder="Nama juri tamu"><input class="input" id="jr-jab" placeholder="Jabatan / keterangan"></div><div class="row mt-12"><input class="input grow" id="jr-pw" placeholder="Kata sandi untuk juri tamu (min. 4)"><button class="btn btn-primary" data-act="juri-tambah">' + ic('user-plus', 'ic-sm') + ' Tambah</button></div></div></div></div>' +
     '<div class="row" style="padding:0 24px 20px;flex-wrap:wrap"><label class="switch grow"><input type="checkbox" data-chg="kunci"' + (c.Terkunci === 'Ya' ? ' checked' : '') + '><span class="track"></span><span><b>Kunci Penilaian</b><br><span class="small muted">Juri tidak bisa mengubah nilai lagi.</span></span></label><button class="btn btn-soft btn-sm" data-act="cetak-doc" data-jenis="LembarJuri">' + ic('printer', 'ic-sm') + ' Cetak Lembar Juri</button></div></div>' +
-    (isB ? skorBabakHtml(c, el) + '</div>' : isR ? penetapanHtml(c, el) + '</div>' : '') + (isB || isR ? '' :
+    (isB ? skorBabakHtml(c, el) + '</div>' : isR ? penetapanHtml(c, el) + '</div>' : isP ? papanPoinHtml(c, el) + '</div>' : '') + (isB || isR || isP ? '' :
     '<div class="card" style="flex:1.2 1 460px;overflow:hidden"><div class="card-head"><div><div class="card-title">Kriteria Penilaian</div><div class="card-sub">Total bobot harus 100%. Nilai juri dinormalisasi ke skala 0–100.</div></div><span class="badge ' + (Math.abs(tot - 100) < .001 ? 'badge-green' : 'badge-red') + '" id="kr-tot" style="height:30px">Total ' + tot + '%</span></div>' +
     '<div class="card-body"><div class="tbl-wrap"><table class="tbl compact"><thead><tr><th>Kriteria</th><th style="width:76px">Min</th><th style="width:76px">Maks</th><th style="width:86px">Bobot %</th><th style="width:40px"></th></tr></thead><tbody>' +
     el._kr.list.map((k, i) => '<tr><td><input class="input input-sm" data-inp="kr" data-i="' + i + '" data-f="NamaKriteria" value="' + esc(k.NamaKriteria) + '" placeholder="mis. Penghayatan"><input class="input input-sm mt-8" data-inp="kr" data-i="' + i + '" data-f="Keterangan" value="' + esc(k.Keterangan || '') + '" placeholder="Keterangan (opsional)"></td>' +
@@ -777,6 +845,42 @@ EV_RENDER.juri = (det, el) => {
       '<td><button class="btn btn-ghost btn-icon btn-sm" data-act="kr-del" data-i="' + i + '" style="color:var(--red)">' + ic('x', 'ic-sm') + '</button></td></tr>').join('') +
     '</tbody></table></div><div class="row mt-12"><button class="btn btn-soft btn-sm" data-act="kr-add">' + ic('plus', 'ic-sm') + ' Tambah Kriteria</button><button class="btn btn-primary btn-sm" data-act="kr-save" style="margin-left:auto">' + ic('save', 'ic-sm') + ' Simpan Kriteria</button></div>' +
     (c.nilai.length ? '<div class="alert alert-amber small mt-16">' + ic('triangle-alert', 'ic-sm') + '<span>Menghapus kriteria juga menghapus nilai juri pada kriteria tersebut.</span></div>' : '') + '</div></div></div>');
+};
+/* ---- Papan poin (panitia) — ketuk +/−, tersimpan otomatis ---- */
+function papanPoinHtml(c, el) {
+  const h = c.hasil, P = poinCabang(c), pd = (el._pd && el._pd.id === c.CabangID) ? el._pd : (el._pd = { id: c.CabangID, delta: {}, antre: [], t: 0 });
+  const tot = {}; (h.peserta || []).forEach(p => { tot[p.PesertaID] = p.total; });
+  const rows = c.peserta.slice().sort((a, b) => a.NoUrut - b.NoUrut);
+  const rank = {}; (h.peserta || []).forEach(p => { rank[p.PesertaID] = p.peringkat; });
+  return '<div class="card" style="flex:1.2 1 520px;overflow:hidden" id="pp-card"><div class="card-head"><div><div class="card-title">Papan Poin</div><div class="card-sub">Ketuk tombol saat regu menjawab — tersimpan otomatis dan langsung tampil di layar hasil. Juri juga bisa mengisi dari HP.</div></div><span class="badge" style="height:30px">' + (h.jumlahAksi || 0) + ' ketukan</span></div>' +
+    '<div class="card-body">' + (c.Terkunci === 'Ya' ? '<div class="alert alert-amber small mb-12">' + ic('lock', 'ic-sm') + '<span>Penilaian terkunci untuk juri. Panitia tetap bisa mengoreksi di sini.</span></div>' : '') +
+    (rows.length ? rows.map(p => { const t = (tot[p.PesertaID] != null ? tot[p.PesertaID] : P.awal) + (pd.delta[p.PesertaID] || 0);
+      return '<div class="pp-row" data-pid="' + esc(p.PesertaID) + '"><span class="rank' + (rank[p.PesertaID] <= 3 ? ' r' + rank[p.PesertaID] : '') + '">' + (rank[p.PesertaID] || '–') + '</span><div class="grow" style="min-width:0"><b class="ellipsis" style="display:block">' + esc(p.NamaTampil) + '</b><div class="small muted ellipsis">' + esc((p.Anggota || []).length ? p.Anggota.join(', ') : p.Kelas) + '</div></div>' +
+        '<b class="pp-total tnum" data-tot="' + esc(p.PesertaID) + '">' + t + '</b><div class="pp-btns">' + P.tombol.map(v => '<button type="button" class="poin-btn ' + (v > 0 ? 'plus' : 'minus') + '" data-act="pp-tap" data-id="' + esc(p.PesertaID) + '" data-v="' + v + '">' + fmtPoin(v) + '</button>').join('') + '</div></div>'; }).join('')
+      : '<div class="empty" style="padding:20px">Belum ada regu/peserta. Buat regu di tab Cabang & Peserta.</div>') +
+    ((h.riwayat || []).length ? '<details class="mt-16"><summary class="link-btn">' + ic('history', 'ic-sm') + ' Riwayat ketukan terakhir</summary><div class="mt-8">' + h.riwayat.map(r => '<div class="row" style="padding:6px 0;border-bottom:1px solid var(--line-soft)"><span class="poin-chip ' + (r.nilai > 0 ? 'plus' : 'minus') + '">' + fmtPoin(r.nilai) + '</span><span class="grow ellipsis">' + esc(r.nama) + '</span><span class="small muted">' + esc(r.oleh) + ' · ' + esc(jam(r.waktu)) + '</span><button class="btn btn-ghost btn-icon btn-sm" data-act="pp-batal" data-id="' + esc(r.id) + '" title="Batalkan">' + ic('rotate-ccw', 'ic-sm') + '</button></div>').join('') + '</div></details>' : '') +
+    '</div></div>';
+}
+EVH['pp-tap'] = (el, b, det) => {
+  const c = curCabang(el, det), pd = el._pd, pid = b.dataset.id, v = +b.dataset.v;
+  pd.delta[pid] = (pd.delta[pid] || 0) + v;
+  pd.antre.push({ id: idPoinBaru(), pesertaId: pid, nilai: v });
+  const t = $('[data-tot="' + pid + '"]', el); if (t) { t.textContent = +t.textContent + v; t.classList.remove('bump'); void t.offsetWidth; t.classList.add('bump'); }
+  clearTimeout(pd.t); pd.t = setTimeout(() => kirimPoinAdmin(el, det, c), 500);
+};
+async function kirimPoinAdmin(el, det, c) {
+  const pd = el._pd; if (!pd || !pd.antre.length) return;
+  const kirim = pd.antre.splice(0), reqId = idPoinBaru();
+  const res = await api('simpanPoin', { cabangId: c.CabangID, tambah: kirim }, { reqId });
+  if (!res.success) { pd.antre = kirim.concat(pd.antre); toast('Poin belum tersimpan', res.message, 'error'); return; }
+  kirim.forEach(k => { pd.delta[k.pesertaId] -= k.nilai; });
+  (c.hasil.peserta || []).forEach(p => { if (res.data.total[p.PesertaID] != null) p.total = res.data.total[p.PesertaID]; });
+  invalidateEvent(det.event.EventID);
+}
+EVH['pp-batal'] = async (el, b, det) => {
+  const c = curCabang(el, det);
+  const res = await busy(b, () => api('simpanPoin', { cabangId: c.CabangID, batal: [b.dataset.id] }));
+  if (toastRes(res, 'Ketukan dibatalkan')) invalidateEvent(det.event.EventID);
 };
 /* ---- Penetapan juara sistem Rank 1 (panitia) ---- */
 function penetapanHtml(c, el) {
@@ -920,17 +1024,18 @@ EV_RENDER.hasil = (det, el) => {
   if (ev.JenisEvent !== 'Lomba') return '';
   const c = curCabang(el, det);
   if (!c) return '<div class="card">' + emptyState('trophy', 'Belum ada cabang', '') + '</div>';
-  const h = c.hasil, isB = h.ModePenilaian === 'Babak', isR = h.ModePenilaian === 'Peringkat', showJ = h.ModePenilaian !== 'Voting' && !isB && !isR, showV = h.ModePenilaian !== 'Juri' && !isB && !isR, showS = !isR, BL = isB ? (h.babak || []) : [];
+  const h = c.hasil, isB = h.ModePenilaian === 'Babak', isR = h.ModePenilaian === 'Peringkat', isP = h.ModePenilaian === 'Poin', showJ = ['Voting', 'Babak', 'Peringkat', 'Poin'].indexOf(h.ModePenilaian) < 0, showV = h.ModePenilaian === 'Voting' || h.ModePenilaian === 'Gabungan', showS = !isR, BL = isB ? (h.babak || []) : [];
   return '<div class="row row-wrap mb-16">' + det.cabang.map(x => '<button class="chip' + (x.CabangID === c.CabangID ? ' on' : '') + '" data-act="pilih-cabang" data-id="' + esc(x.CabangID) + '">' + esc(x.NamaCabang) + (x.hasil.seri ? ' <span class="badge badge-amber" style="height:20px">Seri</span>' : '') + '</button>').join('') + '</div>' +
     (h.seri ? '<div class="alert alert-amber mb-16"><span class="icon-tile amber" style="width:40px;height:40px">' + ic('triangle-alert') + '</span><div class="grow"><b>Skor akhir seri</b> pada posisi juara. Tetapkan urutan juara secara manual beserta alasannya.</div><button class="btn btn-amber" data-act="seri-lomba">Tetapkan Urutan</button></div>' : '') +
     (h.penetapan ? '<div class="alert alert-blue mb-16">' + ic('gavel') + '<div><b>Urutan ditetapkan</b> oleh ' + esc(h.penetapan.DitetapkanOleh) + ' — ' + esc(h.penetapan.Alasan) + '</div></div>' : '') +
-    '<div class="card" style="overflow:hidden"><div class="card-head"><div><div class="card-title">Peringkat — ' + esc(c.NamaCabang) + '</div><div class="card-sub">' + (isR ? 'Sistem Rank 1 — juara ditetapkan juri berdasarkan peserta yang bertahan paling akhir' + (h.JumlahHarapan ? ' · ' + h.JumlahHarapan + ' juara harapan' : '') : isB ? 'Skor = jumlah jawaban benar · juara dari ' + (h.juaraDari === 'final' ? 'skor babak final (total sebagai penentu bila sama)' : 'total akumulasi semua babak') + '; peserta yang maju lebih jauh berada di atas' : h.ModePenilaian === 'Gabungan' ? 'Skor Akhir = Skor Juri × ' + h.BobotJuri + '% + Skor Voting × ' + h.BobotVoting + '%' : h.ModePenilaian === 'Juri' ? 'Skor akhir = rata-rata nilai juri (0–100)' : 'Skor voting = suara ÷ suara tertinggi × 100') + (showV ? ' · ' + h.totalSuara + ' suara' : '') + '</div></div>' +
+    '<div class="card" style="overflow:hidden"><div class="card-head"><div><div class="card-title">Peringkat — ' + esc(c.NamaCabang) + '</div><div class="card-sub">' + (isP ? 'Sistem tambah/kurang poin · total = poin awal ' + ((h.poin || {}).awal || 0) + ' + jumlah poin dari juri · ' + (h.jumlahAksi || 0) + ' ketukan' : isR ? 'Sistem Rank 1 — juara ditetapkan juri berdasarkan peserta yang bertahan paling akhir' + (h.JumlahHarapan ? ' · ' + h.JumlahHarapan + ' juara harapan' : '') : isB ? 'Skor = jumlah jawaban benar · juara dari ' + (h.juaraDari === 'final' ? 'skor babak final (total sebagai penentu bila sama)' : 'total akumulasi semua babak') + '; peserta yang maju lebih jauh berada di atas' : h.ModePenilaian === 'Gabungan' ? 'Skor Akhir = Skor Juri × ' + h.BobotJuri + '% + Skor Voting × ' + h.BobotVoting + '%' : h.ModePenilaian === 'Juri' ? 'Skor akhir = rata-rata nilai juri (0–100)' : 'Skor voting = suara ÷ suara tertinggi × 100') + (showV ? ' · ' + h.totalSuara + ' suara' : '') + '</div></div>' +
     '<div class="row row-wrap"><a class="btn btn-sm" href="#/tayang/' + esc(ev.EventID) + '/' + esc(c.CabangID) + '">' + ic('monitor', 'ic-sm') + ' Layar</a><button class="btn btn-sm" data-act="cetak-doc" data-jenis="Rekap">' + ic('printer', 'ic-sm') + ' Rekap</button><a class="btn btn-sm" href="#/piagam/' + esc(ev.EventID) + '/' + esc(c.CabangID) + '">' + ic('award', 'ic-sm') + ' Editor Piagam</a><button class="btn btn-primary btn-sm" data-act="piagam-cetak">' + ic('printer', 'ic-sm') + ' Cetak Piagam Juara</button></div></div>' +
-    '<div class="tbl-wrap mt-16"><table class="tbl"><thead><tr><th style="width:80px">Peringkat</th><th>Peserta</th>' + BL.map(b => '<th class="num">' + esc(b.nama) + (b.maks ? '<div class="small muted" style="text-transform:none;letter-spacing:0">/' + b.maks + '</div>' : '') + '</th>').join('') + (showJ ? '<th class="num">Skor Juri</th>' : '') + (showV ? '<th class="num">Suara</th><th class="num">Skor Voting</th>' : '') + (showS ? '<th class="num">' + (isB ? 'Total Benar' : 'Skor Akhir') + '</th>' : '') + '<th>Keterangan</th><th></th></tr></thead><tbody>' +
-    (h.peserta.map(p => '<tr class="' + (p.seri ? 'row-seri' : '') + '"><td><span class="rank r' + p.peringkat + '">' + p.peringkat + '</span></td><td><div class="row"><span class="photo-thumb">' + photoHtml(p.FotoFileId, p.NamaTampil, 120) + '</span><div><b>' + esc(p.NamaTampil) + '</b><div class="small muted">' + esc(p.Kelas) + (showJ ? ' · ' + p.jumlahJuriMenilai + ' juri' : '') + '</div></div></div></td>' +
+    '<div class="tbl-wrap mt-16"><table class="tbl"><thead><tr><th style="width:80px">Peringkat</th><th>Peserta</th>' + BL.map(b => '<th class="num">' + esc(b.nama) + (b.maks ? '<div class="small muted" style="text-transform:none;letter-spacing:0">/' + b.maks + '</div>' : '') + '</th>').join('') + (isP ? '<th class="num">Benar (+)</th><th class="num">Salah (−)</th>' : '') + (showJ ? '<th class="num">Skor Juri</th>' : '') + (showV ? '<th class="num">Suara</th><th class="num">Skor Voting</th>' : '') + (showS ? '<th class="num">' + (isB ? 'Total Benar' : isP ? 'Total Poin' : 'Skor Akhir') + '</th>' : '') + '<th>Keterangan</th><th></th></tr></thead><tbody>' +
+    (h.peserta.map(p => '<tr class="' + (p.seri ? 'row-seri' : '') + '"><td><span class="rank r' + p.peringkat + '">' + p.peringkat + '</span></td><td><div class="row"><span class="photo-thumb">' + photoHtml(p.FotoFileId, p.NamaTampil, 120) + '</span><div><b>' + esc(p.NamaTampil) + '</b><div class="small muted">' + esc((p.Anggota || []).length ? p.Anggota.join(', ') : p.Kelas) + (showJ ? ' · ' + p.jumlahJuriMenilai + ' juri' : '') + '</div></div></div></td>' +
+      (isP ? '<td class="num" style="color:var(--green-text)">' + p.benar + '</td><td class="num" style="color:var(--red-text)">' + p.salah + '</td>' : '') +
       BL.map(b => { const ada = Object.prototype.hasOwnProperty.call(p.skorBabak || {}, b.id), v = ada ? p.skorBabak[b.id] : null, lol = (p.lolos || {})[b.id] === 'Ya'; return '<td class="num tnum">' + (!ada ? '<span class="muted">—</span>' : v === null ? '<span class="muted small">belum</span>' : '<b' + (b.final && h.juaraDari === 'final' ? ' style="color:var(--primary);font-size:16px"' : '') + '>' + v + '</b>' + (lol && !b.final ? ' <span title="Lolos" style="color:var(--green)">' + ic('circle-check', 'ic-sm') + '</span>' : '')) + '</td>'; }).join('') +
-      (showJ ? '<td class="num">' + fmtNum(p.skorJuri, 2) + '</td>' : '') + (showV ? '<td class="num">' + p.suara + '</td><td class="num">' + fmtNum(p.skorVoting, 2) + '</td>' : '') + (showS ? '<td class="num"><b style="font-size:16px">' + (isB ? p.total : fmtNum(p.skorAkhir, 2)) + '</b></td>' : '') +
-      '<td>' + (isB && !p.juara && p.status ? '<span class="small' + (/^Gugur/.test(p.status) ? ' muted' : '') + '">' + esc(p.status) + '</span>' : '') + (p.juara ? '<span class="badge badge-amber">' + ic('trophy', 'ic-sm') + ' Juara ' + p.juara + '</span>' : '') + (p.harapan ? '<span class="badge badge-green">' + ic('award', 'ic-sm') + ' Juara Harapan ' + p.harapan + '</span>' : '') + (isR && !p.posisi ? '<span class="small muted">—</span>' : '') + (p.seri ? ' <span class="badge badge-red">Seri</span>' : '') + '</td><td class="acts">' + (p.juara || p.harapan ? '<button class="btn btn-ghost btn-sm" data-act="piagam-satu" data-id="' + esc(p.PesertaID) + '">' + ic('award', 'ic-sm') + ' Piagam</button>' : '') + '</td></tr>').join('') || '<tr><td colspan="' + (8 + BL.length) + '">' + emptyState('users', 'Belum ada peserta', '') + '</td></tr>') +
+      (showJ ? '<td class="num">' + fmtNum(p.skorJuri, 2) + '</td>' : '') + (showV ? '<td class="num">' + p.suara + '</td><td class="num">' + fmtNum(p.skorVoting, 2) + '</td>' : '') + (showS ? '<td class="num"><b style="font-size:16px">' + (isB || isP ? p.total : fmtNum(p.skorAkhir, 2)) + '</b></td>' : '') +
+      '<td>' + (isB && !p.juara && p.status ? '<span class="small' + (/^Gugur/.test(p.status) ? ' muted' : '') + '">' + esc(p.status) + '</span>' : '') + (p.juara ? '<span class="badge badge-amber">' + ic('trophy', 'ic-sm') + ' Juara ' + p.juara + '</span>' : '') + (p.harapan ? '<span class="badge badge-green">' + ic('award', 'ic-sm') + ' Juara Harapan ' + p.harapan + '</span>' : '') + (isR && !p.posisi ? '<span class="small muted">—</span>' : '') + (p.seri ? ' <span class="badge badge-red">Seri</span>' : '') + '</td><td class="acts">' + (p.juara || p.harapan ? '<button class="btn btn-ghost btn-sm" data-act="piagam-satu" data-id="' + esc(p.PesertaID) + '">' + ic('award', 'ic-sm') + ' Piagam</button>' : '') + '</td></tr>').join('') || '<tr><td colspan="' + (10 + BL.length) + '">' + emptyState('users', 'Belum ada peserta', '') + '</td></tr>') +
     '</tbody></table></div></div>';
 };
 EVH['seri-osis'] = (el, b, det) => {
@@ -943,7 +1048,7 @@ EVH['seri-lomba'] = (el, b, det) => {
   const c = curCabang(el, det), ids = c.hasil.seriIds;
   const groupScores = uniq(c.hasil.peserta.filter(p => ids.indexOf(p.PesertaID) > -1).map(p => p.skorAkhir));
   const tied = c.hasil.peserta.filter(p => groupScores.indexOf(p.skorAkhir) > -1);
-  formSeri(det, c.CabangID, tied.map(p => ({ id: p.PesertaID, label: p.NamaTampil + ' (' + p.Kelas + ')', sub: c.hasil.ModePenilaian === 'Babak' ? 'Sampai ' + p.babakNama + ' · ' + p.skorAkhir + ' benar (total ' + p.total + ')' : 'Skor ' + fmtNum(p.skorAkhir, 2) })), false, el);
+  formSeri(det, c.CabangID, tied.map(p => ({ id: p.PesertaID, label: p.NamaTampil + ' (' + p.Kelas + ')', sub: c.hasil.ModePenilaian === 'Poin' ? 'Total ' + p.total + ' poin' : c.hasil.ModePenilaian === 'Babak' ? 'Sampai ' + p.babakNama + ' · ' + p.skorAkhir + ' benar (total ' + p.total + ')' : 'Skor ' + fmtNum(p.skorAkhir, 2) })), false, el);
 };
 function formSeri(det, cabangId, items, osis, el) {
   let order = items.slice();
@@ -975,8 +1080,8 @@ function cetakPiagam(det, entries) {
   openCetak({ det, jenis: 'Piagam', landscape: true, title: 'Piagam Juara (' + entries.length + ')',
     build: (cfg) => entries.map((x, i) => renderPiagam(tpl, dataPiagam(det, x.c, x.p, i), { cfg })).join('') });
 }
-EVH['piagam-cetak'] = (el, b, det) => { const c = curCabang(el, det); cetakPiagam(det, c.hasil.peserta.filter(p => p.juara || p.harapan).map(p => ({ c, p }))); };
-EVH['piagam-satu'] = (el, b, det) => { const c = curCabang(el, det); cetakPiagam(det, c.hasil.peserta.filter(p => p.PesertaID === b.dataset.id).map(p => ({ c, p }))); };
+EVH['piagam-cetak'] = (el, b, det) => { const c = curCabang(el, det); cetakPiagam(det, [].concat(...c.hasil.peserta.filter(p => p.juara || p.harapan).map(p => piagamUntuk(c, p)))); };
+EVH['piagam-satu'] = (el, b, det) => { const c = curCabang(el, det); cetakPiagam(det, [].concat(...c.hasil.peserta.filter(p => p.PesertaID === b.dataset.id).map(p => piagamUntuk(c, p)))); };
 
 /* ---------------- Tab: Kehadiran ---------------- */
 EV_RENDER.kehadiran = (det, el) => {

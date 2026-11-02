@@ -893,3 +893,49 @@ body.has-bottom-bar .theme-float { bottom: calc(86px + env(safe-area-inset-botto
 [data-theme="dark"] .appbar, [data-theme="dark"] .topbar { background: rgba(18, 27, 46, .92); }
 [data-theme="dark"] .sticky-note, [data-theme="dark"] .bottom-bar { box-shadow: 0 -8px 24px rgba(0, 0, 0, .4); }
 [data-theme="dark"] .seg.seg-light.kiosk-tabs button.on { background: var(--primary); color: #fff; }
+
+/* ---- Sistem tambah / kurang poin ---- */
+.poin-chip { display: inline-flex; align-items: center; justify-content: center; min-width: 48px; height: 26px; padding: 0 10px; border-radius: 99px; font-weight: 800; font-size: 13px; font-variant-numeric: tabular-nums; }
+.poin-chip.plus, .poin-btn.plus { background: var(--green-tint); color: var(--green-text); }
+.poin-chip.minus, .poin-btn.minus { background: var(--red-tint); color: var(--red-text); }
+.poin-btn { min-width: 58px; height: 44px; padding: 0 12px; border: 1px solid transparent; border-radius: 12px; font-weight: 800; font-size: 16px; cursor: pointer; font-variant-numeric: tabular-nums; transition: transform .08s, filter .15s; }
+.poin-btn:hover { filter: brightness(.96); }
+.poin-btn:active { transform: scale(.94); }
+.poin-btn.plus { border-color: color-mix(in srgb, var(--green) 30%, transparent); }
+.poin-btn.minus { border-color: color-mix(in srgb, var(--red) 30%, transparent); }
+.pp-row { display: flex; align-items: center; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--line-soft); flex-wrap: wrap; }
+.pp-row .rank { flex: 0 0 auto; }
+.pp-total { font-size: 26px; font-weight: 800; min-width: 70px; text-align: right; color: var(--text); }
+.pp-btns { display: flex; gap: 6px; flex-wrap: wrap; }
+@keyframes bumpPoin { 0% { transform: scale(1); } 40% { transform: scale(1.18); color: var(--primary); } 100% { transform: scale(1); } }
+.bump { animation: bumpPoin .35s ease; display: inline-block; }
+/* juri HP */
+.pj-card { background: var(--surface); border: 1px solid var(--border); border-radius: 18px; padding: 14px; margin-bottom: 12px; box-shadow: var(--sh-1); }
+.pj-top { display: flex; align-items: center; gap: 12px; }
+.pj-top .grow { min-width: 0; }
+.pj-name { font-weight: 800; font-size: 17px; line-height: 1.25; }
+.pj-mem { font-size: 12.5px; color: var(--muted); margin-top: 2px; }
+.pj-total { font-size: 34px; font-weight: 800; font-variant-numeric: tabular-nums; min-width: 72px; text-align: right; line-height: 1; }
+.pj-btns { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.pj-btns .poin-btn { height: 52px; font-size: 18px; flex: 1 1 0; min-width: 58px; padding: 0 6px; }
+.pj-btns .poin-btn[data-act=pn-lain] { flex: 0 0 48px; min-width: 48px; }
+.pj-last { display: flex; align-items: center; gap: 8px; margin-top: 10px; font-size: 12.5px; color: var(--muted); min-height: 28px; }
+/* chip peserta di halaman juri: nomor + nama */
+.pchips { gap: 8px; padding: 6px 16px 10px; scroll-behavior: smooth; }
+.pchip { flex: 0 0 auto; display: inline-flex; align-items: center; gap: 8px; height: 48px; max-width: 190px; padding: 0 14px 0 6px; border-radius: 99px; border: 1px solid var(--border); background: var(--surface); color: var(--text); cursor: pointer; font-weight: 600; transition: background .15s, border-color .15s; }
+.pchip .no { width: 36px; height: 36px; border-radius: 50%; background: var(--surface-2); display: inline-flex; align-items: center; justify-content: center; font-weight: 800; font-size: 13px; flex: 0 0 auto; }
+.pchip .nm { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; font-size: 14px; }
+.pchip.done { border-color: color-mix(in srgb, var(--green) 35%, transparent); }
+.pchip.done .no { background: var(--green-tint); color: var(--green-text); }
+.pchip.done .ic { color: var(--green); }
+.pchip.on { background: var(--primary); border-color: var(--primary); color: #fff; box-shadow: 0 4px 14px var(--primary-ring); }
+.pchip.on .no { background: rgba(255, 255, 255, .22); color: #fff; }
+.pchip.err { border-color: var(--red); }
+.pchip.err .ic { color: var(--red); }
+.bk-no.ok { background: var(--green-tint); color: var(--green-text); }
+.next-hint { display: flex; align-items: center; gap: 8px; padding: 10px 14px; border-radius: 12px; background: var(--surface-2); color: var(--text-2); font-size: 13.5px; }
+.next-hint b { color: var(--text); }
+/* layar hasil langsung: kolom yang skornya berubah berkilau sesaat */
+.scr-col.naik .scr-num { animation: naikSkor 1.4s ease; }
+@keyframes naikSkor { 0% { transform: scale(1); } 25% { transform: scale(1.12); box-shadow: 0 0 0 4px rgba(250, 204, 21, .55); } 100% { transform: scale(1); } }
+.scr-col.baru { animation: up .5s ease both; }

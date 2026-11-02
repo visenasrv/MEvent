@@ -5,7 +5,7 @@
    ============================================================ */
 'use strict';
 
-const APP_VER = '1.8.0';
+const APP_VER = '1.9.0';
 const LS_PREFIX = 'mevent:v1:';
 
 /* ---------------- Penyimpanan perangkat ---------------- */
@@ -225,6 +225,8 @@ function rentangTgl(a, b) {
   if (x && y && x.getMonth() === y.getMonth() && x.getFullYear() === y.getFullYear()) return x.getDate() + '–' + y.getDate() + ' ' + BULAN[y.getMonth()] + ' ' + y.getFullYear();
   return tglPendek(a) + ' – ' + tglPendek(b);
 }
+function fmtPoin(v) { return (v > 0 ? '+' : v < 0 ? '−' : '') + Math.abs(v); }
+function idPoinBaru() { return 'PL' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8); }
 function jam(iso) { const m = String(iso || '').match(/T(\d{2}:\d{2})/); return m ? m[1] : ''; }
 function relWaktu(iso) {
   const m = String(iso || '').match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/); if (!m) return '';

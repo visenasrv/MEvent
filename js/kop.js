@@ -147,6 +147,7 @@ function docRekap(det, cfg, o) {
     const h = c.hasil;
     if (h.ModePenilaian === 'Babak') return rekapBabak(det, cfg, c);
     if (h.ModePenilaian === 'Peringkat') return rekapPeringkat(det, cfg, c);
+    if (h.ModePenilaian === 'Poin') return rekapPoin(det, cfg, c);
     const showJ = h.ModePenilaian !== 'Voting', showV = h.ModePenilaian !== 'Juri';
     const t = '<table class="dt"><thead><tr><th style="width:56px">Peringkat</th><th>Nama Peserta</th><th style="width:56px">Kelas</th>' + (showJ ? '<th style="width:70px">Skor Juri</th>' : '') + (showV ? '<th style="width:60px">Suara</th>' : '') + '<th style="width:70px">Skor Akhir</th><th style="width:80px">Keterangan</th></tr></thead><tbody>' +
       h.peserta.map(p => '<tr><td class="c">' + p.peringkat + '</td><td>' + esc(p.NamaTampil) + '</td><td class="c">' + esc(p.Kelas) + '</td>' + (showJ ? '<td class="c">' + fmtNum(p.skorJuri, 2) + '</td>' : '') + (showV ? '<td class="c">' + p.suara + '</td>' : '') + '<td class="c"><b>' + fmtNum(p.skorAkhir, 2) + '</b></td><td class="c">' + (p.juara ? 'Juara ' + p.juara : '') + (p.seri ? ' (seri)' : '') + '</td></tr>').join('') + '</tbody></table>';
@@ -156,6 +157,14 @@ function docRekap(det, cfg, o) {
   }).join('');
 }
 
+function rekapPoin(det, cfg, c) {
+  const h = c.hasil;
+  const t = '<table class="dt"><thead><tr><th style="width:52px">Peringkat</th><th>Regu / Peserta</th><th>Anggota</th><th style="width:56px">Benar (+)</th><th style="width:56px">Salah (−)</th><th style="width:64px">Total Poin</th><th style="width:80px">Keterangan</th></tr></thead><tbody>' +
+    h.peserta.map(p => '<tr><td class="c">' + p.peringkat + '</td><td>' + esc(p.NamaTampil) + '</td><td style="font-size:10pt">' + esc((p.Anggota || []).join(', ') || p.Kelas) + '</td><td class="c">' + p.benar + '</td><td class="c">' + p.salah + '</td><td class="c"><b>' + p.total + '</b></td><td class="c">' + (p.juara ? 'Juara ' + p.juara : '') + (p.seri ? ' (seri)' : '') + '</td></tr>').join('') + '</tbody></table>';
+  const info = '<p style="margin-top:8px;font-size:10.5pt">Mode penilaian: sistem tambah/kurang poin (poin awal ' + ((h.poin || {}).awal || 0) + '; tombol ' + ((h.poin || {}).tombol || []).map(v => (v > 0 ? '+' : '') + v).join(', ') + '). Total ' + (h.jumlahAksi || 0) + ' ketukan juri.</p>' +
+    (h.penetapan ? '<p style="font-size:10.5pt"><i>Penetapan urutan oleh ' + esc(h.penetapan.DitetapkanOleh) + ': ' + esc(h.penetapan.Alasan) + '</i></p>' : '');
+  return docPage(judulDoc('Rekap Hasil Lomba', esc(det.event.Judul) + ' — ' + esc(c.NamaCabang) + '<br>' + esc(jadwalCabang(c))) + t + info + ttdHtml(cfg, { tanggal: c.TanggalSelesai || c.TanggalPelaksanaan }), { kop: cfg.kop });
+}
 function rekapPeringkat(det, cfg, c) {
   const h = c.hasil;
   const t = '<table class="dt"><thead><tr><th style="width:56px">Peringkat</th><th>Nama Peserta</th><th style="width:60px">Kelas</th><th style="width:150px">Keterangan</th></tr></thead><tbody>' +
@@ -207,6 +216,7 @@ function docLembarJuri(det, cfg, o) {
   return list.map(j => {
     if (bk) return lembarBabak(det, cfg, c, j, o);
     if (c.ModePenilaian === 'Peringkat') return lembarPeringkat(det, cfg, c, j);
+    if (c.ModePenilaian === 'Poin') return lembarPoin(det, cfg, c, j);
     const t = '<table class="dt"><thead><tr><th style="width:36px">No</th><th>Nama Peserta</th><th style="width:50px">Kelas</th>' +
       c.kriteria.map(k => '<th style="width:' + Math.max(56, Math.floor(300 / Math.max(1, c.kriteria.length))) + 'px">' + esc(k.NamaKriteria) + '<br><span style="font-weight:400;font-size:8.5pt">(' + k.NilaiMin + '–' + k.NilaiMaks + ', ' + k.Bobot + '%)</span></th>').join('') +
       '<th style="width:60px">Total</th></tr></thead><tbody>' +
@@ -220,6 +230,17 @@ function docLembarJuri(det, cfg, o) {
   }).join('');
 }
 
+/** Lembar juri sistem tambah/kurang poin: kolom turus +/− per regu. */
+function lembarPoin(det, cfg, c, j) {
+  let P = c.PoinCfg; if (typeof P === 'string') { try { P = JSON.parse(P); } catch (e) { P = null; } } P = P || (c.hasil && c.hasil.poin) || { awal: 0, tombol: [] };
+  const t = '<table class="dt"><thead><tr><th style="width:32px">No</th><th style="width:150px">Regu / Peserta</th><th>Catatan poin (turus)</th><th style="width:70px">Total Poin</th></tr></thead><tbody>' +
+    c.peserta.map(p => '<tr style="height:64px"><td class="c">' + noUrut(p.NoUrut) + '</td><td><b>' + esc(p.NamaTampil) + '</b>' + ((p.Anggota || []).length ? '<div style="font-size:9pt">' + esc(p.Anggota.join(', ')) + '</div>' : '') + '</td><td></td><td></td></tr>').join('') + '</tbody></table>';
+  const head = '<table class="info"><tr><td style="width:120px">Cabang lomba</td><td>: <b>' + esc(c.NamaCabang) + '</b> (tambah/kurang poin)</td></tr><tr><td>Hari/tanggal</td><td>: ' + esc(jadwalCabang(c)) + '</td></tr><tr><td>Nama juri</td><td>: ' + (j.Nama ? esc(j.Nama) : '..........................................') + '</td></tr></table>';
+  const ttdJuri = '<div class="ttd-wrap single"><div class="ttd"><div>Juri,</div><div class="sp"></div><div class="nm">' + (j.Nama ? esc(j.Nama) : '..............................') + '</div><div>' + esc(j.NIP_NIY_NUPTK ? (j.JenisNomor || 'NIP') + '. ' + j.NIP_NIY_NUPTK : '') + '</div></div></div>';
+  const extra = cfg.ttd || cfg.pt2 ? ttdHtml(cfg, { tanggal: c.TanggalSelesai || c.TanggalPelaksanaan }) : '';
+  return docPage(judulDoc('Lembar Poin Juri', esc(det.event.Judul)) + head + t +
+    '<p style="font-size:9.5pt;margin-top:6px">Poin awal tiap regu: ' + (+P.awal || 0) + '. Nilai poin yang dipakai: ' + (P.tombol || []).map(v => (v > 0 ? '+' : '') + v).join(', ') + '. Catat setiap jawaban dengan turus, lalu jumlahkan.</p>' + ttdJuri + extra, { kop: cfg.kop });
+}
 /** Lembar juri sistem Rank 1: catatan soal saat peserta gugur + kotak penetapan juara. */
 function lembarPeringkat(det, cfg, c, j) {
   const N = +c.JumlahJuara || 3, H = +c.JumlahHarapan || 0;
@@ -376,9 +397,11 @@ function renderPiagam(tpl, d, opt = {}) {
     (AppState.mode === 'demo' ? '<div class="doc" style="position:absolute;inset:0;background:none"><div class="wm"><span>DEMO — BUKAN DOKUMEN RESMI</span></div></div>' : '') + '</div>';
 }
 function fontsLayout(L) { return uniq(Object.values(L).map(e => e.font).filter(Boolean)); }
+/** Regu → satu piagam untuk setiap anggota (nama anggota, regu disebut di nama lomba). */
+function piagamUntuk(c, p) { return (p.Anggota || []).length ? p.Anggota.map(n => ({ c, p: Object.assign({}, p, { NamaTampil: n, reguNama: p.NamaTampil }) })) : [{ c, p }]; }
 function dataPiagam(det, c, p, i) {
   const s = settingsNow(), akhir = c.TanggalSelesai || c.TanggalPelaksanaan || det.event.TanggalSelesai, d = parseTgl(akhir) || new Date();
-  return { nama: p.NamaTampil, kelas: p.Kelas, juara: p.juara || (p.harapan ? 'HARAPAN ' + p.harapan : ''), cabang: (/^lomba/i.test(c.NamaCabang) ? '' : 'Lomba ') + c.NamaCabang, event: det.event.Judul,
+  return { nama: p.NamaTampil, kelas: p.Kelas, juara: p.juara || (p.harapan ? 'HARAPAN ' + p.harapan : ''), cabang: (/^lomba/i.test(c.NamaCabang) ? '' : 'Lomba ') + c.NamaCabang + (p.reguNama ? ' (' + p.reguNama + ')' : ''), event: det.event.Judul,
     tanggal: tgl(akhir), tempat: s.TempatTtd || '', no: String(i + 1).padStart(3, '0'), tahun: d.getFullYear(), sekolah: s.NamaSekolah || '' };
 }
 

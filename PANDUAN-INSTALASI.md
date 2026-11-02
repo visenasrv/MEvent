@@ -105,7 +105,7 @@ Tab **Kehadiran** pada event lomba menampilkan kolom **Lomba yang di-voting** un
 Tidak perlu mengetik atau mencari nama: tab **Panitia (PTK)** di halaman awal menampilkan PTK yang menjadi panitia atau juri, dan tab **Juri** di link lomba hanya menampilkan juri event tersebut. Ketuk nama → isi **kata sandi** → **Masuk**. (Pada Link Voting OSIS, tab PTK tetap punya kolom cari karena berisi semua guru.)
 
 ### Alur lomba
-Event Lomba → **Cabang & Peserta** (jadwal **Tanggal Mulai – Tanggal Selesai**, kosongkan tanggal selesai bila hanya 1 hari; mode Juri/Voting/Gabungan/Babak/Rank 1 + bobot; urutan tampil peserta diatur dengan menggeser ikon ⋮⋮) → **Juri & Kriteria** → bagikan **Link Voting & Penilaian Lomba** → **Kunci Penilaian** → tab **Hasil** (tetapkan urutan bila seri) → **Cetak Piagam Juara**. Di layar hasil, tombol nama cabang (atau panah ← →) berpindah cabang seketika.
+Event Lomba → **Cabang & Peserta** (jadwal **Tanggal Mulai – Tanggal Selesai**, kosongkan tanggal selesai bila hanya 1 hari; mode Juri/Voting/Gabungan/Babak/Rank 1/Tambah-Kurang Poin + bobot; peserta perorangan atau **regu**; urutan tampil peserta diatur dengan menggeser ikon ⋮⋮) → **Juri & Kriteria** → bagikan **Link Voting & Penilaian Lomba** → **Kunci Penilaian** → tab **Hasil** (tetapkan urutan bila seri) → **Cetak Piagam Juara**. Di layar hasil, tombol nama cabang (atau panah ← →) berpindah cabang seketika.
 
 ### Lomba sistem babak / eliminasi (mis. Spelling Bee, Cerdas Cermat)
 Skor tiap babak = **jumlah jawaban benar**. Peserta yang lolos maju ke babak berikutnya sampai **Final**.
@@ -123,6 +123,23 @@ Skor tiap babak = **jumlah jawaban benar**. Peserta yang lolos maju ke babak ber
    - **Panitia** di tab **Juri & Kriteria** → kartu **Skor Babak**: bisa mengisi/mengoreksi skor, lalu menandai **Lolos** (atau isi angka di **Loloskan … teratas → Terapkan**, nilai seri di batas kelulusan ikut lolos) → **Simpan Skor & Lolos**. Peserta yang lolos langsung muncul di babak berikutnya, juga di HP juri.
    - Ulangi sampai Final. **Juara baru ditetapkan setelah finalis mendapat skor Final.**
 6. Tab **Hasil** menampilkan skor per babak, total, status (Gugur di …/Finalis/Juara). **Cetak Lembar Juri** untuk babak ini punya kolom centang per soal (bila ≤ 20 soal) + Jumlah Benar + Lolos. Layar hasil menampilkan "SKOR … MASUK" untuk babak yang sedang berjalan.
+
+### Lomba beregu dengan sistem tambah / kurang poin (mis. cerdas cermat)
+1. **Cabang & Peserta** → pilih cabang → Mode Penilaian **Tambah/Kurang Poin**. Isi **Poin awal** tiap regu (mis. 0) dan **Tombol poin** dipisah koma (mis. `100, -100, 50, -50`) → **Simpan Pengaturan**.
+2. Di kartu Peserta Cabang tekan **Buat Regu** → isi nama regu (mis. *Regu A — Garuda*) → centang anggota dari data siswa (cari nama/NISN atau saring kelas) → **Simpan Regu**. Satu siswa hanya boleh ada di satu regu per cabang. Regu bisa diubah lewat ikon ✏️, urutan tampil digeser seperti peserta biasa.
+3. Tambahkan juri/operator di tab **Juri & Kriteria**.
+4. Saat lomba: **juri** membuka link penilaian → **Papan Poin** → ketuk **+100** saat regu menjawab benar, **−100** saat salah (tombol **±** untuk nilai lain). Total berubah seketika dan tersimpan otomatis; salah ketuk → **Batalkan**, atau buka **Riwayat**. Bila ada lebih dari satu juri, poin juri lain ikut muncul setiap beberapa detik.
+5. Panitia juga bisa mengetuk poin di kartu **Papan Poin** (tab Juri & Kriteria) dan membatalkan ketukan dari **Riwayat ketukan terakhir**.
+6. Tab **Hasil**: peringkat, jumlah benar (+), salah (−), total poin. Bila total sama di posisi juara, tetapkan urutan dengan tombol **Tetapkan Urutan**. **Cetak Piagam Juara** untuk regu mencetak **satu piagam per anggota**. Lembar Juri cetak berisi kolom turus poin per regu.
+
+> Regu juga bisa dipakai di mode lain (Juri, Voting, Babak, Rank 1) — misalnya lomba yel-yel beregu yang dinilai juri. Kehadiran semua anggota regu tercatat otomatis.
+
+### Layar hasil
+- **Voting** (OSIS, voting lomba, gabungan): tampil "suara masuk" lebih dulu, lalu tekan **Tampilkan Hasil** (Spasi) untuk membuka perolehan dengan animasi.
+- **Juri, Babak, Rank 1, dan Tambah/Kurang Poin**: hasil **langsung tampil dan diperbarui live** (sekitar tiap 4 detik) tanpa tombol ungkap. Batang dan angka bergerak saat skor berubah. Pada **sistem babak** hanya peserta yang **belum tereliminasi** yang tampil, beserta total benar dan skor babak yang sedang berjalan. Tanda "HASIL SEMENTARA" berganti "HASIL AKHIR" setelah penilaian dikunci. Tombol **Umumkan Juara** tetap ada untuk momen pengumuman.
+
+### Halaman penilaian juri (kriteria)
+Deretan tombol peserta di atas kini menampilkan **nomor + nama** (hijau ✓ = sudah dinilai, biru = sedang dinilai). Tombol **Daftar Peserta** membuka daftar lengkap berisi nama, kelas, status (Sudah/Belum/Sebagian) dan nilai — ketuk nama untuk langsung menilai. Di bawah kriteria tertulis **Berikutnya: nama peserta** agar juri tahu siapa yang tampil selanjutnya.
 
 ### Lomba sistem Rank 1 (gugur bila salah menjawab)
 Semua peserta diberi pertanyaan yang sama; yang salah menjawab gugur. Peserta yang **bertahan paling akhir adalah Juara 1**. Juri tidak memberi nilai — cukup **menetapkan Juara 1, 2, 3** (dan juara harapan bila ada).
@@ -143,6 +160,8 @@ Semua peserta diberi pertanyaan yang sama; yang salah menjawab gugur. Peserta ya
 3. **Terapkan → Kelola deployment → ✏️ Edit → Versi: Versi baru → Terapkan.**
 ⚠️ Jangan memilih *Deployment baru* — URL `/exec` akan berubah dan aplikasi berhenti bekerja.
 
+> **Dari versi sebelumnya ke 1.9 (regu, tambah/kurang poin, layar live):** ganti ketiga berkas `.gs`, **wajib jalankan `setupAwal` sekali** (membuat sheet baru **Poin_Log**, kolom **Anggota** di Peserta_Lomba, dan kolom **PoinCfg** di Cabang_Lomba), lalu buat versi deployment baru. Perbarui frontend. Data lama tetap aman.
+
 > **Dari versi sebelumnya ke 1.8 (mode gelap, jadwal cabang beberapa hari, login pilih nama):** ganti ketiga berkas `.gs`, **wajib jalankan `setupAwal` sekali** (menambah kolom **TanggalSelesai** di Cabang_Lomba; bila memperbarui langsung dari 1.6 atau lebih lama, sheet Peringkat_Lomba dan kolom JumlahHarapan ikut dibuat), lalu buat versi deployment baru. Perbarui frontend. Cabang lama tetap 1 hari sampai tanggal selesai diisi.
 
 > **Dari versi sebelumnya ke 1.7 (Rank 1, juri meloloskan):** ganti ketiga berkas `.gs`, **wajib jalankan `setupAwal` sekali** (membuat sheet baru **Peringkat_Lomba** dan kolom **JumlahHarapan** di Cabang_Lomba), lalu buat versi deployment baru seperti langkah 3. Setelah itu perbarui frontend.
@@ -152,7 +171,7 @@ Semua peserta diberi pertanyaan yang sama; yang salah menjawab gugur. Peserta ya
 > **Dari versi sebelumnya ke 1.5:** lakukan 3 langkah di atas, lalu perbarui frontend (isi ulang `GAS_URL`). Data lama tetap terbaca; kehadiran dari voting kini dihitung otomatis dari daftar pemilih, jadi tidak ada data yang perlu dipindahkan.
 
 **Frontend** (bila ada perubahan di `css/` atau `js/`):
-1. Bila mengubah kode sendiri, naikkan angka versi di `index.html` (mis. `?v=1.1.0` → `?v=1.1.1`) dan `APP_VER` di `js/core.js` agar HP pengguna langsung memuat versi baru. (Paket 1.8.0 ini sudah dinaikkan.)
+1. Bila mengubah kode sendiri, naikkan angka versi di `index.html` (mis. `?v=1.1.0` → `?v=1.1.1`) dan `APP_VER` di `js/core.js` agar HP pengguna langsung memuat versi baru. (Paket 1.9.0 ini sudah dinaikkan.)
    Jangan lupa isi ulang `GAS_URL` di `js/config.js` bila berkas itu ikut tertimpa.
 2. Jalankan dari folder proyek:
    ```bash

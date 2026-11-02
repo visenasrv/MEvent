@@ -500,7 +500,7 @@ registerPage('piagam', {
     const cfg = cetakCfg(det, 'Piagam');
     const tid = (cfg.opsi && cfg.opsi.templateId) || 'tpl-klasik';
     const juara = [];
-    det.cabang.filter(c => !cabangId || c.CabangID === cabangId).forEach(c => c.hasil.peserta.filter(p => p.juara || p.harapan).forEach(p => juara.push({ c, p })));
+    det.cabang.filter(c => !cabangId || c.CabangID === cabangId).forEach(c => c.hasil.peserta.filter(p => p.juara || p.harapan).forEach(p => piagamUntuk(c, p).forEach(x => juara.push(x))));
     el._pe = { det, cabangId, cfg: Object.assign({}, cfg), tpl: JSON.parse(JSON.stringify(tplById(tid))), sel: 'nama', juara, idx: 0, dirty: false };
     await loadFonts(PIAGAM_FONTS);
     pePaint(el);
