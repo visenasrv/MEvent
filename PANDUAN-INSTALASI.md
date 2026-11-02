@@ -70,13 +70,14 @@ Kerjakan berurutan: **Backend dulu → salin URL → Frontend**.
    Urutan baris kop diatur dengan menahan ikon ⋮⋮ lalu menggeser (atau fokus ikon itu dan tekan ↑/↓).
 6. **Data Siswa → Unduh Template Excel → Impor Excel** (format: Nama | Jenis Kelamin | NISN | Tempat Lahir | Tanggal Lahir | Kelas).
 7. **Data PTK → Impor Excel** (Nama | Tanggal Lahir | NIP/NIY/NUPTK | Jabatan), lalu **Kata Sandi Massal** → cetak kartunya.
-8. Ingin mencoba dulu? **Pengaturan › Mode Demo → Mulai Demo**. Data contoh dibuat terpisah dan dihapus saat demo diakhiri.
+8. **Pengaturan › Akun → Login Panitia (PTK) & Juri**: bila **Cukup pilih nama** aktif (bawaan), PTK dan juri tamu tinggal mengetuk namanya lalu **Masuk** — tanpa mengetik kata sandi. Matikan bila ingin tetap memakai kata sandi. Memberi suara OSIS sebagai PTK selalu memakai kata sandi (lewat Link Voting OSIS).
+9. Ingin mencoba dulu? **Pengaturan › Mode Demo → Mulai Demo**. Data contoh dibuat terpisah dan dihapus saat demo diakhiri.
 
 ### Link yang dibagikan admin (tombol **Bagikan Link** di halaman event)
 | Link | Untuk | Isi halaman |
 |---|---|---|
 | **Link Voting OSIS** | Siswa & PTK | Tab **Siswa** (NISN) dan **PTK** (nama + kata sandi). Setelah memilih, layar kembali ke login siswa — cocok untuk HP/laptop yang dipakai bergantian. |
-| **Link Voting & Penilaian Lomba** | Siswa & Juri | Tab **Siswa** (kelas → nama) dan **Juri** (PTK / juri tamu → lembar penilaian). |
+| **Link Voting & Penilaian Lomba** | Siswa & Juri | Tab **Siswa** (kelas → nama) dan **Juri** (PTK / juri tamu → pilih nama → lembar penilaian). |
 | **Link Formulir** | Pendaftar | Satu link per formulir, juga dari ikon QR di tab Formulir. |
 | **Link Layar Hasil** | IFP / proyektor | Terbuka **tanpa login admin**, jadi admin tetap bisa memakai aplikasi di laptopnya. Tombol **Ganti Link** membatalkan link lama. |
 
@@ -101,7 +102,33 @@ Setiap link punya **kode QR** (tombol *QR Besar* untuk ditampilkan di layar agar
 Tab **Kehadiran** pada event lomba menampilkan kolom **Lomba yang di-voting** untuk setiap siswa (beserta lomba yang diikuti sebagai peserta) dan ringkasan jumlah siswa yang sudah voting per cabang. Informasi yang sama ikut ke **Excel** dan **cetak Daftar Hadir**.
 
 ### Alur lomba
-Event Lomba → **Cabang & Peserta** (mode Juri/Voting/Gabungan + bobot; urutan tampil peserta diatur dengan menggeser ikon ⋮⋮) → **Juri & Kriteria** → bagikan **Link Voting & Penilaian Lomba** → **Kunci Penilaian** → tab **Hasil** (tetapkan urutan bila seri) → **Cetak Piagam Juara**. Di layar hasil, tombol nama cabang (atau panah ← →) berpindah cabang seketika.
+Event Lomba → **Cabang & Peserta** (mode Juri/Voting/Gabungan/Babak/Rank 1 + bobot; urutan tampil peserta diatur dengan menggeser ikon ⋮⋮) → **Juri & Kriteria** → bagikan **Link Voting & Penilaian Lomba** → **Kunci Penilaian** → tab **Hasil** (tetapkan urutan bila seri) → **Cetak Piagam Juara**. Di layar hasil, tombol nama cabang (atau panah ← →) berpindah cabang seketika.
+
+### Lomba sistem babak / eliminasi (mis. Spelling Bee, Cerdas Cermat)
+Skor tiap babak = **jumlah jawaban benar**. Peserta yang lolos maju ke babak berikutnya sampai **Final**.
+
+1. **Cabang & Peserta** → pilih cabang → Mode Penilaian **Babak / Eliminasi**.
+2. Atur **Susunan Babak**: nama babak dan jumlah soal/kata (mis. Babak 1 — 20, Babak 2 — 15, Final — 10). **+ Tambah Babak** menyisipkan babak sebelum Final (maks. 10 babak). Babak yang sudah berisi skor terkunci (ikon gembok) dan tidak bisa dihapus.
+3. Pilih **Penentuan Juara**:
+   - **Total akumulasi semua babak** — juara = jumlah benar terbanyak dari semua babak yang diikuti.
+   - **Skor babak final saja** — juara = jumlah benar terbanyak di Final; bila sama, total akumulasi jadi penentu.
+   Peserta yang mencapai babak lebih jauh selalu berada di atas peserta yang gugur lebih awal.
+4. **Simpan Pengaturan**, lalu tambahkan juri di tab **Juri & Kriteria** (tidak perlu kriteria).
+5. Saat lomba berjalan:
+   - **Juri** membuka link penilaian → memilih babak → mengisi jumlah benar dengan tombol **−/+** atau mengetik angka. Skor **tersimpan otomatis**; angka tidak bisa melebihi jumlah soal.
+   - Juri juga bisa langsung menggeser **Lolos ke …** di bawah nama peserta (atau **Loloskan … teratas → Terapkan**); peserta yang lolos langsung muncul di babak berikutnya.
+   - **Panitia** di tab **Juri & Kriteria** → kartu **Skor Babak**: bisa mengisi/mengoreksi skor, lalu menandai **Lolos** (atau isi angka di **Loloskan … teratas → Terapkan**, nilai seri di batas kelulusan ikut lolos) → **Simpan Skor & Lolos**. Peserta yang lolos langsung muncul di babak berikutnya, juga di HP juri.
+   - Ulangi sampai Final. **Juara baru ditetapkan setelah finalis mendapat skor Final.**
+6. Tab **Hasil** menampilkan skor per babak, total, status (Gugur di …/Finalis/Juara). **Cetak Lembar Juri** untuk babak ini punya kolom centang per soal (bila ≤ 20 soal) + Jumlah Benar + Lolos. Layar hasil menampilkan "SKOR … MASUK" untuk babak yang sedang berjalan.
+
+### Lomba sistem Rank 1 (gugur bila salah menjawab)
+Semua peserta diberi pertanyaan yang sama; yang salah menjawab gugur. Peserta yang **bertahan paling akhir adalah Juara 1**. Juri tidak memberi nilai — cukup **menetapkan Juara 1, 2, 3** (dan juara harapan bila ada).
+
+1. **Cabang & Peserta** → pilih cabang → Mode Penilaian **Rank 1 (Gugur)**. Atur **Jumlah Juara** dan **Juara Harapan** (0–5) → **Simpan Pengaturan**.
+2. Tambahkan juri di tab **Juri & Kriteria** (tidak perlu kriteria). **Cetak Lembar Juri** berisi kolom "gugur pada soal ke-" dan kotak penetapan juara untuk dicatat saat lomba.
+3. Setelah lomba selesai, **juri** membuka link penilaian → setiap posisi (**Juara 1**, **Juara 2**, …, **Juara Harapan 1**) → **Pilih** → ketuk nama peserta. Tersimpan otomatis. Memilih peserta yang sudah menempati posisi lain akan menukar posisinya.
+4. Panitia juga bisa menetapkan/mengoreksi di kartu **Penetapan Juara — Rank 1** (tab Juri & Kriteria) → **Simpan Penetapan**.
+5. Tab **Hasil**, **Rekap**, layar hasil, dan **piagam** langsung memakai penetapan ini (piagam harapan tertulis "Juara Harapan 1", dst).
 
 ---
 
@@ -113,10 +140,14 @@ Event Lomba → **Cabang & Peserta** (mode Juri/Voting/Gabungan + bobot; urutan 
 3. **Terapkan → Kelola deployment → ✏️ Edit → Versi: Versi baru → Terapkan.**
 ⚠️ Jangan memilih *Deployment baru* — URL `/exec` akan berubah dan aplikasi berhenti bekerja.
 
+> **Dari versi sebelumnya ke 1.7 (Rank 1, juri meloloskan, login pilih nama):** ganti ketiga berkas `.gs`, **wajib jalankan `setupAwal` sekali** (membuat sheet baru **Peringkat_Lomba** dan kolom **JumlahHarapan** di Cabang_Lomba), lalu buat versi deployment baru seperti langkah 3. Setelah itu perbarui frontend. Login PTK/juri otomatis menjadi **cukup pilih nama**; ubah di **Pengaturan › Akun** bila perlu.
+
+> **Dari versi sebelumnya ke 1.6 (sistem babak):** ganti ketiga berkas `.gs`, **wajib jalankan `setupAwal` sekali** (membuat sheet baru **Skor_Babak** dan kolom **Babak** di Cabang_Lomba), lalu buat versi deployment baru seperti langkah 3. Setelah itu perbarui frontend. Cabang lama tidak berubah.
+
 > **Dari versi sebelumnya ke 1.5:** lakukan 3 langkah di atas, lalu perbarui frontend (isi ulang `GAS_URL`). Data lama tetap terbaca; kehadiran dari voting kini dihitung otomatis dari daftar pemilih, jadi tidak ada data yang perlu dipindahkan.
 
 **Frontend** (bila ada perubahan di `css/` atau `js/`):
-1. Bila mengubah kode sendiri, naikkan angka versi di `index.html` (mis. `?v=1.1.0` → `?v=1.1.1`) dan `APP_VER` di `js/core.js` agar HP pengguna langsung memuat versi baru. (Paket 1.5.0 ini sudah dinaikkan.)
+1. Bila mengubah kode sendiri, naikkan angka versi di `index.html` (mis. `?v=1.1.0` → `?v=1.1.1`) dan `APP_VER` di `js/core.js` agar HP pengguna langsung memuat versi baru. (Paket 1.7.0 ini sudah dinaikkan.)
    Jangan lupa isi ulang `GAS_URL` di `js/config.js` bila berkas itu ikut tertimpa.
 2. Jalankan dari folder proyek:
    ```bash

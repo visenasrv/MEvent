@@ -472,7 +472,18 @@ SET_RENDER.akun = () => '<div class="card card-pad" style="max-width:560px"><div
   '<div class="field"><label>Username baru (opsional)</label><input class="input" id="ak-un" placeholder="' + esc((AppState.user || {}).username || 'admin') + '" autocomplete="username"></div>' +
   '<div class="field mt-12"><label>Kata sandi lama <span class="req">*</span></label><input class="input" type="password" id="ak-lama" autocomplete="current-password"></div>' +
   '<div class="grid-2 mt-12"><div class="field"><label>Kata sandi baru <span class="req">*</span></label><input class="input" type="password" id="ak-baru" autocomplete="new-password" placeholder="min. 6 karakter"></div><div class="field"><label>Ulangi kata sandi baru</label><input class="input" type="password" id="ak-baru2" autocomplete="new-password"></div></div>' +
-  '<div class="row mt-24" style="justify-content:flex-end"><button class="btn btn-primary" data-act="akunSimpan">' + ic('save', 'ic-sm') + ' Simpan</button></div></div>';
+  '<div class="row mt-24" style="justify-content:flex-end"><button class="btn btn-primary" data-act="akunSimpan">' + ic('save', 'ic-sm') + ' Simpan</button></div></div>' +
+  '<div class="card card-pad mt-16" style="max-width:560px"><div class="card-title">Login Panitia (PTK) & Juri</div><div class="card-sub mb-16">Atur cara PTK dan juri masuk dari halaman awal atau link penilaian lomba.</div>' +
+  '<label class="switch"><input type="checkbox" id="ak-bebas" data-act="loginBebas"' + ((B().settings || {}).LoginTanpaSandi !== 'Tidak' ? ' checked' : '') + '><span class="track"></span><span><b>Cukup pilih nama (tanpa kata sandi)</b><br><span class="small muted">PTK & juri tamu tinggal mengetuk namanya lalu Masuk.</span></span></label>' +
+  '<div class="alert alert-amber small mt-16">' + ic('triangle-alert', 'ic-sm') + '<span>Saat aktif, siapa pun yang membuka situs bisa masuk sebagai PTK mana saja. Memberi suara OSIS sebagai PTK tetap wajib kata sandi (lewat link voting OSIS). Matikan bila tidak diperlukan.</span></div></div>';
+SET.loginBebas = async (el, b) => {
+  const st = B().settings || (B().settings = {}), lama = st.LoginTanpaSandi, nilai = b.checked ? 'Ya' : 'Tidak';
+  st.LoginTanpaSandi = nilai;
+  const res = await api('simpanPengaturan', { pengaturan: { LoginTanpaSandi: nilai } });
+  if (!toastRes(res, nilai === 'Ya' ? 'Login cukup pilih nama' : 'Login wajib kata sandi', nilai === 'Ya' ? 'PTK & juri tidak perlu mengetik kata sandi.' : 'PTK & juri masuk dengan kata sandi.')) { st.LoginTanpaSandi = lama; b.checked = lama !== 'Tidak'; return; }
+  if (AppState.pub && AppState.pub.sekolah) AppState.pub.sekolah.LoginTanpaSandi = nilai;
+  try { swrDrop('pub'); } catch (e) {}
+};
 SET.akunSimpan = async (el, b) => {
   const baru = $('#ak-baru', el).value;
   if (baru !== $('#ak-baru2', el).value) return toast('Kata sandi baru tidak sama', '', 'warning');
@@ -500,7 +511,7 @@ registerPage('piagam', {
     const cfg = cetakCfg(det, 'Piagam');
     const tid = (cfg.opsi && cfg.opsi.templateId) || 'tpl-klasik';
     const juara = [];
-    det.cabang.filter(c => !cabangId || c.CabangID === cabangId).forEach(c => c.hasil.peserta.filter(p => p.juara).forEach(p => juara.push({ c, p })));
+    det.cabang.filter(c => !cabangId || c.CabangID === cabangId).forEach(c => c.hasil.peserta.filter(p => p.juara || p.harapan).forEach(p => juara.push({ c, p })));
     el._pe = { det, cabangId, cfg: Object.assign({}, cfg), tpl: JSON.parse(JSON.stringify(tplById(tid))), sel: 'nama', juara, idx: 0, dirty: false };
     await loadFonts(PIAGAM_FONTS);
     pePaint(el);

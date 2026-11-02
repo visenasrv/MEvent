@@ -805,3 +805,28 @@ tr.dragging td { background: var(--primary-tint); }
 .doc .box-opt.r { border-radius: 50%; }
 .doc-preview-host { background: #E9EEF5; border-radius: 14px; padding: 16px; overflow: auto; max-height: 62vh; display: flex; justify-content: center; }
 .doc-preview-scale { transform-origin: top center; box-shadow: 0 8px 26px rgba(15, 23, 42, .15); }
+
+/* ---- Sistem babak / eliminasi ---- */
+.bb-row { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid #EEF2F7; flex-wrap: wrap; }
+.bb-row:last-child { border-bottom: 0; }
+.bb-row .bb-nama { flex: 1 1 160px; min-width: 0; }
+.bb-row .bb-maks { width: 130px; flex: 0 0 auto; }
+.chip[disabled] { opacity: .45; cursor: not-allowed; }
+.bk-step { display: inline-flex; align-items: center; gap: 6px; }
+.bk-step button { width: 44px; height: 44px; border-radius: 12px; border: 1px solid var(--line, #E2E8F0); background: #fff; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; color: var(--primary); }
+.bk-step button:active { transform: scale(.95); }
+.bk-step button[disabled] { opacity: .4; cursor: not-allowed; }
+.bk-step input { width: 64px; height: 44px; text-align: center; font-size: 20px; font-weight: 800; padding: 0 4px; }
+.bk-row { display: flex; align-items: center; gap: 12px; padding: 12px 0; border-bottom: 1px solid #F1F5F9; flex-wrap: wrap; }
+.bk-row .grow { min-width: 140px; }
+.bk-row.done .bk-no { background: var(--green-tint); color: var(--green-text); }
+.bk-no { width: 40px; height: 40px; border-radius: 12px; background: var(--surface-2); display: inline-flex; align-items: center; justify-content: center; font-weight: 800; flex: 0 0 auto; }
+.bk-max { font-size: 13px; color: var(--muted, #64748B); min-width: 34px; }
+.bb-row .badge { min-width: 104px; justify-content: center; }
+.bk-lolos { flex: 0 0 calc(100% - 52px); margin-left: 52px; padding: 6px 12px; border-radius: 10px; background: var(--surface-2); font-size: 14px; font-weight: 600; color: var(--muted, #64748B); }
+.bk-lolos.on { background: var(--green-tint); color: var(--green-text); }
+.rk-slot { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border: 1px solid var(--border, #E2E8F0); border-radius: 14px; margin-bottom: 10px; background: #fff; }
+.rk-slot.on { border-color: var(--primary-tint-2, #BFDBFE); background: var(--primary-tint, #EFF6FF); }
+.rk-slot .rank { flex: 0 0 auto; }
+.rk-slot.har .rank { background: var(--green-tint); color: var(--green-text); font-size: 13px; }
+.scr-num b.scr-txt { font-size: clamp(16px, min(2vw, 3.2vh), 34px); letter-spacing: .04em; white-space: nowrap; }

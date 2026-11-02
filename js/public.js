@@ -12,13 +12,13 @@ function appbar(o) {
     (o.logo ? '<span class="avatar avatar-sm" style="background:var(--primary-tint)">' + (logoHtml(sekolah().LogoUrl) || ic('graduation-cap', 'ic-sm')) + '</span>' : '') +
     '<div class="grow"><div class="ttl ellipsis">' + esc(o.title) + '</div>' + (o.sub ? '<div class="sub ellipsis">' + esc(o.sub) + '</div>' : '') + '</div>' + (o.right || '') + '</div>';
 }
-function demoHintCard(kind) {
+function demoHintCard(kind, bebas) {
   const h = AppState.mode === 'demo' && AppState.pub && AppState.pub.demoHint;
   if (!h) return '';
   let t = '';
   if (kind === 'admin') t = 'Username <b>' + esc(h.admin.username) + '</b> · kata sandi <b>' + esc(h.admin.password) + '</b>';
-  if (kind === 'ptk') t = 'Pilih nama mana saja · kata sandi <b>' + esc(h.ptkPassword) + '</b><br><span class="small">' + h.ptkContoh.map(esc).join(' · ') + '</span>';
-  if (kind === 'tamu') t = 'Juri tamu <b>' + esc(h.juriTamu.nama) + '</b> · kata sandi <b>' + esc(h.juriTamu.password) + '</b>';
+  if (kind === 'ptk') t = 'Pilih nama mana saja' + (bebas ? ' lalu tekan Masuk' : ' · kata sandi <b>' + esc(h.ptkPassword) + '</b>') + '<br><span class="small">' + h.ptkContoh.map(esc).join(' · ') + '</span>';
+  if (kind === 'tamu') t = 'Juri tamu <b>' + esc(h.juriTamu.nama) + '</b>' + (bebas ? '' : ' · kata sandi <b>' + esc(h.juriTamu.password) + '</b>');
   if (kind === 'nisn') t = 'Contoh NISN demo: ' + h.nisn.map(n => '<b class="mono">' + n + '</b>').join(', ');
   return '<div class="alert alert-amber mt-16 small">' + ic('flask-conical', 'ic-sm') + '<div><b>Akun demo:</b> ' + t + '</div></div>';
 }
@@ -385,7 +385,7 @@ function bindPtkForm(el, getSt, onSubmit) {
   el.addEventListener('click', (e) => {
     const b = e.target.closest('[data-act]'); if (!b) return;
     const st = getSt(); if (!st) return;
-    if (b.dataset.act === 'sel') { st.sel = b.dataset.id; ptkPaintList(el, st); setTimeout(() => { const pw = $('#pw', el); if (pw) pw.focus(); }, 30); }
+    if (b.dataset.act === 'sel') { st.sel = b.dataset.id; ptkPaintList(el, st); setTimeout(() => { const pw = $('#pw', el), wrap = $('#pw-wrap', el); if (pw && wrap && !wrap.hidden) pw.focus(); else { const bt = $('#btn-masuk', el); if (bt) bt.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); } }, 30); }
     if (b.dataset.act === 'eye') { const pw = $('#pw', el); if (pw) pw.type = pw.type === 'password' ? 'text' : 'password'; }
   });
   el.addEventListener('input', (e) => { const st = getSt(); if (e.target.id === 'q' && st) { st.q = e.target.value; ptkPaintList(el, st); } });
@@ -394,14 +394,15 @@ function bindPtkForm(el, getSt, onSubmit) {
 /** Isi form login PTK / juri tamu. o.tamu → tampilkan tab Juri Tamu. */
 function ptkFormHtml(st, o) {
   o = o || {};
-  return '<form class="' + (o.cls || 'float-card card card-pad') + '" data-ptk autocomplete="off">' +
+  return '<form class="' + (o.cls || 'float-card card card-pad') + '" data-ptk autocomplete="off"' + (o.osis ? ' data-osis="1"' : '') + ' data-tombol="' + esc(o.tombol || 'Masuk') + '">' +
     (o.tamu !== false ? '<div class="seg seg-light seg-block"><button type="button" data-act="ptab" data-v="ptk" class="' + (st.tab === 'ptk' ? 'on' : '') + '">' + ic('user-check', 'ic-sm') + ' ' + (o.labelPtk || 'PTK') + '</button><button type="button" data-act="ptab" data-v="tamu" class="' + (st.tab === 'tamu' ? 'on' : '') + '">' + ic('gavel', 'ic-sm') + ' Juri Tamu</button></div>' : '') +
     '<div class="row between' + (o.tamu !== false ? ' mt-16' : '') + '"><span class="label">Pilih Nama</span><span class="small" style="color:var(--primary);font-weight:600" id="jml"></span></div>' +
     '<div class="input-group mt-8">' + ic('search') + '<input class="input" id="q" placeholder="Cari nama..." value="' + esc(st.q) + '"></div>' +
     '<div class="name-list" id="list" style="max-height:300px"></div>' +
-    '<div class="field mt-16"><div class="row between"><label for="pw">Kata Sandi</label></div><div class="input-group">' + ic('lock') + '<input class="input" id="pw" type="password" autocomplete="current-password" placeholder="••••••"><button type="button" class="btn btn-ghost btn-icon btn-sm suffix" data-act="eye" aria-label="Tampilkan sandi">' + ic('eye', 'ic-sm') + '</button></div></div>' +
-    '<div id="err"></div><div class="row muted small mt-8">' + ic('info', 'ic-sm') + '<span>Kata sandi diberikan oleh Admin. Lupa? Hubungi Admin sekolah.</span></div>' +
-    '<button class="btn btn-primary btn-block btn-lg mt-16" type="submit" id="btn-masuk">' + (o.tombol || 'Masuk') + ' ' + ic('log-in') + '</button>' + demoHintCard(st.tab) + '</form>';
+    '<div id="pw-wrap"' + (loginBebas(o.osis) ? ' hidden' : '') + '><div class="field mt-16"><div class="row between"><label for="pw">Kata Sandi</label></div><div class="input-group">' + ic('lock') + '<input class="input" id="pw" type="password" autocomplete="current-password" placeholder="••••••"><button type="button" class="btn btn-ghost btn-icon btn-sm suffix" data-act="eye" aria-label="Tampilkan sandi">' + ic('eye', 'ic-sm') + '</button></div></div>' +
+    '<div class="row muted small mt-8">' + ic('info', 'ic-sm') + '<span>Kata sandi diberikan oleh Admin. Lupa? Hubungi Admin sekolah.</span></div></div>' +
+    '<div id="err"></div>' +
+    '<button class="btn btn-primary btn-block btn-lg mt-16" type="submit" id="btn-masuk">' + (o.tombol || 'Masuk') + ' ' + ic('log-in') + '</button>' + demoHintCard(st.tab, loginBebas(o.osis)) + '</form>';
 }
 function ptkPaint(el) {
   const st = el._st;
@@ -415,8 +416,14 @@ function ptkPaint(el) {
     '</div></div>';
   ptkPaintList(el, st);
 }
+/** Login PTK/juri cukup pilih nama (Pengaturan › Akun). Voting OSIS PTK tetap memakai kata sandi. */
+function loginBebas(osis) { return !osis && sekolah().LoginTanpaSandi !== 'Tidak'; }
 function ptkPaintList(el, st) {
   const p = AppState.pub, box = $('#list', el); if (!box || !st) return;
+  const form = box.closest('form'), bebas = loginBebas(form && form.dataset.osis === '1');
+  const pw = $('#pw-wrap', el); if (pw) pw.hidden = bebas;
+  const btn = $('#btn-masuk', el);
+  if (btn && form) { const pilih = st.sel && p ? (st.tab === 'ptk' ? (p.ptk.find(x => x.id === st.sel) || {}).nama : st.sel) : ''; btn.innerHTML = esc(bebas && pilih ? 'Masuk sebagai ' + pilih.split(',')[0] : form.dataset.tombol || 'Masuk') + ' ' + ic('log-in'); }
   if (!p) { box.innerHTML = '<div class="sk sk-line"></div><div class="sk sk-line"></div><div class="sk sk-line"></div>'; return; }
   const src = st.tab === 'ptk' ? p.ptk.map(x => ({ id: x.id, nama: x.nama, sub: x.jabatan })) : p.juriTamu.map(x => ({ id: x.nama, nama: x.nama, sub: x.jabatan }));
   const list = src.filter(x => !st.q || x.nama.toLowerCase().indexOf(st.q.toLowerCase()) > -1);
@@ -426,9 +433,9 @@ function ptkPaintList(el, st) {
   if (st.sel) box.querySelector('.on') && box.querySelector('.on').style.setProperty('color', 'var(--primary)');
 }
 async function ptkSubmit(el, st) {
-  const pw = $('#pw', el).value, err = $('#err', el);
+  const pw = $('#pw', el).value, err = $('#err', el), bebas = loginBebas(false);
   if (!st.sel) { err.innerHTML = '<div class="alert alert-red mt-12 small">' + ic('circle-alert', 'ic-sm') + '<span>Pilih nama Anda terlebih dahulu.</span></div>'; return; }
-  if (!pw) { err.innerHTML = '<div class="alert alert-red mt-12 small">' + ic('circle-alert', 'ic-sm') + '<span>Masukkan kata sandi.</span></div>'; return; }
+  if (!pw && !bebas) { err.innerHTML = '<div class="alert alert-red mt-12 small">' + ic('circle-alert', 'ic-sm') + '<span>Masukkan kata sandi.</span></div>'; return; }
   const res = await busy($('#btn-masuk', el), () => st.tab === 'ptk' ? api('loginPtk', { ptkId: st.sel, password: pw }) : api('loginTamu', { nama: st.sel, password: pw }));
   if (!res.success) { err.innerHTML = '<div class="alert alert-red mt-12 small">' + ic('circle-alert', 'ic-sm') + '<span>' + esc(res.message) + '</span></div>'; return; }
   setSession(res.data);
@@ -569,7 +576,7 @@ function kioskOsisPaint(el) {
   else if (!ev) body = '<div class="pub-body">' + kioskTutup('Event tidak ditemukan', 'Event belum berjalan atau link sudah tidak berlaku. Hubungi panitia.') + '</div>';
   else if (ev.VotingDibuka !== 'Ya') body = '<div class="pub-body">' + kioskTutup('Voting belum dibuka', 'Tunggu panitia membuka voting, lalu tekan Muat ulang.') + '</div>';
   else if (el._tab === 'siswa') body = '<div class="pub-body">' + kioskTabs(el, [['siswa', 'graduation-cap', 'Siswa'], ['ptk', 'user-check', 'PTK']]) + '<div class="mt-16">' + nisnCardHtml() + '</div></div>' + keypadHtml();
-  else body = '<div class="pub-body">' + kioskTabs(el, [['siswa', 'graduation-cap', 'Siswa'], ['ptk', 'user-check', 'PTK']]) + ptkFormHtml(el._pt, { tamu: false, cls: 'card card-pad mt-16', tombol: 'Masuk & Memilih' }) + '</div>';
+  else body = '<div class="pub-body">' + kioskTabs(el, [['siswa', 'graduation-cap', 'Siswa'], ['ptk', 'user-check', 'PTK']]) + ptkFormHtml(el._pt, { tamu: false, cls: 'card card-pad mt-16', tombol: 'Masuk & Memilih', osis: true }) + '</div>';
   el.innerHTML = '<div class="pub"><div class="pub-inner">' + kioskHero(ev ? ev.Judul : 'Pemilihan OSIS', ev && ev.VotingDibuka === 'Ya' ? { on: true, t: 'Voting Dibuka' } : { on: false, t: ev === undefined ? 'Memuat…' : 'Voting belum dibuka' }, ev && ev.SistemCalon === 'Tunggal' ? 'Suara terbanyak = Ketua · terbanyak ke-2 = Wakil' : 'Login Siswa & PTK') + body + '</div></div>';
   if ($('#nisn-digits', el)) nisnPaint(el);
   if (el._tab === 'ptk') ptkPaintList(el, el._pt);
@@ -787,9 +794,9 @@ registerPage('ptk', {
         '<button class="btn btn-sm" data-act="logout" style="background:rgba(255,255,255,.16);border-color:transparent;color:#fff">' + ic('log-out', 'ic-sm') + ' Keluar</button></div></div>' +
         '<div class="pub-body">' +
         (!d ? skeletonCards(3, 96) :
-          (d.osis.length ? sec('Pemilihan OSIS', d.osis.map(o => '<div class="card menu-card"><span class="icon-tile">' + ic('vote', 'ic-lg') + '</span><div class="grow"><div class="t">' + esc(o.Judul) + '</div><div class="s">' + (o.sudahMemilih ? 'Anda sudah memberikan suara' : o.VotingDibuka === 'Ya' ? 'Voting sedang dibuka' : 'Voting belum dibuka') + '</div></div>' +
-            (o.sudahMemilih ? '<span class="badge badge-green">' + ic('check', 'ic-sm') + ' Sudah</span>' : o.VotingDibuka === 'Ya' ? '<button class="btn btn-primary btn-sm" data-act="osis" data-id="' + esc(o.EventID) + '">Beri Suara</button>' : '<span class="badge badge-gray">Ditutup</span>') + '</div>').join('')) : '') +
-          sec('Tugas Juri', d.juri.length ? d.juri.map(j => '<div class="card menu-card card-tap" tabindex="0" role="button" data-act="nilai" data-id="' + esc(j.CabangID) + '"><span class="icon-tile amber">' + ic('clipboard-check', 'ic-lg') + '</span><div class="grow"><div class="t">' + esc(j.NamaCabang) + '</div><div class="s">' + esc(j.EventJudul) + ' · ' + esc(tglPendek(j.TanggalPelaksanaan)) + '</div>' +
+          (d.osis.length ? sec('Pemilihan OSIS', d.osis.map(o => '<div class="card menu-card"><span class="icon-tile">' + ic('vote', 'ic-lg') + '</span><div class="grow"><div class="t">' + esc(o.Judul) + '</div><div class="s">' + (o.sudahMemilih ? 'Anda sudah memberikan suara' : d.tanpaSandi && o.VotingDibuka === 'Ya' ? 'Beri suara lewat link voting OSIS (dengan kata sandi)' : o.VotingDibuka === 'Ya' ? 'Voting sedang dibuka' : 'Voting belum dibuka') + '</div></div>' +
+            (o.sudahMemilih ? '<span class="badge badge-green">' + ic('check', 'ic-sm') + ' Sudah</span>' : d.tanpaSandi && o.VotingDibuka === 'Ya' ? '<span class="badge badge-gray" title="Gunakan link voting OSIS dari panitia">Lewat link OSIS</span>' : o.VotingDibuka === 'Ya' ? '<button class="btn btn-primary btn-sm" data-act="osis" data-id="' + esc(o.EventID) + '">Beri Suara</button>' : '<span class="badge badge-gray">Ditutup</span>') + '</div>').join('')) : '') +
+          sec('Tugas Juri', d.juri.length ? d.juri.map(j => '<div class="card menu-card card-tap" tabindex="0" role="button" data-act="nilai" data-id="' + esc(j.CabangID) + '"><span class="icon-tile amber">' + ic('clipboard-check', 'ic-lg') + '</span><div class="grow"><div class="t">' + esc(j.NamaCabang) + '</div><div class="s">' + esc(j.EventJudul) + ' · ' + esc(tglPendek(j.TanggalPelaksanaan)) + (j.ModePenilaian === 'Babak' && j.BabakAktif ? ' · <b>' + esc(j.BabakAktif) + '</b>' : j.ModePenilaian === 'Peringkat' ? ' · <b>Rank 1 — tetapkan juara</b>' : '') + '</div>' +
             '<div class="row mt-8"><div class="prog grow ' + (j.dinilai >= j.jumlahPeserta && j.jumlahPeserta ? 'green' : '') + '"><i style="width:' + pct(j.dinilai, j.jumlahPeserta) + '%"></i></div><span class="small muted tnum">' + j.dinilai + '/' + j.jumlahPeserta + '</span></div></div>' + (j.Terkunci ? '<span class="badge badge-gray">' + ic('lock', 'ic-sm') + '</span>' : '<span class="chev">' + ic('chevron-right') + '</span>') + '</div>').join('')
             : '<div class="card"><div class="empty" style="padding:24px"><div class="empty-art">' + ic('clipboard-check', 'ic-xl') + '</div><div>Belum ada tugas juri untuk Anda.</div></div></div>') +
           (d.panitia.length ? sec('Event Kepanitiaan', d.panitia.map(p => '<div class="card menu-card"><span class="icon-tile green">' + ic('users', 'ic-lg') + '</span><div class="grow"><div class="t">' + esc(p.Judul) + '</div><div class="s">' + esc(p.JabatanPanitia) + ' · ' + esc(p.JenisEvent) + '</div></div><span class="badge ' + (p.Status === 'Berjalan' ? 'badge-green' : p.Status === 'Selesai' ? 'badge-blue' : 'badge-gray') + '">' + esc(p.Status) + '</span></div>').join('') +
@@ -810,8 +817,21 @@ registerPage('nilai', {
     el.addEventListener('click', (e) => {
       const b = e.target.closest('[data-act]'); if (!b) return;
       const S = el._s, a = b.dataset.act;
-      if (a === 'back') return go('ptk');
+      if (a === 'back') { if (S && S.bk && Object.keys(S.pend).length) bkKirim(el); if (S && S.rk && S.dirty) rkKirim(el); return go('ptk'); }
       if (!S) return;
+      if (S.rk) {
+        if (a === 'rk-pilih' && !S.d.terkunci) rkPilih(el, +b.dataset.i);
+        if (a === 'rk-clear' && !S.d.terkunci) { S.urutan[+b.dataset.i] = ''; rkUbah(el); }
+        if (a === 'rk-simpan') rkKirim(el, true);
+        return;
+      }
+      if (S.bk) {
+        if (a === 'bk-babak') { S.babak = b.dataset.id; bkPaint(el); }
+        if ((a === 'bk-min' || a === 'bk-plus') && !S.d.terkunci) { const cur = bkVal(S, S.babak, b.dataset.p); bkSet(el, b.dataset.p, cur === '' ? (a === 'bk-plus' ? 1 : 0) : cur + (a === 'bk-plus' ? 1 : -1)); }
+        if (a === 'bk-flush') bkKirim(el, true);
+        if (a === 'bk-top' && !S.d.terkunci) bkTop(el);
+        return;
+      }
       if (a === 'pes') { juriAmbil(el); S.idx = +b.dataset.i; juriPaint(el); }
       if (a === 'min' || a === 'plus') { if (S.d.terkunci) return; const k = S.d.kriteria.find(x => x.KriteriaID === b.dataset.k); const cur = juriVals(S)[k.KriteriaID]; const base = cur === undefined || cur === '' ? (a === 'plus' ? k.NilaiMin : k.NilaiMaks) : Number(cur); juriSet(el, k, base + (a === 'plus' ? 1 : -1)); }
       if (a === 'prev') { juriAmbil(el); if (S.idx > 0) { S.idx--; juriPaint(el); } }
@@ -819,6 +839,7 @@ registerPage('nilai', {
     });
     el.addEventListener('input', (e) => {
       const S = el._s; if (!S) return;
+      if (S.bk) { if (e.target.dataset.bk && !S.d.terkunci) bkSet(el, e.target.dataset.bk, e.target.value.trim(), true); if (e.target.dataset.bkl && !S.d.terkunci) bkLolos(el, e.target.dataset.bkl, e.target.checked); return; }
       if (e.target.dataset.rng) { const k = S.d.kriteria.find(x => x.KriteriaID === e.target.dataset.rng); juriSet(el, k, e.target.value, 'rng'); }
       if (e.target.dataset.val) { const k = S.d.kriteria.find(x => x.KriteriaID === e.target.dataset.val); juriSet(el, k, e.target.value, 'val'); }
       if (e.target.id === 'catatan') juriVals(S)._catatan = e.target.value;
@@ -829,6 +850,18 @@ registerPage('nilai', {
     el.innerHTML = '<div class="pub"><div class="pub-inner">' + appbar({ title: 'Penilaian Juri', sub: 'Memuat…' }) + '<div class="pub-body">' + skeletonCards(4, 140) + '</div></div></div>';
     const res = await swr('juri:' + cabangId, 'juriData', { cabangId }, (d) => {
       const prev = el._s;
+      if (d.mode === 'Peringkat') {
+        const keep = prev && prev.rk && prev.dirty;
+        el._s = { rk: true, d, cabangId, urutan: keep ? prev.urutan : d.urutan.slice(), dirty: !!keep, t: prev && prev.t };
+        rkPaint(el); return;
+      }
+      if (d.mode === 'Babak') {
+        const pend = prev && prev.bk ? prev.pend : {};
+        d.skor = d.skor || {};
+        Object.keys(pend).forEach(k => { const x = pend[k]; const m = (d.skor[x.babakId] = d.skor[x.babakId] || {}); m[x.pesertaId] = Object.assign({ lolos: '' }, m[x.pesertaId], { benar: x.benar === '' ? null : x.benar }, x.lolos !== undefined ? { lolos: x.lolos } : {}); });
+        el._s = { bk: true, d, cabangId, pend, gagal: prev && prev.bk ? prev.gagal : {}, babak: prev && prev.bk && d.babak.some(b => b.id === prev.babak) ? prev.babak : d.babakAktif, t: prev && prev.t };
+        bkPaint(el); return;
+      }
       const vals = {};
       d.peserta.forEach(p => { const m = d.nilai[p.PesertaID]; vals[p.PesertaID] = m ? Object.assign({ _catatan: m.catatan || '' }, m.nilai) : {}; });
       if (prev) Object.keys(prev.dirty).forEach(pid => { vals[pid] = prev.vals[pid]; });
@@ -839,6 +872,165 @@ registerPage('nilai', {
     if (!res.success && el._s) toast('Mode luring', 'Data diambil dari perangkat. ' + res.message, 'warning');
   }
 });
+/* ---- Juri: sistem Rank 1 (gugur bila salah) — juri menetapkan Juara 1, 2, 3 (+ harapan) ---- */
+function rkLabel(d, i) { return i < d.jumlahJuara ? 'Juara ' + (i + 1) : 'Juara Harapan ' + (i - d.jumlahJuara + 1); }
+function rkPaint(el) {
+  const S = el._s, d = S.d, lock = d.terkunci;
+  const top = appbar({ title: 'Penetapan Juara', sub: d.cabang.NamaCabang + ' · ' + d.namaJuri });
+  if (!d.peserta.length) { el.innerHTML = '<div class="pub"><div class="pub-inner">' + top + '<div class="card" style="margin:16px"><div class="empty"><div class="empty-art">' + ic('clipboard-list', 'ic-xl') + '</div><div class="empty-title">Belum ada peserta</div><div>Hubungi panitia untuk melengkapi data cabang ini.</div></div></div></div></div>'; return; }
+  const pm = {}; d.peserta.forEach(p => { pm[p.PesertaID] = p; });
+  const terisi = S.urutan.filter(Boolean).length;
+  el.innerHTML = '<div class="pub"><div class="pub-inner" style="display:flex;flex-direction:column;min-height:calc(100vh - var(--ribbon))">' + top +
+    '<div class="pub-body grow">' + (lock ? '<div class="alert alert-amber small mb-12">' + ic('lock', 'ic-sm') + '<span>Penilaian sudah dikunci panitia. Penetapan hanya bisa dilihat.</span></div>' : '') +
+    '<div class="alert alert-blue small mb-16">' + ic('info', 'ic-sm') + '<span><b>Sistem Rank 1</b> — semua peserta menjawab pertanyaan yang sama; yang salah menjawab gugur. Peserta yang bertahan paling akhir adalah <b>Juara 1</b>.</span></div>' +
+    '<div class="row between small mb-8"><b>Penetapan Juara</b><span style="color:var(--primary);font-weight:700">' + terisi + '/' + S.urutan.length + ' ditetapkan</span></div>' +
+    S.urutan.map((pid, i) => { const p = pm[pid], har = i >= d.jumlahJuara;
+      return '<div class="rk-slot' + (p ? ' on' : '') + (har ? ' har' : '') + '"><span class="rank' + (!har && i < 3 ? ' r' + (i + 1) : '') + '">' + (har ? 'H' + (i - d.jumlahJuara + 1) : i + 1) + '</span><div class="grow" style="min-width:0"><div class="small muted" style="font-weight:700;letter-spacing:.04em">' + esc(rkLabel(d, i).toUpperCase()) + '</div>' +
+        (p ? '<b class="ellipsis" style="display:block;font-size:16px">' + esc(p.NamaTampil) + '</b><span class="small muted">No. ' + noUrut(p.NoUrut) + ' · Kelas ' + esc(p.Kelas) + '</span>' : '<span class="muted">Belum ditetapkan</span>') + '</div>' +
+        (lock ? '' : (p ? '<button type="button" class="btn btn-ghost btn-icon btn-sm" data-act="rk-clear" data-i="' + i + '" aria-label="Kosongkan ' + esc(rkLabel(d, i)) + '">' + ic('x', 'ic-sm') + '</button>' : '') + '<button type="button" class="btn btn-soft btn-sm" data-act="rk-pilih" data-i="' + i + '">' + (p ? 'Ganti' : 'Pilih') + '</button>') + '</div>'; }).join('') +
+    '<div class="row muted small mt-12" style="align-items:flex-start">' + ic('circle-check', 'ic-sm') + '<span>Ketuk <b>Pilih</b> lalu ketuk nama peserta. Penetapan tersimpan otomatis dan langsung tampil di hasil.</span></div></div>' +
+    '<div class="bottom-bar"><span class="small muted grow" id="rk-st" aria-live="polite">' + (lock ? 'Terkunci' : S.dirty ? 'Menyimpan…' : 'Semua penetapan tersimpan') + '</span><button class="btn btn-primary btn-lg" data-act="rk-simpan"' + (lock ? ' disabled' : '') + '>' + ic('save') + ' Simpan</button></div></div></div>';
+}
+function rkPilih(el, i) {
+  const S = el._s, d = S.d;
+  const m = modal({ title: 'Pilih ' + rkLabel(d, i), sub: esc(d.cabang.NamaCabang),
+    body: '<div class="name-list" style="max-height:60vh">' + d.peserta.map(p => { const j = S.urutan.indexOf(p.PesertaID);
+      return '<button type="button" class="name-row' + (j === i ? ' on' : '') + '" data-pid="' + esc(p.PesertaID) + '">' + avatarHtml(p.NamaTampil, '', 'avatar-sm') + '<span class="grow" style="min-width:0"><span style="font-weight:600;display:block" class="ellipsis">' + noUrut(p.NoUrut) + ' · ' + esc(p.NamaTampil) + '</span><span class="muted small">Kelas ' + esc(p.Kelas) + '</span></span>' + (j > -1 ? '<span class="badge' + (j === i ? '' : ' badge-gray') + '">' + esc(rkLabel(d, j)) + '</span>' : '') + '</button>'; }).join('') + '</div>' });
+  m.el.addEventListener('click', (e) => {
+    const b = e.target.closest('[data-pid]'); if (!b) return;
+    const pid = b.dataset.pid, j = S.urutan.indexOf(pid);
+    if (j > -1 && j !== i) S.urutan[j] = S.urutan[i] || '';   // tukar posisi
+    S.urutan[i] = pid;
+    m.close(); rkUbah(el);
+  });
+}
+function rkUbah(el) { const S = el._s; S.dirty = true; rkPaint(el); clearTimeout(S.t); S.t = setTimeout(() => rkKirim(el), 700); }
+function rkKirim(el, manual) {
+  const S = el._s; if (!S || !S.rk) return;
+  clearTimeout(S.t);
+  if (!S.dirty) { if (manual) toast('Penetapan sudah tersimpan'); return; }
+  const snap = S.urutan.slice(), reqId = (crypto.randomUUID ? crypto.randomUUID() : Date.now() + '' + Math.random());
+  api('juriPeringkat', { cabangId: S.cabangId, urutan: snap }, { reqId }).then(res => {
+    const live = el._s === S;
+    if (res.success) {
+      S.d.urutan = snap; if (S.urutan.join('|') === snap.join('|')) S.dirty = false;
+      swrPut('juri:' + S.cabangId, S.d); AppState.ptk = null; swrDrop('ptk');
+      const st = live && $('#rk-st', el); if (st) st.textContent = S.dirty ? 'Menyimpan…' : 'Tersimpan ' + new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+      if (manual) toast('Penetapan juara tersimpan');
+    } else {
+      toast('Penetapan belum tersimpan', res.message, 'error');
+      if (res.data && res.data.code === 'LOCKED') { S.d.terkunci = true; S.urutan = S.d.urutan.slice(); S.dirty = false; }
+      if (live && !el.hidden) rkPaint(el);
+    }
+  });
+}
+/* ---- Juri: sistem babak (skor = jumlah jawaban benar), simpan otomatis ---- */
+function bkBabak(S) { return S.d.babak.find(x => x.id === S.babak) || S.d.babak[0]; }
+function bkVal(S, bid, pid) { const m = (S.d.skor[bid] || {})[pid]; return m && m.benar !== null && m.benar !== undefined && m.benar !== '' ? Number(m.benar) : ''; }
+function bkPaint(el) {
+  const S = el._s, d = S.d, lock = d.terkunci;
+  const top = appbar({ title: 'Penilaian Juri', sub: d.cabang.NamaCabang + ' · ' + d.namaJuri });
+  if (!d.peserta.length || !d.babak.length) { el.innerHTML = '<div class="pub"><div class="pub-inner">' + top + '<div class="card" style="margin:16px"><div class="empty"><div class="empty-art">' + ic('clipboard-list', 'ic-xl') + '</div><div class="empty-title">Belum ada peserta</div><div>Hubungi panitia untuk melengkapi data cabang ini.</div></div></div></div></div>'; return; }
+  bkAlur(S);
+  const B = bkBabak(S); S.babak = B.id;
+  const bi = d.babak.indexOf(B), nxt = d.babak[bi + 1];
+  const pes = d.peserta.filter(p => B.ikut.indexOf(p.PesertaID) > -1);
+  el.innerHTML = '<div class="pub"><div class="pub-inner" style="display:flex;flex-direction:column;min-height:calc(100vh - var(--ribbon))">' + top +
+    '<div style="padding:12px 16px 4px">' + (lock ? '<div class="alert alert-amber small mb-8">' + ic('lock', 'ic-sm') + '<span>Penilaian sudah dikunci panitia. Skor hanya bisa dilihat.</span></div>' : '') +
+    '<div class="row row-wrap" style="gap:8px">' + d.babak.map((b, i) => '<button class="chip' + (b.id === B.id ? ' on' : '') + '" data-act="bk-babak" data-id="' + esc(b.id) + '"' + (b.ikut.length ? '' : ' disabled title="Belum dibuka panitia"') + '>' + (b.final ? ic('trophy', 'ic-sm') + ' ' : '') + esc(b.nama) + (b.id === d.babakAktif ? ' <span class="dot" style="background:var(--green)"></span>' : '') + '</button>').join('') + '</div>' +
+    '<div class="row between small mt-12"><b>' + esc(B.nama) + (B.final && !/final/i.test(B.nama) ? ' (Final)' : '') + (B.maks ? ' · ' + B.maks + ' soal' : '') + '</b><span style="color:var(--primary);font-weight:700" id="bk-done"></span></div><div class="prog mt-8"><i id="bk-prog"></i></div></div>' +
+    '<div class="pub-body grow" style="padding-top:8px"><div class="card" style="padding:4px 16px">' +
+    (pes.length ? pes.map(p => { const v = bkVal(S, B.id, p.PesertaID), m = (d.skor[B.id] || {})[p.PesertaID], lol = m && m.lolos === 'Ya';
+      return '<div class="bk-row' + (v !== '' ? ' done' : '') + '" data-pid="' + esc(p.PesertaID) + '"><span class="bk-no">' + noUrut(p.NoUrut) + '</span><div class="grow"><b>' + esc(p.NamaTampil) + '</b><div class="small muted">Kelas ' + esc(p.Kelas) + (S.gagal[p.PesertaID] ? ' · <span class="err-text">belum tersimpan</span>' : '') + '</div></div>' +
+        '<div class="bk-step"><button type="button" data-act="bk-min" data-p="' + esc(p.PesertaID) + '" aria-label="Kurangi"' + (lock ? ' disabled' : '') + '>' + ic('minus') + '</button><input class="input" inputmode="numeric" data-bk="' + esc(p.PesertaID) + '" value="' + v + '" placeholder="–" aria-label="Jumlah benar ' + esc(p.NamaTampil) + '"' + (lock ? ' readonly' : '') + '><button type="button" data-act="bk-plus" data-p="' + esc(p.PesertaID) + '" aria-label="Tambah"' + (lock ? ' disabled' : '') + '>' + ic('plus') + '</button><span class="bk-max">' + (B.maks ? '/' + B.maks : 'benar') + '</span></div>' +
+        (nxt ? '<label class="switch bk-lolos' + (lol ? ' on' : '') + '"><input type="checkbox" data-bkl="' + esc(p.PesertaID) + '"' + (lol ? ' checked' : '') + (lock ? ' disabled' : '') + '><span class="track"></span><span>Lolos ke ' + esc(nxt.nama) + '</span></label>' : '') + '</div>'; }).join('')
+      : '<div class="empty" style="padding:24px">Belum ada peserta di babak ini.</div>') + '</div>' +
+    '<div class="row muted small mt-12" style="align-items:flex-start">' + ic('info', 'ic-sm') + '<span>Isi <b>jumlah jawaban benar</b> tiap peserta — tersimpan otomatis. ' + (B.final ? 'Juara ditentukan dari hasil akhir.' : 'Geser <b>Lolos</b> untuk peserta yang maju ke ' + esc(nxt ? nxt.nama : 'babak berikutnya') + ' — mereka langsung muncul di babak itu.') + '</span></div>' +
+    (nxt && pes.length && !lock ? '<div class="card card-pad mt-12 row row-wrap" style="gap:8px"><span class="small" style="font-weight:600">Loloskan</span><input class="input input-sm" type="number" min="1" id="bk-topn" value="' + Math.max(1, Math.min(pes.length, B.lolos || Math.ceil(pes.length / 2))) + '" style="width:72px" aria-label="Jumlah peserta lolos"><span class="small">teratas</span><button type="button" class="btn btn-soft btn-sm" data-act="bk-top">' + ic('list-ordered', 'ic-sm') + ' Terapkan</button><span class="small muted" style="flex-basis:100%">Nilai sama di batas kelulusan ikut lolos.</span></div>' : '') + '</div>' +
+    '<div class="bottom-bar"><span class="small muted grow" id="bk-st" aria-live="polite">' + (lock ? 'Terkunci' : Object.keys(S.pend).length ? 'Menyimpan…' : 'Semua skor tersimpan') + '</span><button class="btn btn-primary btn-lg" data-act="bk-flush"' + (lock ? ' disabled' : '') + '>' + ic('save') + ' Simpan</button></div></div></div>';
+  bkCount(el);
+}
+function bkCount(el) {
+  const S = el._s, B = bkBabak(S), n = B.ikut.length, done = B.ikut.filter(pid => bkVal(S, B.id, pid) !== '').length;
+  const t = $('#bk-done', el), g = $('#bk-prog', el);
+  if (t) t.textContent = done + '/' + n + ' dinilai'; if (g) g.style.width = pct(done, n) + '%';
+}
+function bkSet(el, pid, val, dariKetik) {
+  const S = el._s, B = bkBabak(S);
+  let n = val === '' ? '' : Math.round(Number(val));
+  if (n !== '' && isNaN(n)) return;
+  if (n !== '') { n = Math.max(0, n); if (B.maks) n = Math.min(B.maks, n); }
+  const m = (S.d.skor[B.id] = S.d.skor[B.id] || {});
+  m[pid] = Object.assign({ lolos: '' }, m[pid], { benar: n === '' ? null : n });
+  const row = $('.bk-row[data-pid="' + pid + '"]', el);
+  if (row) { const inp = row.querySelector('input[data-bk]'); if (!dariKetik || String(n) !== inp.value) inp.value = n; row.classList.toggle('done', n !== ''); }
+  bkAntre(el, B.id, pid);
+}
+/** Antrekan perubahan (skor + lolos) satu peserta untuk dikirim. */
+function bkAntre(el, bid, pid) {
+  const S = el._s, m = (S.d.skor[bid] || {})[pid] || {};
+  S.pend[bid + '|' + pid] = { babakId: bid, pesertaId: pid, benar: m.benar === null || m.benar === undefined ? '' : m.benar, lolos: m.lolos || '' };
+  delete S.gagal[pid];
+  bkCount(el);
+  const st = $('#bk-st', el); if (st) st.textContent = 'Menyimpan…';
+  clearTimeout(S.t); S.t = setTimeout(() => bkKirim(el), 900);
+}
+/** Siapa ikut tiap babak dihitung ulang di perangkat (sama dengan server) agar tanda lolos langsung terlihat. */
+function bkAlur(S) {
+  const d = S.d; let ikut = d.peserta.map(p => p.PesertaID), aktif = d.babak.length ? d.babak[0].id : '';
+  d.babak.forEach(b => {
+    const m = d.skor[b.id] || {};
+    b.ikut = ikut.slice();
+    b.dinilai = ikut.filter(id => m[id] && m[id].benar !== null && m[id].benar !== undefined && m[id].benar !== '').length;
+    b.lolos = ikut.filter(id => m[id] && m[id].lolos === 'Ya').length;
+    if (b.ikut.length) aktif = b.id;
+    ikut = ikut.filter(id => m[id] && m[id].lolos === 'Ya');
+  });
+  d.babakAktif = aktif;
+}
+function bkSetLolos(S, bid, pid, ya) {
+  const m = (S.d.skor[bid] = S.d.skor[bid] || {}), cur = m[pid] || { benar: null };
+  m[pid] = Object.assign({}, cur, { lolos: ya ? 'Ya' : (cur.benar === null || cur.benar === undefined || cur.benar === '' ? '' : 'Tidak') });
+}
+function bkLolos(el, pid, ya) {
+  const S = el._s, B = bkBabak(S);
+  bkSetLolos(S, B.id, pid, ya); bkAntre(el, B.id, pid); bkPaint(el);
+}
+function bkTop(el) {
+  const S = el._s, B = bkBabak(S), n = Math.max(1, +($('#bk-topn', el) || {}).value || 1);
+  const v = B.ikut.map(pid => ({ pid, v: bkVal(S, B.id, pid) === '' ? -1 : bkVal(S, B.id, pid) })).sort((a, b) => b.v - a.v);
+  if (!v.length) return;
+  const batas = v[Math.min(n, v.length) - 1].v;
+  v.forEach(x => { bkSetLolos(S, B.id, x.pid, x.v >= 0 && x.v >= batas); bkAntre(el, B.id, x.pid); });
+  bkPaint(el);
+  toast(v.filter(x => x.v >= 0 && x.v >= batas).length + ' peserta lolos', 'Tersimpan otomatis.');
+}
+/** Kirim semua perubahan tertunda (dikelompokkan per babak), aman diulang dengan reqId. */
+function bkKirim(el, manual) {
+  const S = el._s; if (!S || !S.bk) return;
+  clearTimeout(S.t);
+  const keys = Object.keys(S.pend);
+  if (!keys.length) { if (manual) toast('Semua skor sudah tersimpan'); return; }
+  const grp = {};
+  keys.forEach(k => { const x = S.pend[k]; (grp[x.babakId] = grp[x.babakId] || []).push([k, x]); });
+  Object.keys(grp).forEach(bid => {
+    const items = grp[bid], reqId = (crypto.randomUUID ? crypto.randomUUID() : Date.now() + '' + Math.random());
+    api('juriSkorBabak', { cabangId: S.cabangId, babakId: bid, rows: items.map(it => ({ pesertaId: it[1].pesertaId, benar: it[1].benar, lolos: it[1].lolos })) }, { reqId }).then(res => {
+      const live = el._s === S;
+      if (res.success) {
+        items.forEach(it => { if (S.pend[it[0]] === it[1]) delete S.pend[it[0]]; });
+        swrPut('juri:' + S.cabangId, S.d); AppState.ptk = null; swrDrop('ptk');
+        const st = live && $('#bk-st', el); if (st) st.textContent = Object.keys(S.pend).length ? 'Menyimpan…' : 'Tersimpan ' + new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+        if (manual) toast('Skor tersimpan', items.length + ' peserta');
+      } else {
+        items.forEach(it => { S.gagal[it[1].pesertaId] = 1; });
+        toast('Skor belum tersimpan', res.message, 'error');
+        if (res.data && res.data.code === 'LOCKED') { S.d.terkunci = true; S.pend = {}; }
+        if (live && !el.hidden) bkPaint(el);
+      }
+    });
+  });
+}
 function juriVals(S) { const p = S.d.peserta[S.idx]; return S.vals[p.PesertaID] = S.vals[p.PesertaID] || {}; }
 function juriTotal(S, v) {
   let t = 0, any = false;
