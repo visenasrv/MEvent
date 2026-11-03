@@ -793,6 +793,7 @@ registerPage('ptk', {
   },
   async show(el) {
     const paint = (d) => {
+      if (d) d = Object.assign({}, d, { osis: Array.isArray(d.osis) ? d.osis : [], juri: Array.isArray(d.juri) ? d.juri : [], panitia: Array.isArray(d.panitia) ? d.panitia : [] });
       AppState.ptk = d;
       const u = AppState.user || {};
       const sec = (t, body) => '<div class="pub-section-title">' + t + '</div>' + body;
@@ -868,7 +869,8 @@ registerPage('nilai', {
     el._s = null;
     el.innerHTML = '<div class="pub"><div class="pub-inner">' + appbar({ title: 'Penilaian Juri', sub: 'Memuat…' }) + '<div class="pub-body">' + skeletonCards(4, 140) + '</div></div></div>';
     const res = await swr('juri:' + cabangId, 'juriData', { cabangId }, el._render = (d) => {
-      const prev = el._s;
+      d = normJuri(d);
+      let prev = el._s;
       if (d.mode === 'Poin') {
         const old = prev && prev.pn ? prev : null;
         if (old) clearInterval(old.poll);
@@ -884,10 +886,11 @@ registerPage('nilai', {
         const pend = prev && prev.bk ? prev.pend : {};
         d.skor = d.skor || {};
         Object.keys(pend).forEach(k => { const x = pend[k]; const m = (d.skor[x.babakId] = d.skor[x.babakId] || {}); m[x.pesertaId] = Object.assign({ lolos: '' }, m[x.pesertaId], { benar: x.benar === '' ? null : x.benar }, x.lolos !== undefined ? { lolos: x.lolos } : {}); });
-        el._s = { bk: true, d, cabangId, pend, gagal: prev && prev.bk ? prev.gagal : {}, babak: prev && prev.bk && d.babak.some(b => b.id === prev.babak) ? prev.babak : d.babakAktif, t: prev && prev.t };
+        el._s = { bk: true, d, cabangId, pend, gagal: prev && prev.bk ? prev.gagal : {}, babak: prev && prev.bk && d.babak.some(b => b.id === prev.babak) ? prev.babak : (d.babakAktif || (d.babak[0] || {}).id), t: prev && prev.t };
         bkPaint(el); return;
       }
       const vals = {};
+      if (prev && !prev.vals) prev = null; // sebelumnya mode lain → mulai bersih
       d.peserta.forEach(p => { const m = d.nilai[p.PesertaID]; vals[p.PesertaID] = m ? Object.assign({ _catatan: m.catatan || '' }, m.nilai) : {}; });
       if (prev) Object.keys(prev.dirty).forEach(pid => { vals[pid] = prev.vals[pid]; });
       el._s = { d, vals, idx: prev ? prev.idx : Math.max(0, d.peserta.findIndex(p => !d.nilai[p.PesertaID])), dirty: prev ? prev.dirty : {}, gagal: prev ? prev.gagal : {}, cabangId };
@@ -897,6 +900,29 @@ registerPage('nilai', {
     if (!res.success && el._s) toast('Mode luring', 'Data diambil dari perangkat. ' + res.message, 'warning');
   }
 });
+/** Lengkapi data juri yang kurang (mis. server/cache versi lain) agar halaman tidak macet. */
+function normJuri(d) {
+  d = Object.assign({}, d || {});
+  const arr = (v) => Array.isArray(v) ? v : [], obj = (v) => v && typeof v === 'object' && !Array.isArray(v) ? v : {};
+  d.peserta = arr(d.peserta); d.absen = arr(d.absen); d.cabang = obj(d.cabang);
+  d.cabang = Object.assign({ NamaCabang: '', EventJudul: '' }, d.cabang); if (!d.namaJuri) d.namaJuri = (AppState.user || {}).nama || '';
+  if (d.mode === 'Poin') {
+    d.log = arr(d.log); d.cfg = obj(d.cfg);
+    if (!Array.isArray(d.cfg.tombol) || !d.cfg.tombol.length) d.cfg.tombol = [100, 50, -50, -100];
+    d.cfg.awal = Number(d.cfg.awal) || 0;
+  } else if (d.mode === 'Peringkat') {
+    d.jumlahJuara = Math.max(1, Number(d.jumlahJuara) || 3); d.jumlahHarapan = Number(d.jumlahHarapan) || 0;
+    d.urutan = arr(d.urutan);
+    while (d.urutan.length < d.jumlahJuara + d.jumlahHarapan) d.urutan.push('');
+  } else if (d.mode === 'Babak') {
+    d.babak = arr(d.babak).map(b => Object.assign({}, b, { ikut: arr(b && b.ikut) }));
+    d.skor = obj(d.skor);
+    if (!d.babak.length) d.babak = [{ id: 'B1', nama: 'Babak 1', maks: 0, final: true, ikut: d.peserta.map(p => p.PesertaID) }];
+  } else {
+    d.kriteria = arr(d.kriteria); d.nilai = obj(d.nilai);
+  }
+  return d;
+}
 /* ---- Peserta tidak hadir: dikeluarkan dari daftar penilaian & peringkat (bisa dipulihkan) ---- */
 function kelolaHtml(d) {
   if (d.terkunci) return (d.absen || []).length ? '<div class="small muted mt-16">' + ic('user-x', 'ic-sm') + ' Tidak hadir: ' + esc(d.absen.map(x => x.NamaTampil).join(', ')) + '</div>' : '';

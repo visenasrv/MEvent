@@ -5,7 +5,7 @@
    ============================================================ */
 'use strict';
 
-const APP_VER = '1.9.2';
+const APP_VER = '1.9.4';
 const LS_PREFIX = 'mevent:v1:';
 
 /* ---------------- Penyimpanan perangkat ---------------- */
@@ -60,7 +60,7 @@ async function apiOnce(action, data, timeout, reqId, token) {
     });
     const text = await res.text();
     _lastNet = Date.now();
-    try { const j = JSON.parse(text); Perf.add(action, Math.round(performance.now() - t0), j.ms); return j; }
+    try { const j = JSON.parse(text); Perf.add(action, Math.round(performance.now() - t0), j.ms); if (j && j.v) cekVersi(j.v); return j; }
     catch (e) { return { success: false, network: true, retryable: res.status >= 500 || res.status === 429, message: 'Server membalas HTTP ' + res.status + ' (bukan JSON). Periksa URL Web App & izin akses "Anyone".' }; }
   } catch (err) {
     return { success: false, network: true, retryable: true, message: err.name === 'AbortError' ? 'Server terlalu lama merespons.' : 'Koneksi terputus. Periksa internet Anda.' };
@@ -97,8 +97,11 @@ function hashStr(s) { let h = 0; for (let i = 0; i < s.length; i++) h = (h * 31 
 /** Stale-while-revalidate: render dari cache seketika, segarkan di latar, render ulang hanya bila berubah. */
 async function swr(key, action, payload, render, opt = {}) {
   const fresh = opt.fresh ?? 60000, k = opt.globalKey ? 'c:' + AppState.mode + ':g:' + key : userKey(key);
-  const c = Store.get(k, null);
-  if (c && render) render(c.data, true);
+  let c = Store.get(k, null);
+  if (c && render) {
+    // Cache dari versi lama bisa berbeda bentuk → jangan sampai halaman macet; buang lalu ambil dari server.
+    try { render(c.data, true); } catch (e) { console.warn('Cache "' + key + '" tidak cocok, diambil ulang dari server.', e); Store.del(k); c = null; }
+  }
   if (c && !opt.force && Date.now() - c.t < fresh) return { success: true, data: c.data, cached: true };
   const res = await api(action, payload);
   if (res.success) {
@@ -110,6 +113,27 @@ async function swr(key, action, payload, render, opt = {}) {
 }
 function swrPut(key, data, globalKey) { const k = globalKey ? 'c:' + AppState.mode + ':g:' + key : userKey(key); Store.set(k, { t: Date.now(), h: hashStr(JSON.stringify(data)), data }); }
 function swrDrop(key) { Store.del(userKey(key)); }
+
+/* ---------------- Cek versi tampilan (frontend) vs server (Apps Script) ---------------- */
+function cmpVer(a, b) { const x = String(a).split('.').map(Number), y = String(b).split('.').map(Number); for (let i = 0; i < 3; i++) { const d = (x[i] || 0) - (y[i] || 0); if (d) return d; } return 0; }
+function versiInfo() {
+  const sv = AppState.serverVer;
+  if (!sv || sv === APP_VER) return '';
+  return cmpVer(sv, APP_VER) > 0
+    ? 'Tampilan di perangkat ini masih versi ' + APP_VER + ', sedangkan server sudah versi ' + sv + '. Muat ulang halaman (tarik ke bawah / Ctrl+Shift+R).'
+    : 'Server Apps Script masih versi ' + sv + ', sedangkan tampilan sudah versi ' + APP_VER + '. Admin perlu mengganti berkas .gs lalu membuat versi deployment baru.';
+}
+let _verWarned = false;
+function cekVersi(v) {
+  AppState.serverVer = String(v);
+  if (_verWarned || AppState.serverVer === APP_VER) return;
+  _verWarned = true;
+  console.warn('[MEvent] ' + versiInfo());
+  if (cmpVer(AppState.serverVer, APP_VER) > 0) toast('Versi baru tersedia', 'Muat ulang halaman agar aplikasi berjalan normal.', 'warning');
+  else if (AppState.role === 'admin' || AppState.role === 'ptk') toast('Versi server berbeda', 'Server ' + AppState.serverVer + ' · tampilan ' + APP_VER + '. Perbarui berkas .gs & buat versi deployment baru.', 'warning');
+}
+/** Tombol "Coba lagi" pada halaman gagal: buang cache data (sesi tetap) lalu muat ulang dari server. */
+function cobaLagiBersih() { Store.delPrefix('c:'); AppState.ptk = null; if (AppState.serverVer && cmpVer(AppState.serverVer, APP_VER) > 0) { location.reload(); return; } route(); }
 
 /* ---------------- Sesi ---------------- */
 function sessKey() { return 'sess:' + AppState.mode; }
@@ -492,7 +516,13 @@ async function route() {
   document.title = (def.title ? def.title + ' · ' : '') + 'MEvent';
   if (def.layout !== 'shell' || !el.dataset.keepScroll) window.scrollTo(0, 0);
   try { await def.show(el, parts[1], parts[2], parts[3]); }
-  catch (e) { console.error(e); el.innerHTML = errorBox(e.message || String(e)); }
+  catch (e) {
+    console.error(e);
+    const vi = versiInfo();
+    el.innerHTML = '<div class="pub"><div class="pub-inner">' + (AppState.token ? '<div style="padding:12px 16px"><button class="btn btn-sm" onclick="history.length > 1 ? history.back() : go(\'\')">' + ic('arrow-left', 'ic-sm') + ' Kembali</button></div>' : '') +
+      errorBox('Halaman tidak dapat ditampilkan (' + (e.message || String(e)) + ').' + (vi ? ' ' + vi : ' Tekan Coba lagi — data akan diambil ulang dari server.'), 'cobaLagiBersih()') +
+      '<div class="small muted" style="text-align:center;margin-top:8px">Versi tampilan ' + APP_VER + (AppState.serverVer ? ' · server ' + esc(AppState.serverVer) : '') + '</div></div></div>';
+  }
 }
 function layoutHost(layout) {
   const app = document.getElementById('app');

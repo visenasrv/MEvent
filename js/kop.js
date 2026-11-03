@@ -60,10 +60,10 @@ function susunKop(s, susunan) {
 /* ---------------- Pengaturan cetak per dokumen ---------------- */
 const CETAK_DEFAULT = {
   SK: { kop: true, ttd: true, kunci: true }, BeritaAcara: { kop: true, ttd: true, kunci: true },
-  DaftarHadir: { kop: true, ttd: true }, Rekap: { kop: true, ttd: true }, LembarJuri: { kop: true, ttd: false },
+  DaftarHadir: { kop: true, ttd: true }, Rekap: { kop: true, ttd: true }, LembarJuri: { kop: true, ttd: false }, HasilJuri: { kop: true, ttd: false },
   Formulir: { kop: true, ttd: false }, Piagam: { kop: false, ttd: true }
 };
-const JENIS_LABEL = { SK: 'SK Panitia', BeritaAcara: 'Berita Acara Pemilihan', DaftarHadir: 'Daftar Hadir', Rekap: 'Rekap Hasil Suara', LembarJuri: 'Lembar Penilaian Juri', Formulir: 'Formulir Kosong', Piagam: 'Piagam Juara' };
+const JENIS_LABEL = { SK: 'SK Panitia', BeritaAcara: 'Berita Acara Pemilihan', DaftarHadir: 'Daftar Hadir', Rekap: 'Rekap Hasil Suara', LembarJuri: 'Lembar Penilaian Juri', HasilJuri: 'Hasil Penilaian Juri', Formulir: 'Formulir Kosong', Piagam: 'Piagam Juara' };
 function cetakCfg(det, jenis) {
   const d = CETAK_DEFAULT[jenis] || { kop: true, ttd: true };
   const s = (det && det.cetak || []).find(c => c.JenisDokumen === jenis);
@@ -271,6 +271,93 @@ function lembarBabak(det, cfg, c, j, o) {
   const extra = cfg.ttd || cfg.pt2 ? ttdHtml(cfg, { tanggal: c.TanggalSelesai || c.TanggalPelaksanaan }) : '';
   return docPage(judulDoc('Lembar Skor ' + esc(B.nama), esc(det.event.Judul)) + head + t +
     '<p style="font-size:9.5pt;margin-top:6px">' + (grid ? 'Beri tanda ✓ pada nomor soal/kata yang dijawab benar, lalu tulis jumlahnya. ' : 'Tulis jumlah jawaban benar tiap peserta. ') + (B.maks ? 'Jumlah soal ' + B.maks + '. ' : '') + (B.final ? 'Babak final menentukan juara.' : 'Kolom Lolos diisi panitia untuk peserta yang maju ke babak berikutnya.') + (kosong ? ' (Daftar peserta babak ini belum ditetapkan.)' : '') + '</p>' + ttdJuri + extra, { kop: cfg.kop });
+}
+
+/* ============================================================
+   HASIL PENILAIAN JURI — dokumen arsip berisi nilai yang benar-benar diinput juri
+   ============================================================ */
+function waktuArsip(w) { return w ? tglPendek(String(w).slice(0, 10)) + (jam(w) ? ' ' + jam(w) : '') : '-'; }
+function statusArsip(c) { return c.Selesai === 'Ya' ? 'Selesai & terkunci' : c.Terkunci === 'Ya' ? 'Terkunci' : 'Belum dikunci (nilai masih dapat berubah)'; }
+function infoArsip(c, extra) {
+  return '<table class="info"><tr><td style="width:130px">Cabang lomba</td><td>: <b>' + esc(c.NamaCabang) + '</b></td></tr><tr><td>Hari/tanggal</td><td>: ' + esc(jadwalCabang(c)) + '</td></tr>' + (extra || '') +
+    '<tr><td>Status penilaian</td><td>: ' + esc(statusArsip(c)) + '</td></tr></table>';
+}
+function catatanCetak() { const n = new Date(); return '<p style="font-size:9pt;margin-top:8px;color:#333"><i>Dicetak dari aplikasi MEvent pada ' + esc(hariTgl(todayStr())) + ' pukul ' + String(n.getHours()).padStart(2, '0') + '.' + String(n.getMinutes()).padStart(2, '0') + ' sebagai arsip hasil penilaian.</i></p>'; }
+function ttdSatu(lbl, j) { return '<div class="ttd"><div>' + esc(lbl) + ',</div><div class="sp"></div><div class="nm">' + (j && j.Nama ? esc(j.Nama) : '..............................') + '</div><div>' + esc(j && j.NIP_NIY_NUPTK ? (j.JenisNomor || 'NIP') + '. ' + j.NIP_NIY_NUPTK : '') + '</div></div>'; }
+function ttdDewanJuri(c) { const J = c.juri || []; if (!J.length) return ''; return '<div class="ttd-grid"><div class="ttd-grid-title">Dewan Juri ' + esc(c.NamaCabang) + '</div>' + J.map((j, i) => ttdSatu(J.length > 1 ? 'Juri ' + (i + 1) : 'Juri', j)).join('') + '</div>'; }
+/** Nilai akhir satu juri untuk satu peserta (skala 0–100, sama dengan perhitungan server). */
+function nilaiJuriPeserta(c, juriId, pid) {
+  let t = 0, ada = false;
+  (c.kriteria || []).forEach(k => { const n = (c.nilai || []).find(x => x.JuriID === juriId && x.PesertaID === pid && x.KriteriaID === k.KriteriaID); if (!n || n.Nilai === '' || n.Nilai === null) return; ada = true; const mn = +k.NilaiMin || 0, mx = +k.NilaiMaks || 100; t += (Number(n.Nilai) - mn) / ((mx - mn) || 1) * 100 * (+k.Bobot || 0) / 100; });
+  return ada ? Math.round(t * 100) / 100 : null;
+}
+function docHasilJuri(det, cfg, o) {
+  const cabs = (det.cabang || []).filter(c => c.ModePenilaian !== 'Voting' && (!o.cabangId || c.CabangID === o.cabangId));
+  const L = { landscape: !!o.landscape, kop: cfg.kop };
+  const ekstraTtd = (c) => ttdHtml(cfg, { tanggal: c.TanggalSelesai || c.TanggalPelaksanaan });
+  const judul = (c) => judulDoc('Hasil Penilaian Juri', esc(det.event.Judul) + ' — ' + esc(c.NamaCabang));
+  const pesHadir = (c) => (c.peserta || []).filter(p => p.Hadir !== 'Tidak').sort((a, b) => a.NoUrut - b.NoUrut);
+  const absenTxt = (c) => { const a = (c.peserta || []).filter(p => p.Hadir === 'Tidak'); return a.length ? '<p style="font-size:10pt;margin-top:6px">Tidak hadir: ' + esc(a.map(p => p.NamaTampil).join(', ')) + '.</p>' : ''; };
+  const nm = (c, pid) => { const p = (c.peserta || []).find(x => x.PesertaID === pid); return p ? p.NamaTampil : pid; };
+  const out = [];
+  cabs.forEach(c => {
+    const h = c.hasil || { peserta: [] }, mode = c.ModePenilaian, A = c.arsip || {};
+    if (mode === 'Juri' || mode === 'Gabungan') {
+      const K = c.kriteria || [], P = pesHadir(c);
+      if (o.rincian !== false) (c.juri || []).filter(j => !o.juriId || j.JuriID === o.juriId).forEach(j => {
+        const mine = (c.nilai || []).filter(n => n.JuriID === j.JuriID);
+        const dinilai = P.filter(p => mine.some(n => n.PesertaID === p.PesertaID && n.KriteriaID !== '_catatan')).length;
+        const sumber = { Digital: 0, Cetak: 0 }; mine.forEach(n => { if (n.KriteriaID === '_catatan') return; sumber[n.Sumber === 'Cetak' || n.Sumber === 'Manual' ? 'Cetak' : 'Digital']++; });
+        const waktu = mine.map(n => n.Waktu).filter(Boolean).sort();
+        const t = '<table class="dt"><thead><tr><th style="width:32px">No</th><th>Nama Peserta</th><th style="width:44px">Kelas</th>' + K.map(k => '<th style="width:' + Math.max(52, Math.floor(320 / Math.max(1, K.length))) + 'px">' + esc(k.NamaKriteria) + '<br><span style="font-weight:400;font-size:8.5pt">(' + k.NilaiMin + '–' + k.NilaiMaks + ', ' + k.Bobot + '%)</span></th>').join('') + '<th style="width:58px">Nilai Akhir</th><th style="width:' + (L.landscape ? 180 : 110) + 'px">Catatan</th></tr></thead><tbody>' +
+          P.map(p => { const v = nilaiJuriPeserta(c, j.JuriID, p.PesertaID), cat = mine.find(n => n.PesertaID === p.PesertaID && n.KriteriaID === '_catatan');
+            return '<tr><td class="c">' + noUrut(p.NoUrut) + '</td><td>' + esc(p.NamaTampil) + '</td><td class="c">' + esc(p.Kelas) + '</td>' + K.map(k => { const n = mine.find(x => x.PesertaID === p.PesertaID && x.KriteriaID === k.KriteriaID); return '<td class="c">' + (n && n.Nilai !== '' ? esc(n.Nilai) : '–') + '</td>'; }).join('') +
+              '<td class="c"><b>' + (v === null ? '–' : fmtNum(v, 2)) + '</b></td><td style="font-size:9.5pt">' + esc(cat ? cat.Catatan || '' : '') + '</td></tr>'; }).join('') + '</tbody></table>';
+        out.push(docPage(judul(c) + infoArsip(c, '<tr><td>Nama juri</td><td>: <b>' + esc(j.Nama) + '</b>' + (j.TipeJuri === 'Tamu' ? ' (juri tamu' + (j.Jabatan ? ', ' + esc(j.Jabatan) : '') + ')' : (j.Jabatan ? ' — ' + esc(j.Jabatan) : '')) + '</td></tr><tr><td>Peserta dinilai</td><td>: ' + dinilai + ' dari ' + P.length + ' peserta' + (waktu.length ? ' · ' + esc(waktuArsip(waktu[0])) + ' s.d. ' + esc(waktuArsip(waktu[waktu.length - 1])) : '') + '</td></tr>') + t +
+          '<p style="font-size:9.5pt;margin-top:6px">Nilai akhir = Σ (nilai − min) ÷ (maks − min) × bobot, skala 0–100. Sumber nilai: ' + sumber.Digital + ' isian lewat aplikasi' + (sumber.Cetak ? ', ' + sumber.Cetak + ' dari lembar cetak' : '') + '.</p>' + absenTxt(c) + catatanCetak() +
+          '<div class="ttd-wrap single">' + ttdSatu('Juri', j) + '</div>' + ekstraTtd(c), L));
+      });
+      if (o.rekap !== false) {
+        const J = c.juri || [], showV = mode === 'Gabungan';
+        const t = '<table class="dt"><thead><tr><th style="width:52px">Peringkat</th><th>Nama Peserta</th><th style="width:44px">Kelas</th>' + J.map((j, i) => '<th style="width:62px">Juri ' + (i + 1) + '<br><span style="font-weight:400;font-size:8pt">' + esc(String(j.Nama).split(',')[0]) + '</span></th>').join('') +
+          '<th style="width:60px">Rata-rata Juri</th>' + (showV ? '<th style="width:50px">Suara</th><th style="width:58px">Skor Voting</th>' : '') + '<th style="width:58px">Skor Akhir</th><th style="width:72px">Keterangan</th></tr></thead><tbody>' +
+          h.peserta.map(p => '<tr><td class="c">' + p.peringkat + '</td><td>' + esc(p.NamaTampil) + '</td><td class="c">' + esc(p.Kelas) + '</td>' + J.map(j => { const v = nilaiJuriPeserta(c, j.JuriID, p.PesertaID); return '<td class="c">' + (v === null ? '–' : fmtNum(v, 2)) + '</td>'; }).join('') +
+            '<td class="c">' + fmtNum(p.skorJuri, 2) + '</td>' + (showV ? '<td class="c">' + p.suara + '</td><td class="c">' + fmtNum(p.skorVoting, 2) + '</td>' : '') + '<td class="c"><b>' + fmtNum(p.skorAkhir, 2) + '</b></td><td class="c">' + (p.juara ? 'Juara ' + p.juara : '') + (p.seri ? ' (seri)' : '') + '</td></tr>').join('') + '</tbody></table>';
+        out.push(docPage(judulDoc('Rekapitulasi Penilaian Dewan Juri', esc(det.event.Judul) + ' — ' + esc(c.NamaCabang)) + infoArsip(c, '<tr><td>Dewan juri</td><td>: ' + esc(J.map((j, i) => (i + 1) + '. ' + j.Nama).join('; ') || '-') + '</td></tr>') + t +
+          '<p style="font-size:9.5pt;margin-top:6px">' + (showV ? 'Skor akhir = rata-rata juri × ' + h.BobotJuri + '% + skor voting × ' + h.BobotVoting + '% (total ' + h.totalSuara + ' suara).' : 'Skor akhir = rata-rata nilai akhir seluruh juri.') + (h.penetapan ? ' Urutan seri ditetapkan oleh ' + esc(h.penetapan.DitetapkanOleh) + ': ' + esc(h.penetapan.Alasan) + '.' : '') + '</p>' + absenTxt(c) + catatanCetak() + ttdDewanJuri(c) + ekstraTtd(c), L));
+      }
+      return;
+    }
+    if (mode === 'Babak') {
+      const BL = h.babak || [], log = A.babak || [];
+      const sek = BL.map(b => { const rows = h.peserta.filter(p => Object.prototype.hasOwnProperty.call(p.skorBabak || {}, b.id)).sort((x, y) => x.NoUrut - y.NoUrut);
+        if (!rows.length) return '';
+        return '<div style="font-weight:700;margin-top:14px">' + esc(b.nama) + (b.final && !/final/i.test(b.nama) ? ' (Final)' : '') + (b.maks ? ' — ' + b.maks + ' soal' : '') + ' · ' + rows.length + ' peserta</div><table class="dt"><thead><tr><th style="width:32px">No</th><th>Nama Peserta</th><th style="width:60px">Jumlah Benar</th>' + (b.final ? '' : '<th style="width:50px">Lolos</th>') + '<th style="width:150px">Diinput oleh</th><th style="width:118px">Waktu</th></tr></thead><tbody>' +
+          rows.map(p => { const r = log.find(x => x.b === b.id && x.p === p.PesertaID) || {}; return '<tr><td class="c">' + noUrut(p.NoUrut) + '</td><td>' + esc(p.NamaTampil) + '</td><td class="c">' + (p.skorBabak[b.id] === null ? '–' : p.skorBabak[b.id]) + '</td>' + (b.final ? '' : '<td class="c">' + ((p.lolos || {})[b.id] === 'Ya' ? '✓' : '') + '</td>') + '<td>' + esc(r.oleh || '') + '</td><td class="c">' + esc(r.w ? waktuArsip(r.w) : '') + '</td></tr>'; }).join('') + '</tbody></table>'; }).join('');
+      out.push(docPage(judul(c) + infoArsip(c, '<tr><td>Sistem</td><td>: Babak / eliminasi — juara dari ' + (h.juaraDari === 'final' ? 'skor babak final' : 'total akumulasi semua babak') + '</td></tr>') + sek + absenTxt(c) + catatanCetak() + ttdDewanJuri(c) + ekstraTtd(c), L));
+      out.push(rekapBabak(det, cfg, c));
+      return;
+    }
+    if (mode === 'Peringkat') {
+      const log = A.peringkat || [], N = +h.JumlahJuara || 3;
+      const t = '<table class="dt"><thead><tr><th style="width:150px">Posisi</th><th>Nama Peserta</th><th style="width:60px">Kelas</th><th style="width:150px">Ditetapkan oleh</th><th style="width:100px">Waktu</th></tr></thead><tbody>' +
+        h.peserta.filter(p => p.posisi).map(p => { const r = log.find(x => x.p === p.PesertaID) || {}; return '<tr><td><b>' + esc(p.posisi <= N ? 'Juara ' + p.posisi : 'Juara Harapan ' + (p.posisi - N)) + '</b></td><td>' + esc(p.NamaTampil) + '</td><td class="c">' + esc(p.Kelas) + '</td><td>' + esc(r.oleh || '') + '</td><td class="c">' + esc(waktuArsip(r.w)) + '</td></tr>'; }).join('') + '</tbody></table>';
+      const lain = h.peserta.filter(p => !p.posisi);
+      out.push(docPage(judul(c) + infoArsip(c, '<tr><td>Sistem</td><td>: Rank 1 — gugur bila salah menjawab</td></tr><tr><td>Jumlah peserta</td><td>: ' + h.peserta.length + '</td></tr>') + t +
+        (lain.length ? '<p style="font-size:10pt;margin-top:8px">Peserta lain: ' + esc(lain.map(p => p.NamaTampil).join(', ')) + '.</p>' : '') + absenTxt(c) + catatanCetak() + ttdDewanJuri(c) + ekstraTtd(c), L));
+      return;
+    }
+    if (mode === 'Poin') {
+      const log = (A.poin || []).slice().sort((a, b) => String(a.w).localeCompare(String(b.w)));
+      const t1 = '<table class="dt"><thead><tr><th style="width:52px">Peringkat</th><th>Regu / Peserta</th><th>Anggota</th><th style="width:52px">Benar (+)</th><th style="width:52px">Salah (−)</th><th style="width:60px">Total Poin</th><th style="width:72px">Keterangan</th></tr></thead><tbody>' +
+        h.peserta.map(p => '<tr><td class="c">' + p.peringkat + '</td><td>' + esc(p.NamaTampil) + '</td><td style="font-size:9.5pt">' + esc((p.Anggota || []).join(', ') || p.Kelas) + '</td><td class="c">' + p.benar + '</td><td class="c">' + p.salah + '</td><td class="c"><b>' + p.total + '</b></td><td class="c">' + (p.juara ? 'Juara ' + p.juara : '') + (p.seri ? ' (seri)' : '') + '</td></tr>').join('') + '</tbody></table>';
+      const jalan = {};
+      const t2 = '<div style="font-weight:700;margin-top:16px">Riwayat poin (' + log.length + ' ketukan)</div><table class="dt"><thead><tr><th style="width:36px">No</th><th style="width:100px">Waktu</th><th>Regu / Peserta</th><th style="width:56px">Poin</th><th style="width:60px">Jumlah</th><th style="width:150px">Juri</th></tr></thead><tbody>' +
+        log.map((r, i) => { jalan[r.p] = (r.p in jalan ? jalan[r.p] : +((h.poin || {}).awal) || 0) + r.v; return '<tr><td class="c">' + (i + 1) + '</td><td class="c">' + esc(waktuArsip(r.w)) + '</td><td>' + esc(nm(c, r.p)) + '</td><td class="c">' + (r.v > 0 ? '+' : '') + r.v + '</td><td class="c">' + jalan[r.p] + '</td><td>' + esc(r.o || '') + '</td></tr>'; }).join('') + '</tbody></table>';
+      out.push(docPage(judul(c) + infoArsip(c, '<tr><td>Sistem</td><td>: Tambah / kurang poin (poin awal ' + ((h.poin || {}).awal || 0) + ')</td></tr>') + t1 + t2 + absenTxt(c) + catatanCetak() + ttdDewanJuri(c) + ekstraTtd(c), L));
+    }
+  });
+  return out.join('');
 }
 
 function docFormulirKosong(det, cfg, o) {

@@ -943,3 +943,8 @@ body.has-bottom-bar .theme-float { bottom: calc(86px + env(safe-area-inset-botto
 .absen-btn { position: absolute; top: 10px; right: 10px; color: var(--red-text); font-size: 12.5px; height: 30px; padding: 0 10px; }
 .tbl tr.row-absen td { opacity: .55; }
 .tbl tr.row-absen td.acts { opacity: 1; }
+.doc .ttd-grid { display: flex; flex-wrap: wrap; justify-content: space-around; gap: 18px 28px; margin-top: 26px; page-break-inside: avoid; break-inside: avoid; }
+.doc .ttd-grid-title { flex-basis: 100%; text-align: center; font-weight: 700; margin-bottom: -6px; }
+.doc .ttd-grid .ttd { min-width: 180px; }
+.doc table.dt tr { page-break-inside: avoid; break-inside: avoid; }
+.doc table.dt thead { display: table-header-group; }

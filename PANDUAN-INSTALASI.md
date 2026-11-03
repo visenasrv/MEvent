@@ -138,6 +138,15 @@ Skor tiap babak = **jumlah jawaban benar**. Peserta yang lolos maju ke babak ber
 - **Voting** (OSIS, voting lomba, gabungan): tampil "suara masuk" lebih dulu, lalu tekan **Tampilkan Hasil** (Spasi) untuk membuka perolehan dengan animasi.
 - **Juri, Babak, Rank 1, dan Tambah/Kurang Poin**: hasil **langsung tampil dan diperbarui live** (sekitar tiap 4 detik) tanpa tombol ungkap. Batang dan angka bergerak saat skor berubah. Pada **sistem babak** hanya peserta yang **belum tereliminasi** yang tampil, beserta total benar dan skor babak yang sedang berjalan. Selama pertandingan berjalan layar hanya menampilkan **skor sementara tanpa label juara**. Juara (mahkota, "JUARA 1/2/3", tombol **Umumkan Juara**) baru muncul — lengkap dengan animasi dan efek suara — setelah **juri menekan "Nyatakan Pertandingan Selesai"** di HP-nya, atau panitia menyalakan **Pertandingan Selesai** di tab Juri & Kriteria / tombol **Nyatakan Selesai** di tab Hasil. Menyatakan selesai sekaligus mengunci penilaian; membuka kunci penilaian membuat pertandingan kembali "belum selesai".
 
+### Cetak hasil penilaian juri (dokumentasi & arsip)
+Tab **Cetak → Hasil Penilaian Juri** (juga tombol **Cetak Hasil Penilaian** di tab Juri & Kriteria dan **Hasil Penilaian Juri** di tab Hasil). Pilih cabang, lalu:
+- **Juri / Gabungan:** *Rincian nilai per juri* — satu halaman per juri berisi nilai setiap kriteria, nilai akhir, catatan, waktu penilaian, dan tanda tangan juri (bisa pilih satu juri saja); *Rekapitulasi dewan juri* — nilai akhir tiap juri berdampingan, rata-rata, skor voting (bila gabungan), skor akhir, peringkat, dan tanda tangan seluruh juri.
+- **Babak:** skor setiap babak, status lolos, siapa yang menginput dan kapan, ditambah rekap babak.
+- **Rank 1:** posisi juara beserta juri yang menetapkan dan waktunya.
+- **Tambah/Kurang Poin:** klasemen regu + riwayat lengkap setiap ketukan poin (waktu, regu, poin, jumlah berjalan, juri).
+
+Setiap dokumen mencantumkan status penilaian (belum dikunci / terkunci / selesai), daftar peserta tidak hadir, dan waktu cetak. Kop surat, tanda tangan kepala sekolah, dan penanda tangan ke-2 (mis. Ketua Panitia) bisa diatur; pilih **Lanskap** bila kolom kriteria/juri banyak. Tekan **Cetak / Simpan PDF** untuk mencetak atau menyimpan sebagai PDF arsip.
+
 ### Peserta tidak hadir
 Juri bisa mengeluarkan peserta yang tidak datang: tombol **Tidak hadir** di kartu peserta (penilaian kriteria) atau tombol **Peserta tidak hadir** di bawah halaman penilaian (semua sistem). Peserta tersebut hilang dari daftar penilaian, peringkat, layar hasil, dan daftar hadir — **nilai lamanya tidak dihapus**, dan bisa dipulihkan dengan **Hadir kembali**. Panitia juga bisa melakukannya lewat ikon 👤✕ di tabel peserta. Menghapus peserta permanen tetap hanya bisa oleh panitia (ikon 🗑).
 
@@ -163,6 +172,10 @@ Semua peserta diberi pertanyaan yang sama; yang salah menjawab gugur. Peserta ya
 3. **Terapkan → Kelola deployment → ✏️ Edit → Versi: Versi baru → Terapkan.**
 ⚠️ Jangan memilih *Deployment baru* — URL `/exec` akan berubah dan aplikasi berhenti bekerja.
 
+> **Dari versi sebelumnya ke 1.9.4 (perbaikan layar "Gagal memuat data … reading 'forEach'" di halaman juri):** ganti ketiga berkas `.gs`, buat versi deployment baru, lalu perbarui frontend. Tidak ada kolom baru (bila belum pernah memasang 1.9.2, jalankan `setupAwal` sekali). **Penting: perbarui backend dan frontend bersamaan** — sejak versi ini aplikasi memberi peringatan bila versi tampilan dan server berbeda.
+
+> **Dari versi sebelumnya ke 1.9.3 (cetak hasil penilaian juri):** ganti ketiga berkas `.gs`, buat versi deployment baru, lalu perbarui frontend (tidak ada kolom baru; bila belum pernah memasang 1.9.2, jalankan `setupAwal` sekali).
+
 > **Dari versi sebelumnya ke 1.9.2 (juara tampil setelah selesai, peserta tidak hadir):** ganti ketiga berkas `.gs`, **jalankan `setupAwal` sekali** (menambah kolom **Selesai** di Cabang_Lomba dan **Hadir** di Peserta_Lomba), buat versi deployment baru, lalu perbarui frontend.
 
 > **Dari versi sebelumnya ke 1.9 (regu, tambah/kurang poin, layar live):** ganti ketiga berkas `.gs`, **wajib jalankan `setupAwal` sekali** (membuat sheet baru **Poin_Log**, kolom **Anggota** di Peserta_Lomba, dan kolom **PoinCfg** di Cabang_Lomba), lalu buat versi deployment baru. Perbarui frontend. Data lama tetap aman.
@@ -176,7 +189,7 @@ Semua peserta diberi pertanyaan yang sama; yang salah menjawab gugur. Peserta ya
 > **Dari versi sebelumnya ke 1.5:** lakukan 3 langkah di atas, lalu perbarui frontend (isi ulang `GAS_URL`). Data lama tetap terbaca; kehadiran dari voting kini dihitung otomatis dari daftar pemilih, jadi tidak ada data yang perlu dipindahkan.
 
 **Frontend** (bila ada perubahan di `css/` atau `js/`):
-1. Bila mengubah kode sendiri, naikkan angka versi di `index.html` (mis. `?v=1.1.0` → `?v=1.1.1`) dan `APP_VER` di `js/core.js` agar HP pengguna langsung memuat versi baru. (Paket 1.9.2 ini sudah dinaikkan.)
+1. Bila mengubah kode sendiri, naikkan angka versi di `index.html` (mis. `?v=1.1.0` → `?v=1.1.1`) dan `APP_VER` di `js/core.js` agar HP pengguna langsung memuat versi baru. (Paket 1.9.4 ini sudah dinaikkan.)
    Jangan lupa isi ulang `GAS_URL` di `js/config.js` bila berkas itu ikut tertimpa.
 2. Jalankan dari folder proyek:
    ```bash
@@ -211,6 +224,7 @@ Semua peserta diberi pertanyaan yang sama; yang salah menjawab gugur. Peserta ya
 | Siswa/PTK tidak menemukan menu voting di halaman awal | Sejak 1.3, voting hanya lewat link | Bagikan **Link Voting** dari tombol **Bagikan Link** di halaman event |
 | PTK "Kata sandi belum diatur" | PTK belum punya sandi | Data PTK → ikon kunci, atau Kata Sandi Massal |
 | Perubahan belum muncul | Cache browser | Ctrl+Shift+R atau naikkan `?v=` di `index.html` |
+| "Gagal memuat data — Cannot read properties of undefined (reading 'forEach')" / peringatan **Versi server berbeda** | Versi frontend (Vercel/GitHub) tidak sama dengan versi Apps Script — biasanya `.gs` sudah diganti tapi belum dibuat **Versi baru** di Kelola deployment, atau HP juri masih membuka halaman versi lama | Pasang backend & frontend dari paket yang sama, buat **Versi baru** deployment, lalu di HP juri tutup tab dan buka ulang (atau tarik ke bawah untuk muat ulang). Angka versi tampil di bawah pesan galat |
 | Layar IFP: "Link layar tidak berlaku" | Link diganti admin, atau link Mode Demo setelah demo diakhiri | Buka **Bagikan Link** lalu pakai link layar yang baru |
 | Layar IFP tidak bersuara | Volume IFP mati, atau ikon speaker di layar dimatikan | Nyalakan volume; suara berbunyi setelah tombol *Tampilkan Hasil* ditekan |
 | Link voting: "Event tidak ditemukan" | Status event bukan *Berjalan* | Ubah status event menjadi Berjalan |
