@@ -2,6 +2,8 @@
 
 Aplikasi web untuk **pemilihan OSIS**, **perlombaan** (juri + voting siswa), **formulir pendaftaran**, **daftar hadir**, dan **dokumen cetak** (rekap, berita acara, lembar juri, piagam, SK) — dengan **Mode Demo** berisi data contoh.
 
+Versi 1.9.2: juara di layar hasil baru tampil setelah juri menyatakan pertandingan selesai; juri bisa menandai peserta tidak hadir (bisa dipulihkan).
+
 Versi 1.9: peserta **beregu** dan sistem **tambah/kurang poin** (cerdas cermat), layar hasil **langsung & live** untuk penilaian non-voting (sistem babak hanya menampilkan peserta yang belum tereliminasi), dan halaman penilaian juri menampilkan nama peserta.
 
 Versi 1.8: **mode gelap/terang**, jadwal cabang lomba **lebih dari satu hari**, dan login panitia/juri cukup mengetuk nama dari daftar pendek (tanpa mencari) lalu mengisi kata sandi.

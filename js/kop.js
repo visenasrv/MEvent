@@ -220,7 +220,7 @@ function docLembarJuri(det, cfg, o) {
     const t = '<table class="dt"><thead><tr><th style="width:36px">No</th><th>Nama Peserta</th><th style="width:50px">Kelas</th>' +
       c.kriteria.map(k => '<th style="width:' + Math.max(56, Math.floor(300 / Math.max(1, c.kriteria.length))) + 'px">' + esc(k.NamaKriteria) + '<br><span style="font-weight:400;font-size:8.5pt">(' + k.NilaiMin + '–' + k.NilaiMaks + ', ' + k.Bobot + '%)</span></th>').join('') +
       '<th style="width:60px">Total</th></tr></thead><tbody>' +
-      c.peserta.map(p => '<tr style="height:30px"><td class="c">' + noUrut(p.NoUrut) + '</td><td>' + esc(p.NamaTampil) + '</td><td class="c">' + esc(p.Kelas) + '</td>' + c.kriteria.map(() => '<td></td>').join('') + '<td></td></tr>').join('') +
+      c.peserta.filter(p => p.Hadir !== 'Tidak').map(p => '<tr style="height:30px"><td class="c">' + noUrut(p.NoUrut) + '</td><td>' + esc(p.NamaTampil) + '</td><td class="c">' + esc(p.Kelas) + '</td>' + c.kriteria.map(() => '<td></td>').join('') + '<td></td></tr>').join('') +
       '</tbody></table>';
     const head = '<table class="info"><tr><td style="width:120px">Cabang lomba</td><td>: <b>' + esc(c.NamaCabang) + '</b></td></tr><tr><td>Hari/tanggal</td><td>: ' + esc(jadwalCabang(c)) + '</td></tr><tr><td>Nama juri</td><td>: ' + (j.Nama ? esc(j.Nama) : '..........................................') + '</td></tr></table>';
     const ttdJuri = '<div class="ttd-wrap single"><div class="ttd"><div>Juri,</div><div class="sp"></div><div class="nm">' + (j.Nama ? esc(j.Nama) : '..............................') + '</div><div>' + esc(j.NIP_NIY_NUPTK ? (j.JenisNomor || 'NIP') + '. ' + j.NIP_NIY_NUPTK : '') + '</div></div></div>';
@@ -234,7 +234,7 @@ function docLembarJuri(det, cfg, o) {
 function lembarPoin(det, cfg, c, j) {
   let P = c.PoinCfg; if (typeof P === 'string') { try { P = JSON.parse(P); } catch (e) { P = null; } } P = P || (c.hasil && c.hasil.poin) || { awal: 0, tombol: [] };
   const t = '<table class="dt"><thead><tr><th style="width:32px">No</th><th style="width:150px">Regu / Peserta</th><th>Catatan poin (turus)</th><th style="width:70px">Total Poin</th></tr></thead><tbody>' +
-    c.peserta.map(p => '<tr style="height:64px"><td class="c">' + noUrut(p.NoUrut) + '</td><td><b>' + esc(p.NamaTampil) + '</b>' + ((p.Anggota || []).length ? '<div style="font-size:9pt">' + esc(p.Anggota.join(', ')) + '</div>' : '') + '</td><td></td><td></td></tr>').join('') + '</tbody></table>';
+    c.peserta.filter(p => p.Hadir !== 'Tidak').map(p => '<tr style="height:64px"><td class="c">' + noUrut(p.NoUrut) + '</td><td><b>' + esc(p.NamaTampil) + '</b>' + ((p.Anggota || []).length ? '<div style="font-size:9pt">' + esc(p.Anggota.join(', ')) + '</div>' : '') + '</td><td></td><td></td></tr>').join('') + '</tbody></table>';
   const head = '<table class="info"><tr><td style="width:120px">Cabang lomba</td><td>: <b>' + esc(c.NamaCabang) + '</b> (tambah/kurang poin)</td></tr><tr><td>Hari/tanggal</td><td>: ' + esc(jadwalCabang(c)) + '</td></tr><tr><td>Nama juri</td><td>: ' + (j.Nama ? esc(j.Nama) : '..........................................') + '</td></tr></table>';
   const ttdJuri = '<div class="ttd-wrap single"><div class="ttd"><div>Juri,</div><div class="sp"></div><div class="nm">' + (j.Nama ? esc(j.Nama) : '..............................') + '</div><div>' + esc(j.NIP_NIY_NUPTK ? (j.JenisNomor || 'NIP') + '. ' + j.NIP_NIY_NUPTK : '') + '</div></div></div>';
   const extra = cfg.ttd || cfg.pt2 ? ttdHtml(cfg, { tanggal: c.TanggalSelesai || c.TanggalPelaksanaan }) : '';
@@ -245,7 +245,7 @@ function lembarPoin(det, cfg, c, j) {
 function lembarPeringkat(det, cfg, c, j) {
   const N = +c.JumlahJuara || 3, H = +c.JumlahHarapan || 0;
   const t = '<table class="dt"><thead><tr><th style="width:32px">No</th><th>Nama Peserta</th><th style="width:48px">Kelas</th><th style="width:90px">Gugur pada soal ke-</th><th style="width:70px">Urutan gugur</th></tr></thead><tbody>' +
-    c.peserta.map(p => '<tr style="height:28px"><td class="c">' + noUrut(p.NoUrut) + '</td><td>' + esc(p.NamaTampil) + '</td><td class="c">' + esc(p.Kelas) + '</td><td></td><td></td></tr>').join('') + '</tbody></table>';
+    c.peserta.filter(p => p.Hadir !== 'Tidak').map(p => '<tr style="height:28px"><td class="c">' + noUrut(p.NoUrut) + '</td><td>' + esc(p.NamaTampil) + '</td><td class="c">' + esc(p.Kelas) + '</td><td></td><td></td></tr>').join('') + '</tbody></table>';
   const slot = '<table class="dt" style="margin-top:12px"><thead><tr><th style="width:150px">Posisi</th><th>Nama Peserta</th><th style="width:60px">No</th></tr></thead><tbody>' +
     Array.from({ length: N + H }, (_, i) => '<tr style="height:30px"><td><b>' + (i < N ? 'Juara ' + (i + 1) : 'Juara Harapan ' + (i - N + 1)) + '</b></td><td></td><td></td></tr>').join('') + '</tbody></table>';
   const head = '<table class="info"><tr><td style="width:120px">Cabang lomba</td><td>: <b>' + esc(c.NamaCabang) + '</b> (Sistem Rank 1)</td></tr><tr><td>Hari/tanggal</td><td>: ' + esc(jadwalCabang(c)) + '</td></tr><tr><td>Nama juri</td><td>: ' + (j.Nama ? esc(j.Nama) : '..........................................') + '</td></tr></table>';

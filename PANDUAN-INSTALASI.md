@@ -136,7 +136,10 @@ Skor tiap babak = **jumlah jawaban benar**. Peserta yang lolos maju ke babak ber
 
 ### Layar hasil
 - **Voting** (OSIS, voting lomba, gabungan): tampil "suara masuk" lebih dulu, lalu tekan **Tampilkan Hasil** (Spasi) untuk membuka perolehan dengan animasi.
-- **Juri, Babak, Rank 1, dan Tambah/Kurang Poin**: hasil **langsung tampil dan diperbarui live** (sekitar tiap 4 detik) tanpa tombol ungkap. Batang dan angka bergerak saat skor berubah. Pada **sistem babak** hanya peserta yang **belum tereliminasi** yang tampil, beserta total benar dan skor babak yang sedang berjalan. Tanda "HASIL SEMENTARA" berganti "HASIL AKHIR" setelah penilaian dikunci. Tombol **Umumkan Juara** tetap ada untuk momen pengumuman.
+- **Juri, Babak, Rank 1, dan Tambah/Kurang Poin**: hasil **langsung tampil dan diperbarui live** (sekitar tiap 4 detik) tanpa tombol ungkap. Batang dan angka bergerak saat skor berubah. Pada **sistem babak** hanya peserta yang **belum tereliminasi** yang tampil, beserta total benar dan skor babak yang sedang berjalan. Selama pertandingan berjalan layar hanya menampilkan **skor sementara tanpa label juara**. Juara (mahkota, "JUARA 1/2/3", tombol **Umumkan Juara**) baru muncul — lengkap dengan animasi dan efek suara — setelah **juri menekan "Nyatakan Pertandingan Selesai"** di HP-nya, atau panitia menyalakan **Pertandingan Selesai** di tab Juri & Kriteria / tombol **Nyatakan Selesai** di tab Hasil. Menyatakan selesai sekaligus mengunci penilaian; membuka kunci penilaian membuat pertandingan kembali "belum selesai".
+
+### Peserta tidak hadir
+Juri bisa mengeluarkan peserta yang tidak datang: tombol **Tidak hadir** di kartu peserta (penilaian kriteria) atau tombol **Peserta tidak hadir** di bawah halaman penilaian (semua sistem). Peserta tersebut hilang dari daftar penilaian, peringkat, layar hasil, dan daftar hadir — **nilai lamanya tidak dihapus**, dan bisa dipulihkan dengan **Hadir kembali**. Panitia juga bisa melakukannya lewat ikon 👤✕ di tabel peserta. Menghapus peserta permanen tetap hanya bisa oleh panitia (ikon 🗑).
 
 ### Halaman penilaian juri (kriteria)
 Deretan tombol peserta di atas kini menampilkan **nomor + nama** (hijau ✓ = sudah dinilai, biru = sedang dinilai). Tombol **Daftar Peserta** membuka daftar lengkap berisi nama, kelas, status (Sudah/Belum/Sebagian) dan nilai — ketuk nama untuk langsung menilai. Di bawah kriteria tertulis **Berikutnya: nama peserta** agar juri tahu siapa yang tampil selanjutnya.
@@ -160,6 +163,8 @@ Semua peserta diberi pertanyaan yang sama; yang salah menjawab gugur. Peserta ya
 3. **Terapkan → Kelola deployment → ✏️ Edit → Versi: Versi baru → Terapkan.**
 ⚠️ Jangan memilih *Deployment baru* — URL `/exec` akan berubah dan aplikasi berhenti bekerja.
 
+> **Dari versi sebelumnya ke 1.9.2 (juara tampil setelah selesai, peserta tidak hadir):** ganti ketiga berkas `.gs`, **jalankan `setupAwal` sekali** (menambah kolom **Selesai** di Cabang_Lomba dan **Hadir** di Peserta_Lomba), buat versi deployment baru, lalu perbarui frontend.
+
 > **Dari versi sebelumnya ke 1.9 (regu, tambah/kurang poin, layar live):** ganti ketiga berkas `.gs`, **wajib jalankan `setupAwal` sekali** (membuat sheet baru **Poin_Log**, kolom **Anggota** di Peserta_Lomba, dan kolom **PoinCfg** di Cabang_Lomba), lalu buat versi deployment baru. Perbarui frontend. Data lama tetap aman.
 
 > **Dari versi sebelumnya ke 1.8 (mode gelap, jadwal cabang beberapa hari, login pilih nama):** ganti ketiga berkas `.gs`, **wajib jalankan `setupAwal` sekali** (menambah kolom **TanggalSelesai** di Cabang_Lomba; bila memperbarui langsung dari 1.6 atau lebih lama, sheet Peringkat_Lomba dan kolom JumlahHarapan ikut dibuat), lalu buat versi deployment baru. Perbarui frontend. Cabang lama tetap 1 hari sampai tanggal selesai diisi.
@@ -171,7 +176,7 @@ Semua peserta diberi pertanyaan yang sama; yang salah menjawab gugur. Peserta ya
 > **Dari versi sebelumnya ke 1.5:** lakukan 3 langkah di atas, lalu perbarui frontend (isi ulang `GAS_URL`). Data lama tetap terbaca; kehadiran dari voting kini dihitung otomatis dari daftar pemilih, jadi tidak ada data yang perlu dipindahkan.
 
 **Frontend** (bila ada perubahan di `css/` atau `js/`):
-1. Bila mengubah kode sendiri, naikkan angka versi di `index.html` (mis. `?v=1.1.0` → `?v=1.1.1`) dan `APP_VER` di `js/core.js` agar HP pengguna langsung memuat versi baru. (Paket 1.9.0 ini sudah dinaikkan.)
+1. Bila mengubah kode sendiri, naikkan angka versi di `index.html` (mis. `?v=1.1.0` → `?v=1.1.1`) dan `APP_VER` di `js/core.js` agar HP pengguna langsung memuat versi baru. (Paket 1.9.2 ini sudah dinaikkan.)
    Jangan lupa isi ulang `GAS_URL` di `js/config.js` bila berkas itu ikut tertimpa.
 2. Jalankan dari folder proyek:
    ```bash

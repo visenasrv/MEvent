@@ -5,7 +5,7 @@
    ============================================================ */
 'use strict';
 
-const APP_VER = '1.9.0';
+const APP_VER = '1.9.2';
 const LS_PREFIX = 'mevent:v1:';
 
 /* ---------------- Penyimpanan perangkat ---------------- */

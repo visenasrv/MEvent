@@ -198,6 +198,7 @@ async function tyFetch(el) {
   const hb = hasilNow(el, res.data), hl = prev && hasilNow(el, prev);
   if (langsung(res.data, hb)) { if (hl && Sfx.ctx && JSON.stringify(hl.peserta.map(p => p.skorAkhir)) !== JSON.stringify(hb.peserta.map(p => p.skorAkhir))) Sfx.ding(); }
   else if (prev && !revealed(el) && totalOf(el, prev) < totalOf(el, res.data) && Sfx.ctx) Sfx.ding();
+  if (langsung(res.data, hb) && hl && !hl.Selesai && hb.Selesai) { el._busy = true; Sfx.ensure(); return tyPaint(el, { anim: true }); }
   tyPaint(el);
 }
 
@@ -223,7 +224,12 @@ function totalOf(el, d) {
 function babakAktif(h) { return (h.babak || []).find(b => b.id === h.babakAktif) || { nama: 'Babak', jumlah: 0, dinilai: 0, maks: 0 }; }
 /** Selain voting, hasil langsung tampil (tanpa tombol "Tampilkan Hasil") dan diperbarui live. */
 function langsung(d, h) { return !isOsis(d) && !!h && ['Juri', 'Babak', 'Peringkat', 'Poin'].indexOf(h.ModePenilaian) > -1; }
+/** Mode langsung: label juara disembunyikan sampai juri/panitia menyatakan pertandingan selesai. */
 function tyItems(d, h) {
+  const L = tyItemsInti(d, h);
+  return langsung(d, h) && !h.Selesai ? L.map(x => Object.assign({}, x, { juara: 0, jab: '', tahan: true })) : L;
+}
+function tyItemsInti(d, h) {
   if (!h) return [];
   if (isOsis(d)) {
     const tunggal = h.sistem === 'Tunggal';
@@ -268,7 +274,7 @@ function tyPaint(el, o) {
   const judul = ev.Judul.replace(/^DEMO — /, '');
   const conf = Array.from({ length: 12 }, (_, i) => '<i class="confetti" style="left:' + (i * 8.3 % 100) + '%;background:' + ['#FBBF24', '#60A5FA', '#34D399', '#F472B6'][i % 4] + ';animation-duration:' + (10 + i % 5) + 's;animation-delay:' + (-i * 1.4) + 's"></i>').join('');
   const tabs = !osis && (d.cabangList || []).length > 1 ? '<div class="scr-tabs">' + d.cabangList.map(c => '<button data-act="cab" data-id="' + esc(c.CabangID) + '" class="' + (c.CabangID === el._cab ? 'on' : '') + '">' + esc(c.NamaCabang) + (el._reveal[c.CabangID] ? ' ✓' : '') + '</button>').join('') + '</div>' : '';
-  const pill = '<div class="live-pill' + (el._paused || el._offline ? ' paused' : '') + '"><i></i>' + (el._offline ? 'MENYAMBUNG ULANG…' : el._paused ? 'DIJEDA' : live ? (h.Terkunci ? 'HASIL AKHIR · LIVE' : 'HASIL SEMENTARA · LIVE') : open ? 'HASIL DITAMPILKAN · LIVE' : 'LIVE · SUARA MASUK') + '</div>';
+  const pill = '<div class="live-pill' + (el._paused || el._offline ? ' paused' : '') + '"><i></i>' + (el._offline ? 'MENYAMBUNG ULANG…' : el._paused ? 'DIJEDA' : live ? (h.Selesai ? 'HASIL AKHIR' : 'HASIL SEMENTARA · LIVE') : open ? 'HASIL DITAMPILKAN · LIVE' : 'LIVE · SUARA MASUK') + '</div>';
   const head = '<div class="scr-head"><div class="scr-logo"><span class="lg" title="' + esc(s.NamaYayasan || '') + '">' + (logoHtml(s.LogoInstansiUrl) || ic('shield', 'ic-xl')) + '</span></div>' +
     '<div class="scr-title">' + pill + '<h1>' + esc((osis && !/^hasil/i.test(judul) ? 'HASIL ' : '') + judul.toUpperCase()) + '</h1><div class="sub">' + esc(s.NamaSekolah || '') + (osis ? (h && h.sistem === 'Tunggal' ? ' · Ketua = suara terbanyak · Wakil = terbanyak ke-2' : ' · Suara Real-Time') : h ? ' · ' + esc(h.NamaCabang) : '') + '</div>' + tabs + '</div>' +
     '<div class="scr-logo r"><span class="lg" title="' + esc(s.NamaSekolah || '') + '">' + (logoHtml(s.LogoUrl) || ic('graduation-cap', 'ic-xl')) + '</span></div></div>';
@@ -280,7 +286,7 @@ function tyPaint(el, o) {
     '<button class="btn btn-icon" data-act="suara" title="Efek suara ' + (Sfx.on ? 'aktif' : 'mati') + '">' + ic(Sfx.on ? 'volume-2' : 'volume-x', 'ic-sm') + '</button>' +
     '<button class="btn btn-icon" data-act="fs" title="Layar penuh (F)">' + ic('maximize', 'ic-sm') + '</button>' +
     '<button class="btn btn-icon" data-act="jeda" title="' + (el._paused ? 'Lanjutkan pembaruan' : 'Jeda pembaruan') + ' (P)">' + ic(el._paused ? 'play' : 'pause', 'ic-sm') + '</button>' +
-    (h ? (open ? (live ? '' : '<button class="btn" data-act="tutup">' + ic('eye-off', 'ic-sm') + ' Sembunyikan</button>') + '<button class="btn btn-amber" data-act="umumkan">' + ic('trophy', 'ic-sm') + ' Umumkan ' + (osis ? 'Pemenang' : 'Juara') + '</button>'
+    (h ? (open ? (live ? '' : '<button class="btn" data-act="tutup">' + ic('eye-off', 'ic-sm') + ' Sembunyikan</button>') + (live && !h.Selesai ? '<span class="scr-tunggu">' + ic('hourglass', 'ic-sm') + ' Juara tampil setelah pertandingan dinyatakan selesai</span>' : '<button class="btn btn-amber" data-act="umumkan">' + ic('trophy', 'ic-sm') + ' Umumkan ' + (osis ? 'Pemenang' : 'Juara') + '</button>')
       : '<button class="btn btn-amber" data-act="ungkap">' + ic('sparkles', 'ic-sm') + ' Tampilkan Hasil</button>') : '') + '</div>';
   // Peserta banyak → layar bisa digulir (tidak ada nama yang terpotong / tersembunyi)
   const lalu = {};
@@ -327,9 +333,10 @@ function barsHtml(d, h, anim) {
   const semua = tyItems(d, h), osis = isOsis(d), tunggal = osis && h.sistem === 'Tunggal';
   const items = semua.slice(0, batasBatang(d, h)), sisa = semua.slice(items.length);
   if (!items.length) return '<div class="scr-bars" style="align-items:center"><b style="font-size:26px;opacity:.8">Belum ada peserta</b></div>';
+  if (!osis && h.ModePenilaian === 'Peringkat' && !h.Selesai) return '<div class="scr-bars" style="align-items:center"><div class="center" style="max-width:760px"><div class="scr-face" style="margin:0 auto 18px">' + ic('trophy', 'ic-xl') + '</div><b style="font-size:clamp(24px,3vw,38px)">Juara diumumkan setelah juri menyatakan pertandingan selesai</b><div style="opacity:.75;margin-top:10px;font-size:18px">' + h.peserta.length + ' peserta mengikuti sistem Rank 1</div></div></div>';
   if (!osis && h.ModePenilaian === 'Peringkat' && !h.terisi) return '<div class="scr-bars" style="align-items:center"><b style="font-size:26px;opacity:.8">Juara belum ditetapkan juri</b></div>';
   const maxV = Math.max(1, ...items.map(x => x.val));
-  const lead = items[0].val > 0 && !items[0].seri && (items[0].pos === undefined || items[0].pos === 1) ? items[0].id : '';
+  const lead = items[0].val > 0 && !items[0].seri && !items[0].tahan && (items[0].pos === undefined || items[0].pos === 1) ? items[0].id : '';
   const ordered = items.length <= 3 ? centerOut(items) : items;
   return '<div class="scr-bars' + (anim ? ' scr-anim' : '') + '">' + ordered.map(x => {
     const isLead = x.id === lead;

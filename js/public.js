@@ -804,7 +804,7 @@ registerPage('ptk', {
           (d.osis.length ? sec('Pemilihan OSIS', d.osis.map(o => '<div class="card menu-card"><span class="icon-tile">' + ic('vote', 'ic-lg') + '</span><div class="grow"><div class="t">' + esc(o.Judul) + '</div><div class="s">' + (o.sudahMemilih ? 'Anda sudah memberikan suara' : o.VotingDibuka === 'Ya' ? 'Voting sedang dibuka' : 'Voting belum dibuka') + '</div></div>' +
             (o.sudahMemilih ? '<span class="badge badge-green">' + ic('check', 'ic-sm') + ' Sudah</span>' : o.VotingDibuka === 'Ya' ? '<button class="btn btn-primary btn-sm" data-act="osis" data-id="' + esc(o.EventID) + '">Beri Suara</button>' : '<span class="badge badge-gray">Ditutup</span>') + '</div>').join('')) : '') +
           sec('Tugas Juri', d.juri.length ? d.juri.map(j => '<div class="card menu-card card-tap" tabindex="0" role="button" data-act="nilai" data-id="' + esc(j.CabangID) + '"><span class="icon-tile amber">' + ic('clipboard-check', 'ic-lg') + '</span><div class="grow"><div class="t">' + esc(j.NamaCabang) + '</div><div class="s">' + esc(j.EventJudul) + ' · ' + esc(jadwalCabang(j, true)) + (j.ModePenilaian === 'Babak' && j.BabakAktif ? ' · <b>' + esc(j.BabakAktif) + '</b>' : j.ModePenilaian === 'Peringkat' ? ' · <b>Rank 1 — tetapkan juara</b>' : j.ModePenilaian === 'Poin' ? ' · <b>Papan poin</b>' : '') + '</div>' +
-            '<div class="row mt-8"><div class="prog grow ' + (j.dinilai >= j.jumlahPeserta && j.jumlahPeserta ? 'green' : '') + '"><i style="width:' + pct(j.dinilai, j.jumlahPeserta) + '%"></i></div><span class="small muted tnum">' + j.dinilai + '/' + j.jumlahPeserta + '</span></div></div>' + (j.Terkunci ? '<span class="badge badge-gray">' + ic('lock', 'ic-sm') + '</span>' : '<span class="chev">' + ic('chevron-right') + '</span>') + '</div>').join('')
+            '<div class="row mt-8"><div class="prog grow ' + (j.dinilai >= j.jumlahPeserta && j.jumlahPeserta ? 'green' : '') + '"><i style="width:' + pct(j.dinilai, j.jumlahPeserta) + '%"></i></div><span class="small muted tnum">' + j.dinilai + '/' + j.jumlahPeserta + '</span></div></div>' + (j.Selesai ? '<span class="badge badge-green">' + ic('flag', 'ic-sm') + ' Selesai</span>' : j.Terkunci ? '<span class="badge badge-gray">' + ic('lock', 'ic-sm') + '</span>' : '<span class="chev">' + ic('chevron-right') + '</span>') + '</div>').join('')
             : '<div class="card"><div class="empty" style="padding:24px"><div class="empty-art">' + ic('clipboard-check', 'ic-xl') + '</div><div>Belum ada tugas juri untuk Anda.</div></div></div>') +
           (d.panitia.length ? sec('Event Kepanitiaan', d.panitia.map(p => '<div class="card menu-card"><span class="icon-tile green">' + ic('users', 'ic-lg') + '</span><div class="grow"><div class="t">' + esc(p.Judul) + '</div><div class="s">' + esc(p.JabatanPanitia) + ' · ' + esc(p.JenisEvent) + '</div></div><span class="badge ' + (p.Status === 'Berjalan' ? 'badge-green' : p.Status === 'Selesai' ? 'badge-blue' : 'badge-gray') + '">' + esc(p.Status) + '</span></div>').join('') +
             '<button class="btn btn-primary btn-block btn-lg" data-act="panel">' + ic('layout-dashboard') + ' Buka Panel Panitia</button>') : '')) +
@@ -826,6 +826,9 @@ registerPage('nilai', {
       const S = el._s, a = b.dataset.act;
       if (a === 'back') { if (S && S.bk && Object.keys(S.pend).length) bkKirim(el); if (S && S.rk && S.dirty) rkKirim(el); if (S && S.pn) { clearInterval(S.poll); pnKirim(el); } return go('ptk'); }
       if (!S) return;
+      if (a === 'selesai') return juriNyatakanSelesai(el);
+      if (a === 'kehadiran') return juriKehadiran(el);
+      if (a === 'absen') return juriAbsen(el, b.dataset.id, false);
       if (S.pn) {
         if (a === 'pn-tap' && !S.d.terkunci) pnTap(el, b.dataset.id, +b.dataset.v);
         if (a === 'pn-lain' && !S.d.terkunci) pnLain(el, b.dataset.id);
@@ -864,7 +867,7 @@ registerPage('nilai', {
   async show(el, cabangId) {
     el._s = null;
     el.innerHTML = '<div class="pub"><div class="pub-inner">' + appbar({ title: 'Penilaian Juri', sub: 'Memuat…' }) + '<div class="pub-body">' + skeletonCards(4, 140) + '</div></div></div>';
-    const res = await swr('juri:' + cabangId, 'juriData', { cabangId }, (d) => {
+    const res = await swr('juri:' + cabangId, 'juriData', { cabangId }, el._render = (d) => {
       const prev = el._s;
       if (d.mode === 'Poin') {
         const old = prev && prev.pn ? prev : null;
@@ -894,6 +897,55 @@ registerPage('nilai', {
     if (!res.success && el._s) toast('Mode luring', 'Data diambil dari perangkat. ' + res.message, 'warning');
   }
 });
+/* ---- Peserta tidak hadir: dikeluarkan dari daftar penilaian & peringkat (bisa dipulihkan) ---- */
+function kelolaHtml(d) {
+  if (d.terkunci) return (d.absen || []).length ? '<div class="small muted mt-16">' + ic('user-x', 'ic-sm') + ' Tidak hadir: ' + esc(d.absen.map(x => x.NamaTampil).join(', ')) + '</div>' : '';
+  return '<button type="button" class="btn btn-soft btn-block mt-16" data-act="kehadiran">' + ic('user-x', 'ic-sm') + ' Peserta tidak hadir' + ((d.absen || []).length ? ' <span class="badge badge-amber" style="height:22px">' + d.absen.length + '</span>' : '') + '</button>';
+}
+function juriBelumTersimpan(S) { return S.pn ? S.antre.length + S.batal.length : S.bk ? Object.keys(S.pend).length : S.rk ? (S.dirty ? 1 : 0) : Object.keys(S.dirty || {}).length; }
+function juriKehadiran(el) {
+  const S = el._s, d = S.d;
+  const baris = (p, hadir) => '<div class="row" style="padding:10px 0;border-bottom:1px solid var(--line-soft)"><span class="bk-no">' + noUrut(p.NoUrut) + '</span><span class="grow" style="min-width:0"><b class="ellipsis" style="display:block">' + esc(p.NamaTampil) + '</b><span class="small muted">Kelas ' + esc(p.Kelas || '-') + '</span></span>' +
+    (hadir ? '<button type="button" class="btn btn-sm" style="color:var(--red)" data-h="0" data-id="' + esc(p.PesertaID) + '">' + ic('user-x', 'ic-sm') + ' Tidak hadir</button>' : '<button type="button" class="btn btn-sm btn-soft" data-h="1" data-id="' + esc(p.PesertaID) + '">' + ic('user-check', 'ic-sm') + ' Hadir kembali</button>') + '</div>';
+  const m = modal({ title: 'Kehadiran Peserta', sub: esc(d.cabang.NamaCabang),
+    body: '<p class="small muted mb-8">Peserta yang <b>tidak hadir</b> dikeluarkan dari daftar penilaian, peringkat, dan layar hasil. Nilai yang sudah ada tidak dihapus — tekan <b>Hadir kembali</b> bila peserta datang.</p>' +
+      ((d.absen || []).length ? '<div class="small" style="font-weight:700;margin:12px 0 4px;color:var(--amber-text)">TIDAK HADIR (' + d.absen.length + ')</div>' + d.absen.map(p => baris(p, false)).join('') : '') +
+      '<div class="small" style="font-weight:700;margin:12px 0 4px">HADIR (' + d.peserta.length + ')</div>' + d.peserta.map(p => baris(p, true)).join('') });
+  m.el.addEventListener('click', (e) => { const b = e.target.closest('[data-h]'); if (!b) return; m.close(); juriAbsen(el, b.dataset.id, b.dataset.h === '1'); });
+}
+async function juriAbsen(el, pid, hadir) {
+  const S = el._s, d = S.d;
+  if (juriBelumTersimpan(S)) { if (S.pn) pnKirim(el); if (S.bk) bkKirim(el); if (S.rk) rkKirim(el); return toast('Tunggu sebentar', 'Masih ada nilai yang sedang disimpan.', 'warning'); }
+  const p = d.peserta.concat(d.absen || []).find(x => x.PesertaID === pid); if (!p) return;
+  if (!hadir && !(await confirmBox({ title: 'Peserta tidak hadir?', html: '<b>' + esc(p.NamaTampil) + '</b> akan dihapus dari daftar penilaian, peringkat, dan layar hasil. Bisa dipulihkan kapan saja lewat tombol <b>Peserta tidak hadir</b>.', ok: 'Ya, Tidak Hadir', danger: true }))) return;
+  const res = await api('juriHadir', { cabangId: S.cabangId, pesertaId: pid, hadir });
+  if (!res.success) return toast('Gagal', res.message, 'error');
+  const r2 = await api('juriData', { cabangId: S.cabangId });
+  if (r2.success && el._render && el._s === S) { swrPut('juri:' + S.cabangId, r2.data); if (S.pn) clearInterval(S.poll); el._render(r2.data); }
+  AppState.ptk = null; swrDrop('ptk');
+  toast(hadir ? 'Peserta hadir kembali' : 'Peserta ditandai tidak hadir', p.NamaTampil);
+}
+/* ---- Juri menyatakan pertandingan selesai → juara tampil di layar hasil ---- */
+function selesaiHtml(d) {
+  if (d.selesai) return '<div class="alert alert-green mt-16">' + ic('trophy') + '<span><b>Pertandingan selesai.</b> Juara sudah ditampilkan di layar hasil dan penilaian terkunci.</span></div>';
+  if (d.terkunci) return '';
+  return '<div class="card card-pad mt-16 selesai-card"><div class="row" style="align-items:flex-start;gap:12px"><span class="icon-tile amber">' + ic('flag') + '</span><div class="grow"><b>Pertandingan sudah selesai?</b><div class="small muted mt-8" style="margin-top:2px">Juara <b>belum tampil</b> di layar hasil sampai juri menyatakan pertandingan selesai. Setelah itu penilaian dikunci.</div></div></div>' +
+    '<button type="button" class="btn btn-amber btn-block btn-lg mt-12" data-act="selesai">' + ic('flag') + ' Nyatakan Pertandingan Selesai</button></div>';
+}
+async function juriNyatakanSelesai(el) {
+  const S = el._s, d = S.d;
+  const belum = juriBelumTersimpan(S);
+  if (belum) { if (S.pn) pnKirim(el); if (S.bk) bkKirim(el); if (S.rk) rkKirim(el); return toast('Tunggu sebentar', 'Masih ada nilai yang sedang disimpan. Coba lagi beberapa detik lagi.', 'warning'); }
+  const ok = await confirmBox({ title: 'Nyatakan pertandingan selesai?', html: 'Juara <b>' + esc(d.cabang.NamaCabang) + '</b> akan langsung tampil di layar hasil dan penilaian dikunci. Pastikan semua nilai sudah masuk.', ok: 'Ya, Pertandingan Selesai' });
+  if (!ok) return;
+  const res = await api('juriSelesai', { cabangId: S.cabangId });
+  if (!res.success) return toast('Gagal', res.message, 'error');
+  d.selesai = true; d.terkunci = true;
+  swrPut('juri:' + S.cabangId, d); AppState.ptk = null; swrDrop('ptk');
+  toast('Pertandingan selesai', 'Juara kini tampil di layar hasil.');
+  if (el._s !== S) return;
+  if (S.pn) { clearInterval(S.poll); pnPaint(el); } else if (S.bk) bkPaint(el); else if (S.rk) rkPaint(el); else juriPaint(el);
+}
 /* ---- Juri: sistem tambah/kurang poin (cerdas cermat beregu) ---- */
 /** Log server + ketukan yang belum terkirim − pembatalan yang belum terkirim. */
 function pnGabung(S, logServer) {
@@ -914,7 +966,7 @@ function pnPaint(el) {
     list.map(p => '<div class="pj-card" data-pid="' + esc(p.PesertaID) + '"><div class="pj-top"><span class="rank' + (rank[p.PesertaID] <= 3 ? ' r' + rank[p.PesertaID] : '') + '" title="Peringkat sementara">' + rank[p.PesertaID] + '</span><div class="grow"><div class="pj-name ellipsis">' + esc(p.NamaTampil) + '</div><div class="pj-mem ellipsis">' + esc((p.Anggota || []).length ? p.Anggota.join(', ') : 'No. ' + noUrut(p.NoUrut) + ' · Kelas ' + p.Kelas) + '</div></div><b class="pj-total" data-pn-tot="' + esc(p.PesertaID) + '">' + T[p.PesertaID] + '</b></div>' +
       (lock ? '' : '<div class="pj-btns">' + d.cfg.tombol.map(v => '<button type="button" class="poin-btn ' + (v > 0 ? 'plus' : 'minus') + '" data-act="pn-tap" data-id="' + esc(p.PesertaID) + '" data-v="' + v + '" aria-label="' + (v > 0 ? 'Tambah ' : 'Kurangi ') + Math.abs(v) + ' poin untuk ' + esc(p.NamaTampil) + '">' + fmtPoin(v) + '</button>').join('') + '<button type="button" class="poin-btn" style="background:var(--surface-2);color:var(--text-2)" data-act="pn-lain" data-id="' + esc(p.PesertaID) + '" aria-label="Poin lain">±</button></div>') +
       '<div class="pj-last" data-pn-last="' + esc(p.PesertaID) + '">' + pnLastHtml(S, p.PesertaID, lock) + '</div></div>').join('') +
-    '</div><div class="bottom-bar"><span class="small muted grow" id="pn-st" aria-live="polite">' + (lock ? 'Terkunci' : S.antre.length || S.batal.length ? 'Menyimpan…' : 'Semua poin tersimpan') + '</span><button class="btn btn-soft btn-lg" data-act="pn-riwayat">' + ic('history') + ' Riwayat</button></div></div></div>';
+    kelolaHtml(d) + selesaiHtml(d) + '</div><div class="bottom-bar"><span class="small muted grow" id="pn-st" aria-live="polite">' + (lock ? 'Terkunci' : S.antre.length || S.batal.length ? 'Menyimpan…' : 'Semua poin tersimpan') + '</span><button class="btn btn-soft btn-lg" data-act="pn-riwayat">' + ic('history') + ' Riwayat</button></div></div></div>';
 }
 function pnLastHtml(S, pid, lock) {
   const r = S.log.filter(x => x.p === pid).slice(-1)[0];
@@ -1010,7 +1062,7 @@ function rkPaint(el) {
       return '<div class="rk-slot' + (p ? ' on' : '') + (har ? ' har' : '') + '"><span class="rank' + (!har && i < 3 ? ' r' + (i + 1) : '') + '">' + (har ? 'H' + (i - d.jumlahJuara + 1) : i + 1) + '</span><div class="grow" style="min-width:0"><div class="small muted" style="font-weight:700;letter-spacing:.04em">' + esc(rkLabel(d, i).toUpperCase()) + '</div>' +
         (p ? '<b class="ellipsis" style="display:block;font-size:16px">' + esc(p.NamaTampil) + '</b><span class="small muted">No. ' + noUrut(p.NoUrut) + ' · Kelas ' + esc(p.Kelas) + '</span>' : '<span class="muted">Belum ditetapkan</span>') + '</div>' +
         (lock ? '' : (p ? '<button type="button" class="btn btn-ghost btn-icon btn-sm" data-act="rk-clear" data-i="' + i + '" aria-label="Kosongkan ' + esc(rkLabel(d, i)) + '">' + ic('x', 'ic-sm') + '</button>' : '') + '<button type="button" class="btn btn-soft btn-sm" data-act="rk-pilih" data-i="' + i + '">' + (p ? 'Ganti' : 'Pilih') + '</button>') + '</div>'; }).join('') +
-    '<div class="row muted small mt-12" style="align-items:flex-start">' + ic('circle-check', 'ic-sm') + '<span>Ketuk <b>Pilih</b> lalu ketuk nama peserta. Penetapan tersimpan otomatis dan langsung tampil di hasil.</span></div></div>' +
+    '<div class="row muted small mt-12" style="align-items:flex-start">' + ic('circle-check', 'ic-sm') + '<span>Ketuk <b>Pilih</b> lalu ketuk nama peserta. Penetapan tersimpan otomatis.</span></div>' + kelolaHtml(d) + selesaiHtml(d) + '</div>' +
     '<div class="bottom-bar"><span class="small muted grow" id="rk-st" aria-live="polite">' + (lock ? 'Terkunci' : S.dirty ? 'Menyimpan…' : 'Semua penetapan tersimpan') + '</span><button class="btn btn-primary btn-lg" data-act="rk-simpan"' + (lock ? ' disabled' : '') + '>' + ic('save') + ' Simpan</button></div></div></div>';
 }
 function rkPilih(el, i) {
@@ -1068,7 +1120,7 @@ function bkPaint(el) {
         (nxt ? '<label class="switch bk-lolos' + (lol ? ' on' : '') + '"><input type="checkbox" data-bkl="' + esc(p.PesertaID) + '"' + (lol ? ' checked' : '') + (lock ? ' disabled' : '') + '><span class="track"></span><span>Lolos ke ' + esc(nxt.nama) + '</span></label>' : '') + '</div>'; }).join('')
       : '<div class="empty" style="padding:24px">Belum ada peserta di babak ini.</div>') + '</div>' +
     '<div class="row muted small mt-12" style="align-items:flex-start">' + ic('info', 'ic-sm') + '<span>Isi <b>jumlah jawaban benar</b> tiap peserta — tersimpan otomatis. ' + (B.final ? 'Juara ditentukan dari hasil akhir.' : 'Geser <b>Lolos</b> untuk peserta yang maju ke ' + esc(nxt ? nxt.nama : 'babak berikutnya') + ' — mereka langsung muncul di babak itu.') + '</span></div>' +
-    (nxt && pes.length && !lock ? '<div class="card card-pad mt-12 row row-wrap" style="gap:8px"><span class="small" style="font-weight:600">Loloskan</span><input class="input input-sm" type="number" min="1" id="bk-topn" value="' + Math.max(1, Math.min(pes.length, B.lolos || Math.ceil(pes.length / 2))) + '" style="width:72px" aria-label="Jumlah peserta lolos"><span class="small">teratas</span><button type="button" class="btn btn-soft btn-sm" data-act="bk-top">' + ic('list-ordered', 'ic-sm') + ' Terapkan</button><span class="small muted" style="flex-basis:100%">Nilai sama di batas kelulusan ikut lolos.</span></div>' : '') + '</div>' +
+    (nxt && pes.length && !lock ? '<div class="card card-pad mt-12 row row-wrap" style="gap:8px"><span class="small" style="font-weight:600">Loloskan</span><input class="input input-sm" type="number" min="1" id="bk-topn" value="' + Math.max(1, Math.min(pes.length, B.lolos || Math.ceil(pes.length / 2))) + '" style="width:72px" aria-label="Jumlah peserta lolos"><span class="small">teratas</span><button type="button" class="btn btn-soft btn-sm" data-act="bk-top">' + ic('list-ordered', 'ic-sm') + ' Terapkan</button><span class="small muted" style="flex-basis:100%">Nilai sama di batas kelulusan ikut lolos.</span></div>' : '') + kelolaHtml(d) + selesaiHtml(d) + '</div>' +
     '<div class="bottom-bar"><span class="small muted grow" id="bk-st" aria-live="polite">' + (lock ? 'Terkunci' : Object.keys(S.pend).length ? 'Menyimpan…' : 'Semua skor tersimpan') + '</span><button class="btn btn-primary btn-lg" data-act="bk-flush"' + (lock ? ' disabled' : '') + '>' + ic('save') + ' Simpan</button></div></div></div>';
   bkCount(el);
 }
@@ -1199,7 +1251,7 @@ function juriPaint(el) {
     '<div style="padding:12px 16px 4px">' + (lock ? '<div class="alert alert-amber small mb-8">' + ic('lock', 'ic-sm') + '<span>Penilaian sudah dikunci panitia. Nilai hanya bisa dilihat.</span></div>' : '<div id="saved-note"></div>') +
     '<div class="row between small"><b>Sudah dinilai ' + done + ' dari ' + d.peserta.length + ' peserta</b><button type="button" class="btn btn-soft btn-sm" data-act="daftar">' + ic('list', 'ic-sm') + ' Daftar Peserta</button></div><div class="prog mt-8"><i style="width:' + pct(done, d.peserta.length) + '%"></i></div></div>' +
     '<div class="pchips">' + d.peserta.map((x, i) => { const ok = juriLengkap(S, x.PesertaID); return '<button class="pchip' + (i === S.idx ? ' on' : ok ? ' done' : '') + (S.gagal[x.PesertaID] ? ' err' : '') + '" data-act="pes" data-i="' + i + '" title="' + esc(x.NamaTampil) + '"><span class="no">' + noUrut(x.NoUrut) + '</span><span class="nm">' + esc(namaPendek(x.NamaTampil)) + '</span>' + (S.gagal[x.PesertaID] ? ic('circle-alert', 'ic-sm') : ok && i !== S.idx ? ic('check', 'ic-sm') : '') + '</button>'; }).join('') + '</div>' +
-    '<div class="pub-body grow" style="padding-top:8px"><div class="card card-pad row" style="gap:14px"><span class="photo-thumb" style="width:64px;height:64px;border-radius:14px">' + photoHtml(p.FotoFileId, p.NamaTampil, 200) + '</span><div class="grow"><div class="row"><span class="badge">No. ' + noUrut(p.NoUrut) + '</span><span class="muted small">Kelas ' + esc(p.Kelas) + '</span></div><div style="font-size:19px;font-weight:700;margin-top:4px">' + esc(p.NamaTampil) + '</div>' + ((p.Anggota || []).length ? '<div class="muted small">' + ic('users', 'ic-sm') + ' ' + esc(p.Anggota.join(', ')) + '</div>' : '') + (p.Keterangan ? '<div class="muted small ellipsis">' + ic('book-open', 'ic-sm') + ' ' + esc(p.Keterangan) + '</div>' : '') + '</div></div>' +
+    '<div class="pub-body grow" style="padding-top:8px"><div class="card card-pad row" style="gap:14px;position:relative">' + (lock ? '' : '<button type="button" class="btn btn-ghost btn-sm absen-btn" data-act="absen" data-id="' + esc(p.PesertaID) + '" title="Peserta tidak hadir">' + ic('user-x', 'ic-sm') + ' Tidak hadir</button>') + '<span class="photo-thumb" style="width:64px;height:64px;border-radius:14px">' + photoHtml(p.FotoFileId, p.NamaTampil, 200) + '</span><div class="grow"><div class="row"><span class="badge">No. ' + noUrut(p.NoUrut) + '</span><span class="muted small">Kelas ' + esc(p.Kelas) + '</span></div><div style="font-size:19px;font-weight:700;margin-top:4px">' + esc(p.NamaTampil) + '</div>' + ((p.Anggota || []).length ? '<div class="muted small">' + ic('users', 'ic-sm') + ' ' + esc(p.Anggota.join(', ')) + '</div>' : '') + (p.Keterangan ? '<div class="muted small ellipsis">' + ic('book-open', 'ic-sm') + ' ' + esc(p.Keterangan) + '</div>' : '') + '</div></div>' +
     '<div class="row between" style="margin:20px 4px 10px"><div class="row" style="font-weight:700;font-size:16px">' + ic('list-checks') + ' Kriteria Penilaian</div></div>' +
     d.kriteria.map(k => { const val = v[k.KriteriaID]; return '<div class="card crit" data-crit="' + esc(k.KriteriaID) + '"><div class="crit-top"><div><div style="font-weight:700;font-size:16px">' + esc(k.NamaKriteria) + '</div>' + (k.Keterangan ? '<div class="muted small">' + esc(k.Keterangan) + '</div>' : '<div class="muted small">Skala ' + k.NilaiMin + '–' + k.NilaiMaks + '</div>') + '</div><span class="badge">Bobot ' + k.Bobot + '%</span></div>' +
       '<div class="stepper-val"><button class="round-btn" data-act="min" data-k="' + esc(k.KriteriaID) + '" aria-label="Kurangi"' + (lock ? ' disabled' : '') + '>' + ic('minus') + '</button><div class="val-wrap"><input class="val-input" inputmode="numeric" data-val="' + esc(k.KriteriaID) + '" value="' + (val === undefined ? '' : val) + '" placeholder="–"' + (lock ? ' readonly' : '') + ' aria-label="Nilai ' + esc(k.NamaKriteria) + '"><span class="max">/' + k.NilaiMaks + '</span></div><button class="round-btn plus" data-act="plus" data-k="' + esc(k.KriteriaID) + '" aria-label="Tambah"' + (lock ? ' disabled' : '') + '>' + ic('plus') + '</button></div>' +
@@ -1208,7 +1260,7 @@ function juriPaint(el) {
     '<div class="row between mt-8"><span style="color:var(--primary)">Total Akhir</span><span><span class="total-num" id="total">' + (t === null ? '–' : fmtNum(t, 2)) + '</span> <span class="muted">/100</span></span></div></div>' +
     (S.idx < d.peserta.length - 1 ? '<div class="next-hint mt-16">' + ic('arrow-right', 'ic-sm') + '<span>Berikutnya: <b>' + noUrut(d.peserta[S.idx + 1].NoUrut) + ' · ' + esc(d.peserta[S.idx + 1].NamaTampil) + '</b></span></div>' : '') +
     '<div class="field mt-16"><label for="catatan">Catatan (opsional)</label><textarea class="textarea" id="catatan" placeholder="Umpan balik untuk peserta"' + (lock ? ' readonly' : '') + '>' + esc(v._catatan || '') + '</textarea></div>' +
-    '<div class="row muted small mt-12">' + ic('lock', 'ic-sm') + '<span>Nilai dapat diubah sampai panitia mengunci penilaian.</span></div></div>' +
+    '<div class="row muted small mt-12">' + ic('lock', 'ic-sm') + '<span>Nilai dapat diubah sampai panitia mengunci penilaian.</span></div>' + kelolaHtml(d) + selesaiHtml(d) + '</div>' +
     '<div class="bottom-bar"><button class="btn btn-lg btn-soft" data-act="prev"' + (S.idx === 0 ? ' disabled' : '') + '>' + ic('chevron-left') + ' Sebelumnya</button><button class="btn btn-primary btn-lg grow" data-act="next">' + (lock ? 'Berikutnya' : S.idx === d.peserta.length - 1 ? 'Simpan' : 'Simpan & Lanjut') + ' ' + ic('arrow-right') + '</button></div></div></div>';
   juriChipTengah(el);
 }
