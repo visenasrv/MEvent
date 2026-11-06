@@ -184,6 +184,7 @@ registerPage('osis', {
       if (a === 'back') { const t = AppState.vote && AppState.vote.type; endVoter(); go(kioskHome() || (t === 'osis-ptk' ? 'ptk' : '')); }
       if (a === 'acc') b.closest('.acc').classList.toggle('open');
       if (a === 'pilih') konfirmasiOsis(b.dataset.id);
+      if (a === 'foto') fotoCalon(b.dataset.foto);
     });
   },
   show(el) {
@@ -201,7 +202,7 @@ registerPage('osis', {
 });
 function kartuCalon(k, i) {
   const pas = k.Tipe === 'Pasangan';
-  const foto = (id, nama, role, tag) => '<div><div class="cand-photo">' + photoHtml(id, nama, 500) + (role ? '<span class="tag"><span class="badge ' + (tag === 'w' ? 'badge-amber' : '') + '" style="' + (tag === 'w' ? '' : 'background:var(--primary);color:#fff') + '">' + role + '</span></span>' : '') + '</div>' +
+  const foto = (id, nama, role, tag) => '<div><div class="cand-photo"' + (id ? ' data-act="foto" data-foto="' + esc(k.KandidatID) + '|' + tag + '" role="button" aria-label="Lihat foto ' + esc(nama) + '"' : '') + '>' + photoHtml(id, nama, 500) + (id ? '<span class="zoom-hint">' + ic('maximize-2') + '</span>' : '') + (role ? '<span class="tag"><span class="badge ' + (tag === 'w' ? 'badge-amber' : '') + '" style="' + (tag === 'w' ? '' : 'background:var(--primary);color:#fff') + '">' + role + '</span></span>' : '') + '</div>' +
     '<div class="cand-role">' + (role ? 'Calon ' + (tag === 'w' ? 'Wakil' : 'Ketua') : 'Calon') + '</div><div class="cand-name">' + esc(nama) + '</div><div class="muted small">' + (tag === 'w' ? esc(k.Kelas2 ? 'Kelas ' + k.Kelas2 : '') : esc(k.Kelas1 ? 'Kelas ' + k.Kelas1 : '')) + '</div></div>';
   return '<div class="card cand"><div class="cand-head"><span class="cand-no' + (i ? ' dark' : '') + '">' + noUrut(k.NoUrut) + '</span><div class="grow"><span class="badge badge-gray">' + (pas ? 'PASLON ' : 'CALON ') + noUrut(k.NoUrut) + '</span>' +
     (k.Slogan ? '<div style="font-weight:700;font-size:16px;margin-top:4px;line-height:1.25">' + esc(k.Slogan) + '</div>' : '') + '</div></div>' +
@@ -209,6 +210,20 @@ function kartuCalon(k, i) {
     ((k.Visi || k.Misi) ? '<div class="acc' + (i === 0 ? ' open' : '') + '"><button class="acc-btn" data-act="acc">' + ic('book-open', 'ic-sm') + ' Visi & Misi <span class="chev">' + ic('chevron-down', 'ic-sm') + '</span></button><div class="acc-body">' +
       (k.Visi ? '<div class="lbl">Visi</div>' + esc(k.Visi) : '') + (k.Misi ? '<div class="lbl" style="margin-top:10px">Misi</div>' + esc(k.Misi) : '') + '</div></div>' : '') +
     '<button class="btn btn-primary btn-block btn-lg mt-12" data-act="pilih" data-id="' + esc(k.KandidatID) + '">' + ic('circle-check') + ' Pilih ' + (pas ? 'Pasangan ' : 'Calon ') + noUrut(k.NoUrut) + '</button></div>';
+}
+/** Foto calon OSIS layar penuh; bisa digeser ke calon lain & langsung memilih. */
+function fotoCalon(kunci) {
+  const v = AppState.vote; if (!v) return;
+  const items = [];
+  v.kandidat.forEach(k => {
+    const pas = k.Tipe === 'Pasangan', jenis = pas ? 'PASLON ' : 'CALON ';
+    const tambah = (id, nama, kelas, tag) => { if (id) items.push({ id, nama, kunci: k.KandidatID + '|' + tag, kid: k.KandidatID, label: jenis + noUrut(k.NoUrut) + (pas ? (tag === 'w' ? ' · WAKIL' : ' · KETUA') : ''), sub: (pas ? (tag === 'w' ? 'Calon Wakil Ketua' : 'Calon Ketua') : 'Calon') + (kelas ? ' · Kelas ' + kelas : ''), aksiLabel: 'Pilih ' + (pas ? 'Pasangan ' : 'Calon ') + noUrut(k.NoUrut) }); };
+    tambah(k.FotoFileId, k.Nama1, k.Kelas1, 'k'); if (pas) tambah(k.FotoFileId2, k.Nama2, k.Kelas2, 'w');
+  });
+  lihatFoto(items, Math.max(0, items.findIndex(x => x.kunci === kunci)), {
+    aksi: (x) => ({ label: x.aksiLabel }),
+    onAksi: (x, i, tutup) => { tutup(); konfirmasiOsis(x.kid); }
+  });
 }
 function konfirmasiOsis(id) {
   const v = AppState.vote, k = v.kandidat.find(x => x.KandidatID === id); if (!k) return;
@@ -324,9 +339,11 @@ registerPage('vote-lomba', {
       const v = AppState.vote, a = b.dataset.act;
       if (a === 'back') { endVoter(); go(kioskHome() || 'lomba'); }
       if (a === 'tab') { v.aktif = b.dataset.id; votePaint(el); }
+      if (a === 'foto') return fotoPeserta(el, b.dataset.id);
       if (a === 'pilih') { const c = v.cabang.find(x => x.CabangID === v.aktif); if (c.sudahPilih) return; v.pilih[v.aktif] = b.dataset.id; votePaint(el); }
       if (a === 'kirim') voteKirim(el, b);
     });
+    el.addEventListener('keydown', (e) => { if ((e.key === 'Enter' || e.key === ' ') && e.target.matches('.pcard[role=button]')) { e.preventDefault(); e.target.click(); } });
   },
   show(el) { if (!AppState.vote || AppState.vote.type !== 'lomba') return go(kioskHome() || 'lomba'); votePaint(el); }
 });
@@ -338,15 +355,25 @@ function votePaint(el) {
     (v.cabang.length > 1 ? '<div style="padding:12px 16px 0"><div class="seg seg-light seg-block">' + v.cabang.map(x => '<button data-act="tab" data-id="' + esc(x.CabangID) + '" class="' + (x.CabangID === c.CabangID ? 'on' : '') + '">' + esc(x.NamaCabang) + (x.sudahPilih ? ' ✓' : '') + '</button>').join('') + '</div></div>' : '') +
     '<div class="pub-body grow">' +
     (c.sudahPilih ? '<div class="alert alert-green mb-16">' + ic('circle-check') + '<span>Kamu sudah memilih di cabang ini. Terima kasih!</span></div>'
-      : '<div class="alert alert-amber mb-16">' + ic('star', '') + '<div class="small"><b>1 Siswa = 1 Pilihan Favorit</b><br>Ketuk kartu peserta di bawah ini, lalu tekan <b>Kirim Pilihan</b>.</div></div>') +
+      : '<div class="alert alert-amber mb-16">' + ic('star', '') + '<div class="small"><b>1 Siswa = 1 Pilihan Favorit</b><br>Ketuk <b>foto</b> untuk melihat layar penuh. Ketuk <b>nama</b> peserta (atau tombol <b>Pilih</b> di layar penuh), lalu tekan <b>Kirim Pilihan</b>.</div></div>') +
     '<div class="row between mb-8"><span class="small muted" style="font-weight:700;letter-spacing:.05em">DAFTAR PENAMPIL</span><span class="badge badge-gray">' + c.peserta.length + ' Peserta</span></div>' +
-    '<div class="gal">' + c.peserta.map(x => '<button class="pcard' + (sel === x.PesertaID ? ' on' : '') + '" data-act="pilih" data-id="' + esc(x.PesertaID) + '"' + (c.sudahPilih ? ' disabled' : '') + '>' +
-      '<div class="ph">' + photoHtml(x.FotoFileId, x.NamaTampil, 400) + '<span class="no"><span class="badge ' + (sel === x.PesertaID ? '' : 'badge-dark') + '" style="' + (sel === x.PesertaID ? 'background:var(--primary);color:#fff' : '') + '">No. ' + noUrut(x.NoUrut) + '</span></span><span class="sel">' + (sel === x.PesertaID ? ic('check', 'ic-sm') : '') + '</span>' +
-      (x.Keterangan ? '<span class="ket"><span>' + esc(x.Keterangan) + '</span></span>' : '') + '</div><div class="info"><div class="nm ellipsis">' + esc(x.NamaTampil) + '</div><div class="muted small">Kelas ' + esc(x.Kelas) + '</div></div></button>').join('') + '</div>' +
+    '<div class="gal">' + c.peserta.map(x => '<div class="pcard' + (sel === x.PesertaID ? ' on' : '') + (c.sudahPilih ? ' dis' : '') + '" role="button" tabindex="0" data-act="pilih" data-id="' + esc(x.PesertaID) + '"' + (c.sudahPilih ? ' aria-disabled="true"' : ' aria-pressed="' + (sel === x.PesertaID) + '"') + '>' +
+      '<div class="ph' + (x.FotoFileId ? ' has-zoom" data-act="foto" data-foto="1" data-id="' + esc(x.PesertaID) + '"' : '"') + '>' + photoHtml(x.FotoFileId, x.NamaTampil, 400) + (x.FotoFileId ? '<span class="zoom-hint">' + ic('maximize-2') + '</span>' : '') + '<span class="no"><span class="badge ' + (sel === x.PesertaID ? '' : 'badge-dark') + '" style="' + (sel === x.PesertaID ? 'background:var(--primary);color:#fff' : '') + '">No. ' + noUrut(x.NoUrut) + '</span></span><span class="sel">' + (sel === x.PesertaID ? ic('check', 'ic-sm') : '') + '</span>' +
+      (x.Keterangan ? '<span class="ket"><span>' + esc(x.Keterangan) + '</span></span>' : '') + '</div><div class="info"><div class="nm ellipsis">' + esc(x.NamaTampil) + '</div><div class="muted small">Kelas ' + esc(x.Kelas) + '</div>' +
+      (c.sudahPilih ? '' : '<span class="pick-txt">' + (sel === x.PesertaID ? ic('circle-check', 'ic-sm') + ' Dipilih' : ic('circle', 'ic-sm') + ' Pilih') + '</span>') + '</div></div>').join('') + '</div>' +
     '<p class="center muted small mt-16">' + ic('circle-check', 'ic-sm') + ' Setelah dikirim, pilihan tidak bisa diubah.</p></div>' +
     (c.sudahPilih ? '' : '<div class="bottom-bar">' + (p ? '<span class="photo-thumb">' + photoHtml(p.FotoFileId, p.NamaTampil, 120) + '</span><div class="grow"><div class="small muted" style="font-weight:700;letter-spacing:.05em">PILIHANMU</div><div class="ellipsis" style="font-weight:700">No. ' + noUrut(p.NoUrut) + ' — ' + esc(p.NamaTampil) + '</div></div>' : '<div class="grow muted">Belum ada pilihan</div>') +
       '<button class="btn btn-primary btn-lg" data-act="kirim"' + (p ? '' : ' disabled') + '>' + ic('send', 'ic-sm') + ' Kirim Pilihan</button></div>') +
     '</div></div>';
+}
+/** Foto peserta lomba layar penuh; geser untuk peserta lain, tombol Pilih langsung dari layar penuh. */
+function fotoPeserta(el, pid) {
+  const v = AppState.vote, c = v.cabang.find(x => x.CabangID === v.aktif) || v.cabang[0];
+  const items = c.peserta.filter(x => x.FotoFileId).map(x => ({ id: x.FotoFileId, nama: x.NamaTampil, pid: x.PesertaID, label: 'NO. ' + noUrut(x.NoUrut), sub: [x.Kelas ? 'Kelas ' + x.Kelas : '', x.Keterangan || ''].filter(Boolean).join(' · ') }));
+  lihatFoto(items, Math.max(0, items.findIndex(x => x.pid === pid)), {
+    aksi: (x) => c.sudahPilih ? null : v.pilih[c.CabangID] === x.pid ? { label: 'Pilihanmu', selesai: true } : { label: 'Pilih ' + x.label.replace('NO. ', 'No. ') },
+    onAksi: (x, i, tutup) => { if (!c.sudahPilih) { v.pilih[c.CabangID] = x.pid; votePaint(el); } tutup(); }
+  });
 }
 async function voteKirim(el, btn) {
   const v = AppState.vote, cab = v.aktif, pid = v.pilih[cab];

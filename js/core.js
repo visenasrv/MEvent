@@ -5,7 +5,7 @@
    ============================================================ */
 'use strict';
 
-const APP_VER = '1.9.4';
+const APP_VER = '1.9.5';
 const LS_PREFIX = 'mevent:v1:';
 
 /* ---------------- Penyimpanan perangkat ---------------- */
@@ -215,6 +215,118 @@ function initials(n) { const p = String(n || '').replace(/^(ibu|bpk\.?|bapak|drs
 function avClass(n) { let h = 0; for (const c of String(n || '')) h = (h * 7 + c.charCodeAt(0)) % 6; return 'av-' + (h + 1); }
 function imgUrl(id, w) { return id ? 'https://lh3.googleusercontent.com/d/' + id + '=w' + (w || 600) : ''; }
 function photoHtml(id, name, w) { return id ? '<img loading="lazy" decoding="async" alt="" src="' + imgUrl(id, w || 400) + '">' : '<span class="ini">' + esc(initials(name)) + '</span>'; }
+/* ---------------- Lihat foto layar penuh (seperti galeri HP) ----------------
+   lihatFoto(items, i, opt) — items: [{ id, nama, sub, label }]
+   opt.aksi(item, i) → { label, selesai, nonaktif } | null  (tombol aksi di bawah, mis. "Pilih")
+   opt.onAksi(item, i, tutup)
+   Geser kiri/kanan = foto lain · cubit / ketuk 2× = perbesar · tombol Kembali HP = tutup. */
+let _lb = null;
+function lihatFoto(items, start, opt) {
+  opt = opt || {};
+  items = (items || []).filter(x => x && x.id);
+  if (!items.length) return;
+  if (_lb) _lb.tutup(true);
+  let i = Math.max(0, Math.min(items.length - 1, start || 0)), s = 1, tx = 0, ty = 0, ui = true;
+  const w = document.createElement('div');
+  w.className = 'lb'; w.setAttribute('role', 'dialog'); w.setAttribute('aria-modal', 'true'); w.tabIndex = -1;
+  w.innerHTML = '<div class="lb-stage"><img class="lb-img" alt="" draggable="false"><div class="lb-load"></div><div class="lb-err"></div></div>' +
+    '<div class="lb-top"><span class="lb-count"></span><button type="button" class="lb-btn" data-lb="tutup" aria-label="Tutup">' + ic('x') + '</button></div>' +
+    (items.length > 1 ? '<button type="button" class="lb-btn lb-nav prev" data-lb="prev" aria-label="Sebelumnya">' + ic('chevron-left') + '</button><button type="button" class="lb-btn lb-nav next" data-lb="next" aria-label="Berikutnya">' + ic('chevron-right') + '</button>' : '') +
+    '<div class="lb-bottom"><div class="lb-cap"></div><div class="lb-act"></div>' + (items.length > 1 ? '<div class="lb-dots"></div>' : '') + '</div>';
+  document.body.appendChild(w);
+  document.documentElement.classList.add('lb-open');
+  const img = w.querySelector('.lb-img'), stage = w.querySelector('.lb-stage');
+  const terap = (anim) => { img.style.transition = anim ? 'transform .22s ease' : 'none'; img.style.transform = 'translate(' + tx + 'px,' + ty + 'px) scale(' + s + ')'; };
+  const batas = () => { const r = stage.getBoundingClientRect(), mx = Math.max(0, (img.offsetWidth * s - r.width) / 2), my = Math.max(0, (img.offsetHeight * s - r.height) / 2); tx = Math.max(-mx, Math.min(mx, tx)); ty = Math.max(-my, Math.min(my, ty)); };
+  const zoomKe = (ns, cx, cy) => { const r = stage.getBoundingClientRect(), ox = cx - r.left - r.width / 2, oy = cy - r.top - r.height / 2; ns = Math.max(1, Math.min(5, ns)); tx = ox - (ox - tx) * ns / s; ty = oy - (oy - ty) * ns / s; s = ns; if (s === 1) { tx = 0; ty = 0; } batas(); };
+  const muatPra = (k) => { const x = items[k]; if (x) { const im = new Image(); im.src = imgUrl(x.id, 1600); } };
+  function tampil() {
+    const x = items[i]; s = 1; tx = 0; ty = 0; terap(false);
+    w.classList.remove('err'); w.classList.add('loading');
+    img.src = imgUrl(x.id, 400);                 // versi kecil (sudah tersimpan dari kartu) → langsung tampil
+    const besar = new Image(), k = i;
+    besar.onload = () => { if (k === i) { img.src = besar.src; w.classList.remove('loading'); } };
+    besar.onerror = () => { if (k === i) w.classList.remove('loading'); };
+    besar.src = imgUrl(x.id, 1600);
+    img.onerror = () => { if (k === i) { w.classList.add('err'); w.classList.remove('loading'); w.querySelector('.lb-err').innerHTML = '<span class="ini">' + esc(initials(x.nama)) + '</span><div>Foto tidak dapat dimuat</div>'; } };
+    w.querySelector('.lb-count').textContent = items.length > 1 ? (i + 1) + ' / ' + items.length : '';
+    w.querySelector('.lb-cap').innerHTML = (x.label ? '<span class="lb-label">' + esc(x.label) + '</span>' : '') + '<div class="lb-nama">' + esc(x.nama || '') + '</div>' + (x.sub ? '<div class="lb-sub">' + esc(x.sub) + '</div>' : '');
+    const a = opt.aksi ? opt.aksi(x, i) : null;
+    w.querySelector('.lb-act').innerHTML = a ? '<button type="button" class="btn btn-lg ' + (a.selesai ? 'lb-done' : 'btn-primary') + '" data-lb="aksi"' + (a.nonaktif ? ' disabled' : '') + '>' + ic(a.selesai ? 'circle-check' : 'check', 'ic-sm') + ' ' + esc(a.label) + '</button>' : '';
+    const d = w.querySelector('.lb-dots'); if (d && items.length <= 20) d.innerHTML = items.map((_, k) => '<i' + (k === i ? ' class="on"' : '') + '></i>').join('');
+    const pv = w.querySelector('.prev'), nx = w.querySelector('.next');
+    if (pv) pv.disabled = i === 0; if (nx) nx.disabled = i === items.length - 1;
+    muatPra(i + 1); muatPra(i - 1);
+  }
+  function geser(dir) {
+    const n = i + dir; if (n < 0 || n >= items.length) { tx = 0; terap(true); return; }
+    img.style.transition = 'transform .18s ease, opacity .18s'; img.style.transform = 'translateX(' + (-dir * 40) + '%)'; img.style.opacity = '0';
+    setTimeout(() => { i = n; img.style.opacity = ''; tampil(); }, 160);
+  }
+  // Tombol Kembali di HP menutup foto, bukan meninggalkan halaman voting.
+  let pushed = false;
+  try { history.pushState({ lb: 1 }, ''); pushed = true; } catch (e) {}
+  const onPop = () => { pushed = false; tutup(true); };
+  const onHash = () => tutup(true);
+  const onKey = (e) => { if (e.key === 'Escape') tutup(); else if (e.key === 'ArrowLeft') geser(-1); else if (e.key === 'ArrowRight') geser(1); };
+  addEventListener('popstate', onPop); addEventListener('hashchange', onHash); document.addEventListener('keydown', onKey);
+  function tutup(diam) {
+    if (!_lb || _lb.w !== w) return;
+    _lb = null;
+    removeEventListener('popstate', onPop); removeEventListener('hashchange', onHash); document.removeEventListener('keydown', onKey);
+    document.documentElement.classList.remove('lb-open');
+    w.classList.add('out'); setTimeout(() => w.remove(), 160);
+    if (pushed && !diam) { pushed = false; history.back(); }
+  }
+  _lb = { w, tutup };
+  w.addEventListener('click', (e) => {
+    const b = e.target.closest('[data-lb]'); if (!b) return;
+    e.stopPropagation();
+    const a = b.dataset.lb;
+    if (a === 'tutup') tutup();
+    if (a === 'prev') geser(-1);
+    if (a === 'next') geser(1);
+    if (a === 'aksi' && opt.onAksi) opt.onAksi(items[i], i, tutup, tampil);
+  });
+  // Sentuh: geser, cubit, ketuk 2×
+  const P = new Map(); let awal = null, pinch = null, tapT = 0, tapXY = null;
+  stage.addEventListener('pointerdown', (e) => {
+    try { stage.setPointerCapture(e.pointerId); } catch (x) {} P.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (P.size === 1) awal = { x: e.clientX, y: e.clientY, tx, ty, t: Date.now(), gerak: false };
+    if (P.size === 2) { const [a, b] = [...P.values()]; pinch = { d: Math.hypot(a.x - b.x, a.y - b.y), s }; awal = null; }
+  });
+  stage.addEventListener('pointermove', (e) => {
+    if (!P.has(e.pointerId)) return; P.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (pinch && P.size >= 2) { const [a, b] = [...P.values()]; zoomKe(pinch.s * Math.hypot(a.x - b.x, a.y - b.y) / (pinch.d || 1), (a.x + b.x) / 2, (a.y + b.y) / 2); terap(false); return; }
+    if (!awal) return;
+    const dx = e.clientX - awal.x, dy = e.clientY - awal.y;
+    if (Math.abs(dx) + Math.abs(dy) > 8) awal.gerak = true;
+    if (s > 1) { tx = awal.tx + dx; ty = awal.ty + dy; batas(); terap(false); }
+    else if (items.length > 1 || Math.abs(dy) > 0) { tx = dx; ty = Math.abs(dy) > Math.abs(dx) ? dy : 0; img.style.transition = 'none'; img.style.transform = 'translate(' + tx + 'px,' + ty + 'px)'; w.style.setProperty('--lb-a', String(Math.max(.35, 1 - Math.abs(ty) / 400))); }
+  });
+  const lepas = (e) => {
+    if (!P.has(e.pointerId)) return; P.delete(e.pointerId);
+    if (pinch) { if (P.size < 2) { pinch = null; if (s < 1.05) { s = 1; tx = 0; ty = 0; } batas(); terap(true); } return; }
+    if (!awal) return;
+    const a = awal; awal = null; w.style.setProperty('--lb-a', '1');
+    const dx = e.clientX - a.x, dy = e.clientY - a.y;
+    if (!a.gerak) {                                   // ketukan
+      const now = Date.now();
+      if (now - tapT < 300 && tapXY && Math.hypot(e.clientX - tapXY.x, e.clientY - tapXY.y) < 40) { tapT = 0; clearTimeout(w._tap); zoomKe(s > 1 ? 1 : 2.5, e.clientX, e.clientY); terap(true); }
+      else { tapT = now; tapXY = { x: e.clientX, y: e.clientY }; clearTimeout(w._tap); w._tap = setTimeout(() => { ui = !ui; w.classList.toggle('bersih', !ui); }, 300); }
+      return;
+    }
+    if (s > 1) return;
+    if (Math.abs(dy) > 110 && Math.abs(dy) > Math.abs(dx)) return tutup();      // geser ke bawah/atas = tutup
+    if (Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy)) return geser(dx < 0 ? 1 : -1);
+    tx = 0; ty = 0; terap(true);
+  };
+  stage.addEventListener('pointerup', lepas); stage.addEventListener('pointercancel', lepas);
+  stage.addEventListener('wheel', (e) => { e.preventDefault(); zoomKe(s * (e.deltaY < 0 ? 1.2 : 1 / 1.2), e.clientX, e.clientY); terap(true); }, { passive: false });
+  tampil();
+  try { w.focus({ preventScroll: true }); } catch (e) {}
+  return _lb;
+}
 function avatarHtml(name, id, cls) { return '<span class="avatar ' + (cls || '') + ' ' + avClass(name) + '">' + (id ? '<img alt="" loading="lazy" src="' + imgUrl(id, 160) + '">' : esc(initials(name))) + '</span>'; }
 function inisialSvg(txt, warna) {
   const c = warna || 'var(--primary)';

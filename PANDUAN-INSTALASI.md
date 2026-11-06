@@ -147,6 +147,9 @@ Tab **Cetak → Hasil Penilaian Juri** (juga tombol **Cetak Hasil Penilaian** di
 
 Setiap dokumen mencantumkan status penilaian (belum dikunci / terkunci / selesai), daftar peserta tidak hadir, dan waktu cetak. Kop surat, tanda tangan kepala sekolah, dan penanda tangan ke-2 (mis. Ketua Panitia) bisa diatur; pilih **Lanskap** bila kolom kriteria/juri banyak. Tekan **Cetak / Simpan PDF** untuk mencetak atau menyimpan sebagai PDF arsip.
 
+### Foto layar penuh di halaman voting
+Pada voting lomba dan pemilihan OSIS, **ketuk foto** peserta/calon untuk membukanya layar penuh seperti galeri HP: **geser kiri/kanan** untuk foto berikutnya, **cubit atau ketuk 2×** untuk memperbesar, **geser ke bawah**, tombol ✕, atau tombol **Kembali** HP untuk menutup. Tombol **Pilih** di bawah foto langsung memilih peserta itu (voting OSIS tetap meminta konfirmasi). Pada voting lomba, memilih dari daftar dilakukan dengan mengetuk **nama** peserta.
+
 ### Peserta tidak hadir
 Juri bisa mengeluarkan peserta yang tidak datang: tombol **Tidak hadir** di kartu peserta (penilaian kriteria) atau tombol **Peserta tidak hadir** di bawah halaman penilaian (semua sistem). Peserta tersebut hilang dari daftar penilaian, peringkat, layar hasil, dan daftar hadir — **nilai lamanya tidak dihapus**, dan bisa dipulihkan dengan **Hadir kembali**. Panitia juga bisa melakukannya lewat ikon 👤✕ di tabel peserta. Menghapus peserta permanen tetap hanya bisa oleh panitia (ikon 🗑).
 
@@ -172,6 +175,8 @@ Semua peserta diberi pertanyaan yang sama; yang salah menjawab gugur. Peserta ya
 3. **Terapkan → Kelola deployment → ✏️ Edit → Versi: Versi baru → Terapkan.**
 ⚠️ Jangan memilih *Deployment baru* — URL `/exec` akan berubah dan aplikasi berhenti bekerja.
 
+> **Dari 1.9.4 ke 1.9.5 (foto peserta & calon tampil layar penuh saat diketuk):** cukup ganti `Kode.gs` (hanya angka versi yang berubah), buat versi deployment baru, lalu perbarui frontend. Bila memperbarui dari versi lebih lama, ikuti juga catatan 1.9.4 di bawah.
+
 > **Dari versi sebelumnya ke 1.9.4 (perbaikan layar "Gagal memuat data … reading 'forEach'" di halaman juri):** ganti ketiga berkas `.gs`, buat versi deployment baru, lalu perbarui frontend. Tidak ada kolom baru (bila belum pernah memasang 1.9.2, jalankan `setupAwal` sekali). **Penting: perbarui backend dan frontend bersamaan** — sejak versi ini aplikasi memberi peringatan bila versi tampilan dan server berbeda.
 
 > **Dari versi sebelumnya ke 1.9.3 (cetak hasil penilaian juri):** ganti ketiga berkas `.gs`, buat versi deployment baru, lalu perbarui frontend (tidak ada kolom baru; bila belum pernah memasang 1.9.2, jalankan `setupAwal` sekali).
@@ -189,7 +194,7 @@ Semua peserta diberi pertanyaan yang sama; yang salah menjawab gugur. Peserta ya
 > **Dari versi sebelumnya ke 1.5:** lakukan 3 langkah di atas, lalu perbarui frontend (isi ulang `GAS_URL`). Data lama tetap terbaca; kehadiran dari voting kini dihitung otomatis dari daftar pemilih, jadi tidak ada data yang perlu dipindahkan.
 
 **Frontend** (bila ada perubahan di `css/` atau `js/`):
-1. Bila mengubah kode sendiri, naikkan angka versi di `index.html` (mis. `?v=1.1.0` → `?v=1.1.1`) dan `APP_VER` di `js/core.js` agar HP pengguna langsung memuat versi baru. (Paket 1.9.4 ini sudah dinaikkan.)
+1. Bila mengubah kode sendiri, naikkan angka versi di `index.html` (mis. `?v=1.1.0` → `?v=1.1.1`) dan `APP_VER` di `js/core.js` agar HP pengguna langsung memuat versi baru. (Paket 1.9.5 ini sudah dinaikkan.)
    Jangan lupa isi ulang `GAS_URL` di `js/config.js` bila berkas itu ikut tertimpa.
 2. Jalankan dari folder proyek:
    ```bash
