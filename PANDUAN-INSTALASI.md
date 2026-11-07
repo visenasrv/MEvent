@@ -175,6 +175,8 @@ Semua peserta diberi pertanyaan yang sama; yang salah menjawab gugur. Peserta ya
 3. **Terapkan → Kelola deployment → ✏️ Edit → Versi: Versi baru → Terapkan.**
 ⚠️ Jangan memilih *Deployment baru* — URL `/exec` akan berubah dan aplikasi berhenti bekerja.
 
+> **Dari 1.9.6 ke 1.9.7 (daftar hadir memuat siswa yang tidak hadir):** cukup ganti `Kode.gs` (hanya angka versi), buat versi deployment baru, lalu perbarui frontend.
+
 > **Dari 1.9.5 ke 1.9.6 (daftar hadir per kelas, kolom Paraf diganti Keterangan):** cukup ganti `Kode.gs` (hanya angka versi), buat versi deployment baru, lalu perbarui frontend.
 
 > **Dari 1.9.4 ke 1.9.5 (foto peserta & calon tampil layar penuh saat diketuk):** cukup ganti `Kode.gs` (hanya angka versi yang berubah), buat versi deployment baru, lalu perbarui frontend. Bila memperbarui dari versi lebih lama, ikuti juga catatan 1.9.4 di bawah.
@@ -196,7 +198,7 @@ Semua peserta diberi pertanyaan yang sama; yang salah menjawab gugur. Peserta ya
 > **Dari versi sebelumnya ke 1.5:** lakukan 3 langkah di atas, lalu perbarui frontend (isi ulang `GAS_URL`). Data lama tetap terbaca; kehadiran dari voting kini dihitung otomatis dari daftar pemilih, jadi tidak ada data yang perlu dipindahkan.
 
 **Frontend** (bila ada perubahan di `css/` atau `js/`):
-1. Bila mengubah kode sendiri, naikkan angka versi di `index.html` (mis. `?v=1.1.0` → `?v=1.1.1`) dan `APP_VER` di `js/core.js` agar HP pengguna langsung memuat versi baru. (Paket 1.9.6 ini sudah dinaikkan.)
+1. Bila mengubah kode sendiri, naikkan angka versi di `index.html` (mis. `?v=1.1.0` → `?v=1.1.1`) dan `APP_VER` di `js/core.js` agar HP pengguna langsung memuat versi baru. (Paket 1.9.7 ini sudah dinaikkan.)
    Jangan lupa isi ulang `GAS_URL` di `js/config.js` bila berkas itu ikut tertimpa.
 2. Jalankan dari folder proyek:
    ```bash

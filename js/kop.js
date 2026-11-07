@@ -108,6 +108,13 @@ function docDaftarHadir(det, cfg, o) {
   if (o.kelas) rows = rows.filter(r => r.kelas === o.kelas);
   const dates = o.tanggal && o.tanggal.length ? o.tanggal.slice().sort() : uniq(rows.map(r => r.tanggal)).sort();
   rows = rows.filter(r => dates.indexOf(r.tanggal) > -1);
+  // Siswa aktif yang tidak hadir ikut dicetak (Keterangan diisi manual: izin/sakit/alpa).
+  const absen = [];
+  if (o.tidakHadir !== false && !o.cabangId && Array.isArray(o.siswa)) {
+    const ada = {}; rows.forEach(r => { ada[r.siswaId] = 1; });
+    o.siswa.filter(x => x.Aktif !== false && String(x.Aktif).toLowerCase() !== 'tidak' && String(x.Aktif).toLowerCase() !== 'false' && x.Kelas && (!o.kelas || x.Kelas === o.kelas) && !ada[x.SiswaID])
+      .forEach(x => absen.push({ siswaId: x.SiswaID, nama: x.Nama, kelas: x.Kelas, jk: x.JenisKelamin || '', jam: '', sumber: [], voting: [], peserta: [], absen: true }));
+  }
   const cab = o.cabangId && det.cabang ? det.cabang.find(c => c.CabangID === o.cabangId) : null;
   const tglTxt = dates.length === 1 ? esc(hariTgl(dates[0])) : esc(tglPendek(dates[0] || '')) + ' s.d. ' + esc(tglPendek(dates[dates.length - 1] || ''));
   const SUMBER = { VotingOSIS: 'Voting OSIS', VotingLomba: 'Voting Lomba', PesertaLomba: 'Peserta', Manual: 'Manual' };
@@ -122,12 +129,13 @@ function docDaftarHadir(det, cfg, o) {
     const kKelas = satuKelas ? '' : '<th style="width:56px">Kelas</th>';
     if (dates.length <= 1) {
       const n = 6 - (satuKelas ? 1 : 0);
+      const hadir = list.filter(r => !r.absen), tdk = list.length - hadir.length;
       return '<table class="dt"><thead><tr><th style="width:34px">No</th><th>Nama</th>' + kKelas + '<th style="width:40px">L/P</th><th style="width:58px">Jam</th><th style="width:' + (lomba ? 170 : 100) + 'px">Kegiatan</th><th style="width:' + (satuKelas ? 150 : 120) + 'px">Keterangan</th></tr></thead><tbody>' +
-        (list.map((r, i) => '<tr><td class="c">' + (i + 1) + '</td><td>' + esc(r.nama) + '</td>' + (satuKelas ? '' : '<td class="c">' + esc(r.kelas) + '</td>') + '<td class="c">' + esc(r.jk) + '</td><td class="c">' + esc(r.jam) + '</td><td' + (lomba ? ' style="font-size:9pt"' : '') + '>' + esc(kegiatan(r)) + '</td><td></td></tr>').join('') || '<tr><td colspan="' + (n + 1) + '" class="c">Belum ada data kehadiran.</td></tr>') +
-        '</tbody><tfoot><tr><th colspan="' + (satuKelas ? 2 : 3) + '" style="text-align:right">Jumlah hadir</th><th colspan="4" style="text-align:left">' + jkRingkas(list) + '</th></tr></tfoot></table>';
+        (list.map((r, i) => '<tr><td class="c">' + (i + 1) + '</td><td>' + esc(r.nama) + '</td>' + (satuKelas ? '' : '<td class="c">' + esc(r.kelas) + '</td>') + '<td class="c">' + esc(r.jk) + '</td><td class="c">' + (r.absen ? '-' : esc(r.jam)) + '</td><td' + (lomba ? ' style="font-size:9pt"' : '') + '>' + (r.absen ? '<i>Tidak hadir</i>' : esc(kegiatan(r))) + '</td><td></td></tr>').join('') || '<tr><td colspan="' + (n + 1) + '" class="c">Belum ada data kehadiran.</td></tr>') +
+        '</tbody><tfoot><tr><th colspan="' + (satuKelas ? 2 : 3) + '" style="text-align:right">Jumlah hadir</th><th colspan="4" style="text-align:left">' + jkRingkas(hadir) + (tdk ? ' · Tidak hadir: ' + tdk + ' orang' : '') + '</th></tr></tfoot></table>';
     }
     const per = {};
-    list.forEach(r => { const k = r.siswaId || r.nama; const p = (per[k] = per[k] || { nama: r.nama, kelas: r.kelas, jk: r.jk, d: {}, v: [] }); p.d[r.tanggal] = 1; (r.voting || []).forEach(x => { if (p.v.indexOf(x) < 0) p.v.push(x); }); });
+    list.forEach(r => { const k = r.siswaId || r.nama; const p = (per[k] = per[k] || { nama: r.nama, kelas: r.kelas, jk: r.jk, d: {}, v: [] }); if (r.absen) return; p.d[r.tanggal] = 1; (r.voting || []).forEach(x => { if (p.v.indexOf(x) < 0) p.v.push(x); }); });
     const L = Object.values(per).sort((a, b) => kelasSort(a.kelas, b.kelas) || urutNama(a, b));
     return '<table class="dt"><thead><tr><th style="width:30px">No</th><th>Nama</th>' + kKelas + dates.map(d => '<th style="width:46px">' + esc(tglPendek(d).replace(/ \d{4}$/, '')) + '</th>').join('') + '<th style="width:44px">Jml</th>' + (lomba ? '<th style="width:140px">Lomba di-voting</th>' : '') + '<th style="width:' + (lomba ? 100 : 130) + 'px">Keterangan</th></tr></thead><tbody>' +
       (L.map((r, i) => '<tr><td class="c">' + (i + 1) + '</td><td>' + esc(r.nama) + '</td>' + (satuKelas ? '' : '<td class="c">' + esc(r.kelas) + '</td>') + dates.map(d => '<td class="c">' + (r.d[d] ? '✓' : '') + '</td>').join('') + '<td class="c">' + Object.keys(r.d).length + '</td>' + (lomba ? '<td style="font-size:9pt">' + esc(r.v.join(', ') || '-') + '</td>' : '') + '<td></td></tr>').join('') || '<tr><td colspan="' + (4 + dates.length + (satuKelas ? 0 : 1) + (lomba ? 1 : 0)) + '" class="c">Belum ada data kehadiran.</td></tr>') +
@@ -136,11 +144,13 @@ function docDaftarHadir(det, cfg, o) {
   const halaman = (kelas, list) => docPage(judulDoc('Daftar Hadir', esc(ev.Judul) + (cab ? ' — ' + esc(cab.NamaCabang) : '') + (kelas != null ? ' — ' + (kelas ? 'Kelas ' + esc(kelas) : 'Tanpa Kelas') : '') + '<br>' + tglTxt) +
     tabel(list, kelas != null) + ttdHtml(cfg, { tanggal: dates[dates.length - 1] }), { kop: cfg.kop });
 
-  if (o.kelas) return halaman(o.kelas, rows.slice().sort(urutNama));
-  if (!pisah) return halaman(null, rows);
-  const kelasList = uniq(rows.map(r => r.kelas || '')).sort((a, b) => (a ? 0 : 1) - (b ? 0 : 1) || kelasSort(a, b));
+  // Satu baris per siswa untuk mode per hari; siswa tidak hadir disisipkan sesuai abjad.
+  const semua = rows.concat(dates.length <= 1 ? absen : absen.map(r => Object.assign({}, r, { tanggal: '' })));
+  if (o.kelas) return halaman(o.kelas, semua.slice().sort(urutNama));
+  if (!pisah) return halaman(null, absen.length ? semua.slice().sort((a, b) => kelasSort(a.kelas, b.kelas) || urutNama(a, b)) : rows);
+  const kelasList = uniq(semua.map(r => r.kelas || '')).sort((a, b) => (a ? 0 : 1) - (b ? 0 : 1) || kelasSort(a, b));
   if (!kelasList.length) return halaman(null, rows);
-  return kelasList.map(k => halaman(k, rows.filter(r => (r.kelas || '') === k).sort(urutNama))).join('');
+  return kelasList.map(k => halaman(k, semua.filter(r => (r.kelas || '') === k).sort(urutNama))).join('');
 }
 
 function docRekap(det, cfg, o) {

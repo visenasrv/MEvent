@@ -1219,16 +1219,19 @@ function cetakDokumen(det, jenis, o = {}) {
   if (jenis === 'DaftarHadir') {
     const dates = uniq(det.kehadiran.map(r => r.tanggal)).sort();
     if (!dates.length) return toast('Belum ada data kehadiran', '', 'info');
-    const opt = { mode: 'hari', tanggal: [dates[dates.length - 1]], cabangId: '', kelas: '', perKelas: true };
+    if (!AppState.siswa && !o._siswa) { toast('Menyiapkan daftar siswa…', '', 'info'); return loadSiswa().catch(() => {}).then(() => cetakDokumen(det, jenis, Object.assign({}, o, { _siswa: 1 }))); }
+    const opt = { mode: 'hari', tanggal: [dates[dates.length - 1]], cabangId: '', kelas: '', perKelas: true, tidakHadir: true, siswa: AppState.siswa || null };
+    const kelasOpsi = uniq(det.kehadiran.map(r => r.kelas).concat((AppState.siswa || []).filter(x => x.Aktif !== false).map(x => x.Kelas)).filter(Boolean)).sort(kelasSort);
     const sync = (m) => { opt.mode = m.q('#x-mode').value; m.q('#x-tgl-wrap').hidden = opt.mode !== 'hari'; m.q('#x-rek-wrap').hidden = opt.mode !== 'rekap';
-      opt.tanggal = opt.mode === 'hari' ? [m.q('#x-tgl').value] : m.qa('#x-rek-wrap input:checked').map(i => i.value); opt.cabangId = m.q('#x-cab') ? m.q('#x-cab').value : ''; opt.kelas = m.q('#x-kls').value; opt.perKelas = m.q('#x-pk').checked; m.q('#x-pk-wrap').hidden = !!opt.kelas; };
+      opt.tanggal = opt.mode === 'hari' ? [m.q('#x-tgl').value] : m.qa('#x-rek-wrap input:checked').map(i => i.value); opt.cabangId = m.q('#x-cab') ? m.q('#x-cab').value : ''; opt.kelas = m.q('#x-kls').value; opt.perKelas = m.q('#x-pk').checked; m.q('#x-pk-wrap').hidden = !!opt.kelas; opt.tidakHadir = m.q('#x-th').checked; };
     return openCetak({ det, jenis, build: (cfg) => docDaftarHadir(det, cfg, opt),
       extra: '<div class="field"><label>Jenis</label><select class="select" id="x-mode"><option value="hari">Per hari</option><option value="rekap">Rekap beberapa hari</option></select></div>' +
         '<div class="field" id="x-tgl-wrap"><label>Tanggal</label><select class="select" id="x-tgl">' + dates.map(d => '<option value="' + d + '"' + (d === opt.tanggal[0] ? ' selected' : '') + '>' + esc(hariTgl(d)) + '</option>').join('') + '</select></div>' +
         '<div class="field" id="x-rek-wrap" hidden><label>Tanggal yang direkap</label>' + dates.map(d => '<label class="check"><input type="checkbox" value="' + d + '" checked> ' + esc(tglPendek(d)) + '</label>').join('') + '</div>' +
         (e.JenisEvent === 'Lomba' ? '<div class="field"><label>Cabang</label><select class="select" id="x-cab"><option value="">Semua</option>' + det.cabang.map(c => '<option value="' + esc(c.CabangID) + '">' + esc(c.NamaCabang) + '</option>').join('') + '</select></div>' : '') +
-        '<div class="field"><label>Kelas</label><select class="select" id="x-kls"><option value="">Semua kelas</option>' + uniq(det.kehadiran.map(r => r.kelas).filter(Boolean)).sort(kelasSort).map(k => '<option>' + esc(k) + '</option>').join('') + '</select></div>' +
-        '<div class="field" id="x-pk-wrap"><label class="check"><input type="checkbox" id="x-pk" checked> Pisahkan per kelas (1 kelas = 1 halaman)</label></div>',
+        '<div class="field"><label>Kelas</label><select class="select" id="x-kls"><option value="">Semua kelas</option>' + kelasOpsi.map(k => '<option>' + esc(k) + '</option>').join('') + '</select></div>' +
+        '<div class="field" id="x-pk-wrap"><label class="check"><input type="checkbox" id="x-pk" checked> Pisahkan per kelas (1 kelas = 1 halaman)</label></div>' +
+        '<div class="field"><label class="check"><input type="checkbox" id="x-th" checked> Masukkan siswa yang tidak hadir (Keterangan diisi manual: izin/sakit/alpa)</label><div class="hint small muted">Tidak berlaku bila memilih satu cabang lomba.</div></div>',
       onExtra: (m) => { m.el.addEventListener('change', () => sync(m), true); } });
   }
 }

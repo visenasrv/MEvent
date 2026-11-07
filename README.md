@@ -2,6 +2,8 @@
 
 Aplikasi web untuk **pemilihan OSIS**, **perlombaan** (juri + voting siswa), **formulir pendaftaran**, **daftar hadir**, dan **dokumen cetak** (rekap, berita acara, lembar juri, piagam, SK) — dengan **Mode Demo** berisi data contoh.
 
+Versi 1.9.7: daftar hadir juga memuat siswa aktif yang tidak hadir (untuk diberi keterangan izin/sakit/alpa).
+
 Versi 1.9.6: cetak daftar hadir dipisah per kelas (1 kelas = 1 halaman, urut nama, jumlah L/P); kolom Paraf diganti Keterangan.
 
 Versi 1.9.5: foto peserta lomba & calon OSIS di halaman voting tampil layar penuh saat diketuk (geser, perbesar, pilih langsung).
